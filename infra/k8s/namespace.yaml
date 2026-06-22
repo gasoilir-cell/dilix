@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dilix
+  labels:
+    app.kubernetes.io/name: dilix
+    environment: production
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dilix-infra
+  labels:
+    app.kubernetes.io/name: dilix-infra
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dilix-monitoring
+  labels:
+    app.kubernetes.io/name: dilix-monitoring

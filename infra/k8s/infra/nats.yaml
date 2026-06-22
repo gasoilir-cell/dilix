@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nats
+  namespace: dilix-infra
+spec:
+  serviceName: nats
+  replicas: 3   # cluster mode برای HA
+  selector:
+    matchLabels:
+      app: nats
+  template:
+    metadata:
+      labels:
+        app: nats
+    spec:
+      containers:
+        - name: nats
+          image: nats:2.10-alpine
+          args:
+            - --js                          # JetStream
+            - --sd=/data                   # store dir
+            - --cluster_name=dilix-nats
+            - --cluster=nats://0.0.0.0:6222
+            - --routes=nats://nats-0.nats.dilix-infra.svc.cluster.local:6222,nats://nats-1.nats.dilix-infra.svc.cluster.local:6222,nats://nats-2.nats.dilix-infra.svc.cluster.local:6222
+          ports:
+            - containerPort: 4222   # clients
+            - containerPort: 6222   # routing
+            - containerPort: 8222   # monitoring
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          volumeMounts:
+            - name: nats-data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: nats-data
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: ssd
+        resources:
+          requests:
+            storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nats
+  namespace: dilix-infra
+spec:
+  selector:
+    app: nats
+  ports:
+    - name: client
+      port: 4222
+    - name: cluster
+      port: 6222
+    - name: monitor
+      port: 8222
+  clusterIP: None

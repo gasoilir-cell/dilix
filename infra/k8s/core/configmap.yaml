@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dilix-core-config
+  namespace: dilix
+data:
+  DILIX_SERVICE_NAME: "core"
+  DILIX_REGION: "IR"
+  DILIX_ENVIRONMENT: "production"
+  DILIX_JWT_ALGORITHM: "HS256"
+  DILIX_ACCESS_TOKEN_TTL_SECONDS: "900"
+  DILIX_REFRESH_TOKEN_TTL_SECONDS: "1209600"
+  DILIX_EVENT_BROKER_URL: "nats://nats.dilix-infra.svc.cluster.local:4222"
+  DILIX_REDIS_URL: "redis://redis.dilix-infra.svc.cluster.local:6379/0"
+  DILIX_ELASTICSEARCH_URL: "http://elasticsearch.dilix-infra.svc.cluster.local:9200"
+  DILIX_MINIO_ENDPOINT: "minio.dilix-infra.svc.cluster.local:9000"
+  DILIX_MINIO_BUCKET: "dilix-media"
+  DILIX_AI_SERVICE_URL: "http://dilix-ai.dilix.svc.cluster.local:8001"
+  DILIX_OTEL_ENABLED: "true"
+  DILIX_OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.dilix-monitoring.svc.cluster.local:4317"
+  DILIX_OTEL_SERVICE_NAME: "dilix-core"
+  DILIX_DEFAULT_LOCALE: "fa"

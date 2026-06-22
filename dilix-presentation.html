@@ -1,0 +1,961 @@
+<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><style>
+:root{
+  --bg:#080F1F; --panel:#0D1A30; --panel2:#112244;
+  --ink:#E8F2FF; --muted:#6B8BAD;
+  --accent:#00C2CB; --accent2:#F0A500; --accent3:#3A7FE8;
+  --line:rgba(255,255,255,.09); --lineb:rgba(0,194,203,.18);
+}
+@page{ size:1280px 720px; margin:0; }
+*{ box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+html,body{ margin:0; padding:0; font-family:'Vazirmatn',sans-serif; color:var(--ink); background:var(--bg); }
+.slide{ width:1280px; height:720px; position:relative; overflow:hidden;
+        background:var(--bg); page-break-after:always; }
+/* ── typo ── */
+h1{ font-size:78px; line-height:1.05; margin:0; font-weight:800; }
+h2{ font-size:44px; line-height:1.1; margin:0 0 20px; font-weight:800; }
+h3{ font-size:28px; font-weight:700; margin:0 0 8px; }
+.kicker{ font-size:19px; font-weight:700; color:var(--accent2); letter-spacing:.04em; margin-bottom:14px; }
+.sub{ font-size:26px; color:var(--muted); line-height:1.55; }
+.rule{ width:80px; height:6px; background:var(--accent); border-radius:6px; margin:18px 0 24px; }
+/* ── layout ── */
+.pad{ padding:68px 88px; }
+.grid2{ display:flex; gap:40px; height:100%; align-items:center; }
+.col{ flex:1; }
+/* ── cards ── */
+.card{ background:var(--panel); border:1px solid var(--lineb); border-radius:18px; padding:28px 32px; }
+.card-sm{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:20px 24px; }
+/* ── bullets ── */
+ul{ list-style:none; margin:0; padding:0; }
+li{ font-size:24px; line-height:1.6; margin:14px 0; padding-right:36px; position:relative; color:#C8DCF5; }
+li::before{ content:""; position:absolute; right:0; top:.65em; width:11px; height:11px;
+            background:var(--accent); border-radius:3px; transform:rotate(45deg); }
+li.gold::before{ background:var(--accent2); }
+li b{ color:var(--ink); }
+/* ── stat ── */
+.stat{ font-size:68px; font-weight:800; color:var(--accent); line-height:1; }
+.stat-label{ font-size:19px; color:var(--muted); margin-top:6px; }
+/* ── badge ── */
+.badge{ display:inline-block; background:rgba(0,194,203,.15); border:1px solid var(--accent);
+        color:var(--accent); border-radius:8px; padding:4px 16px; font-size:17px; font-weight:700; }
+.badge-gold{ background:rgba(240,165,0,.13); border-color:var(--accent2); color:var(--accent2); }
+/* ── footer ── */
+.footer{ position:absolute; bottom:28px; left:88px; right:88px; display:flex;
+         justify-content:space-between; align-items:center; color:var(--muted); font-size:15px; }
+.dot-acc{ width:9px; height:9px; border-radius:50%; background:var(--accent); display:inline-block; margin-left:6px; }
+/* ── decorative bg shapes ── */
+.blob{ position:absolute; border-radius:50%; filter:blur(90px); opacity:.18; pointer-events:none; }
+/* ── module grid ── */
+.mod-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
+.mod{ background:var(--panel); border:1px solid var(--line); border-radius:14px;
+      padding:18px 20px; text-align:center; }
+.mod .ico{ font-size:30px; margin-bottom:8px; }
+.mod .label{ font-size:18px; font-weight:700; color:var(--ink); }
+.mod .sub-s{ font-size:14px; color:var(--muted); margin-top:4px; }
+/* ── step flow ── */
+.steps{ display:flex; gap:0; align-items:center; margin-top:28px; }
+.step{ flex:1; }
+.step-box{ background:var(--panel); border:1px solid var(--lineb); border-radius:12px;
+           padding:16px 14px; text-align:center; font-size:17px; font-weight:700; color:var(--ink); }
+.step-num{ font-size:13px; color:var(--accent); font-weight:700; margin-bottom:4px; }
+.arrow{ color:var(--accent); font-size:22px; padding:0 6px; flex-shrink:0; }
+/* ── tag ── */
+.tag{ background:var(--panel2); border:1px solid var(--lineb); border-radius:8px;
+      padding:6px 18px; font-size:17px; font-weight:700; display:inline-block; margin:5px; }
+/* ── milestone ── */
+.ms{ display:flex; gap:20px; margin-top:24px; }
+.ms-item{ flex:1; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:22px 20px; }
+.ms-num{ font-size:13px; color:var(--accent); font-weight:800; letter-spacing:.08em; margin-bottom:8px; }
+.ms-title{ font-size:19px; font-weight:800; color:var(--ink); margin-bottom:8px; }
+.ms-bullet{ font-size:15px; color:var(--muted); line-height:1.6; }
+/* ── section header slide ── */
+.sec-slide{ display:flex; flex-direction:column; justify-content:center; align-items:flex-end;
+            padding:80px 96px; }
+</style></head><body>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 1 — COVER
+════════════════════════════════════════════════════ -->
+<section class="slide" style="display:flex;flex-direction:column;justify-content:center;
+  background:radial-gradient(130% 130% at 110% -10%, #0A2540 0%, var(--bg) 55%);">
+  <div class="blob" style="width:700px;height:700px;background:var(--accent3);top:-200px;left:-200px;"></div>
+  <div class="blob" style="width:400px;height:400px;background:var(--accent);bottom:-100px;left:300px;"></div>
+
+  <div style="padding:0 96px;position:relative;z-index:1;">
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;">
+      <div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,var(--accent),var(--accent3));
+                  display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:900;color:#fff;">G</div>
+      <span style="font-size:22px;font-weight:800;color:var(--accent);letter-spacing:.06em;">Dilix</span>
+    </div>
+    <h1 style="font-size:82px;max-width:800px;line-height:1.05;">
+      اکوسیستم دیجیتال جهانی
+    </h1>
+    <div style="width:80px;height:6px;background:var(--accent2);border-radius:6px;margin:22px 0;"></div>
+    <div class="sub" style="max-width:680px;">
+      یک بستر واحد برای ارتباط، تجارت، حمل‌ونقل، بیمه، مالی و هوش مصنوعی
+    </div>
+    <div style="display:flex;gap:12px;margin-top:36px;">
+      <span class="badge">بانک سامان</span>
+      <span class="badge">بیمه البرز</span>
+      <span class="badge">سازمان حمل‌ونقل</span>
+      <span class="badge-gold badge">شراکت بین‌المللی</span>
+    </div>
+  </div>
+
+  <div class="footer" style="color:rgba(107,139,173,.7);">
+    <span>معماری نسخه ۱.۰ · ۱۴۰۵</span>
+    <span>محرمانه — فقط برای شرکای استراتژیک<span class="dot-acc"></span></span>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 2 — PROBLEM
+════════════════════════════════════════════════════ -->
+<section class="slide pad">
+  <div class="blob" style="width:500px;height:500px;background:var(--accent3);top:-150px;left:-150px;opacity:.1;"></div>
+  <div class="kicker">مسئله</div>
+  <h2>دنیای دیجیتال، پراکنده است</h2>
+  <div class="rule"></div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:8px;">
+    <div class="card" style="border-color:rgba(240,165,0,.3);">
+      <div style="font-size:42px;margin-bottom:14px;">🌐</div>
+      <h3 style="color:var(--accent2);">تکه‌تکه بودن</h3>
+      <p style="font-size:20px;color:#9BBAD9;line-height:1.65;margin:10px 0 0;">
+        کاربر برای پیام‌رسانی، بیمه، حمل بار، و پرداخت باید ۱۰+ اپ جداگانه داشته باشد. هیچ هویت مشترکی وجود ندارد.
+      </p>
+    </div>
+    <div class="card" style="border-color:rgba(58,127,232,.3);">
+      <div style="font-size:42px;margin-bottom:14px;">🏦</div>
+      <h3 style="color:var(--accent3);">ارائه‌دهندگان جزیره‌ای</h3>
+      <p style="font-size:20px;color:#9BBAD9;line-height:1.65;margin:10px 0 0;">
+        بانک‌ها، بیمه‌ها، و شرکت‌های حمل‌ونقل به بستری مشترک برای دیده‌شدن و خدمت‌دهی دیجیتال نیاز دارند.
+      </p>
+    </div>
+    <div class="card" style="border-color:rgba(0,194,203,.3);">
+      <div style="font-size:42px;margin-bottom:14px;">🤝</div>
+      <h3 style="color:var(--accent);">فرصت از دست‌رفته</h3>
+      <p style="font-size:20px;color:#9BBAD9;line-height:1.65;margin:10px 0 0;">
+        میلیون‌ها تراکنش روزانه‌ی حمل بار، بیمه، و پرداخت هنوز آفلاین و کاغذی انجام می‌شود.
+      </p>
+    </div>
+  </div>
+  <div style="margin-top:28px;display:flex;gap:32px;">
+    <div style="text-align:center;">
+      <div class="stat" style="font-size:52px;">۸۵٪</div>
+      <div class="stat-label">بارنامه‌های ایران هنوز کاغذی</div>
+    </div>
+    <div style="width:1px;background:var(--line);"></div>
+    <div style="text-align:center;">
+      <div class="stat" style="font-size:52px;">۴۲٪</div>
+      <div class="stat-label">نفوذ پایین بیمه در خاورمیانه</div>
+    </div>
+    <div style="width:1px;background:var(--line);"></div>
+    <div style="text-align:center;">
+      <div class="stat" style="font-size:52px;">۱۰+</div>
+      <div class="stat-label">اپ جداگانه برای یک کسب‌وکار</div>
+    </div>
+  </div>
+  <div class="footer"><span>Dilix · مسئله</span><span><span class="dot-acc"></span></span></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 3 — SOLUTION / WHAT IS Dilix
+════════════════════════════════════════════════════ -->
+<section class="slide">
+  <div class="blob" style="width:600px;height:600px;background:var(--accent);bottom:-200px;right:-200px;opacity:.12;"></div>
+  <div class="grid2" style="padding:68px 88px;">
+    <div class="col">
+      <div class="kicker">راه‌حل</div>
+      <h2>Dilix چیست؟</h2>
+      <div class="rule"></div>
+      <ul>
+        <li><b>یک هویت جهانی (Earth ID)</b> برای همه‌ی خدمات</li>
+        <li><b>یک نقشه‌ی ۳بعدی</b> برای کشف افراد و کسب‌وکارها</li>
+        <li><b>یک پیام‌رسان امن</b> با رمزنگاری سرتاسری</li>
+        <li><b>یک بستر واسط</b> برای حمل بار، بیمه، پرداخت</li>
+        <li><b>یک دستیار هوش مصنوعی</b> در هر نقش</li>
+      </ul>
+    </div>
+    <div class="col" style="position:relative;">
+      <!-- Ecosystem diagram SVG -->
+      <svg viewBox="0 0 480 480" width="460" style="direction:ltr;display:block;margin:auto;">
+        <!-- outer ring -->
+        <circle cx="240" cy="240" r="210" fill="none" stroke="rgba(0,194,203,.15)" stroke-width="1"/>
+        <circle cx="240" cy="240" r="150" fill="none" stroke="rgba(0,194,203,.1)" stroke-width="1"/>
+        <!-- center -->
+        <circle cx="240" cy="240" r="72" fill="#0D1A30" stroke="#00C2CB" stroke-width="2"/>
+        <text x="240" y="232" text-anchor="middle" font-family="Vazirmatn" font-size="16" font-weight="800" fill="#00C2CB">Dilix</text>
+        <text x="240" y="254" text-anchor="middle" font-family="Vazirmatn" font-size="12" fill="#6B8BAD">Earth ID</text>
+        <!-- modules on ring - 8 items -->
+        <!-- top -->
+        <circle cx="240" cy="68" r="38" fill="#112244" stroke="#00C2CB" stroke-width="1.5"/>
+        <text x="240" y="62" text-anchor="middle" font-family="Vazirmatn" font-size="11" fill="#E8F2FF" font-weight="700">پیام‌رسان</text>
+        <text x="240" y="77" text-anchor="middle" font-family="Vazirmatn" font-size="10" fill="#6B8BAD">E2EE</text>
+        <line x1="240" y1="106" x2="240" y2="168" stroke="rgba(0,194,203,.25)" stroke-width="1" stroke-dasharray="3,3"/>
+        <!-- right-top -->
+        <circle cx="388" cy="118" r="38" fill="#112244" stroke="#F0A500" stroke-width="1.5"/>
+        <text x="388" y="112" text-anchor="middle" font-family="Vazirmatn" font-size="11" fill="#E8F2FF" font-weight="700">حمل بار</text>
+        <text x="388" y="127" text-anchor="middle" font-family="Vazirmatn" font-size="10" fill="#6B8BAD">Freight</text>
+        <line x1="360" y1="145" x2="304" y2="185" stroke="rgba(240,165,0,.2)" stroke-width="1" stroke-dasharray="3,3"/>
+        <!-- right -->
+        <circle cx="420" cy="240" r="38" fill="#112244" stroke="#3A7FE8" stroke-width="1.5"/>
+        <text x="420" y="234" text-anchor="middle" font-family="Vazirmatn" font-size="11" fill="#E8F2FF" font-weight="700">بیمه</text>
+        <text x="420" y="249" text-anchor="middle" font-family="Vazirmatn" font-size="10" fill="#6B8BAD">Insurance</text>
+        <line x1="382" y1="240" x2="314" y2="240" stroke="rgba(58,127,232,.2)" stroke-width="1" stroke-dasharray="3,3"/>
+        <!-- right-bottom -->
+        <circle cx="388" cy="362" r="38" fill="#112244" stroke="#00C2CB" stroke-width="1.5"/>
+        <text x="388" y="356" text-anchor="middle" font-family="Vazirmatn" font-size="11" fill="#E8F2FF" font-weight="700">مالی</text>
+        <text x="388" y="371" text-anchor="middle" font-family="Vazirmatn" font-size="10" fill="#6B8BAD">Payment</text>
+        <line x1="360" y1="337" x2="304" y2="296" stroke="rgba(0,194,203,.2)" stroke-width="1" stroke-dasharray="3,3"/>
+        <!-- bottom -->
+        <circle cx="240" cy="412" r="38" fill="#112244" stroke="#F0A500" stroke-width="1.5"/>
+        <text x="240" y="406" text-anchor="middle" font-family="Vazirmatn" font-size="11" fill="#E8F2FF" font-weight="700">هوش مصنوعی</text>
+        <text x="240" y="421" text-anchor="middle" font-family="Vazirmatn" font-size="10" fill="#6B8BAD">AI</text>
+        <line x1="240" y1="374" x2="240" y2="312" stroke="rgba(240,165,0,.2)" stroke-width="1" stroke-dasharray="3,3"/>
+        <!-- left-bottom -->
+        <circle cx="92" cy="362" r="38" fill="#112244" stroke="#3A7FE8" stroke-width="1.5"/>
+        <text x="92" y="356" text-anchor="middle" font-family="Vazirmatn" font-size="11" fill="#E8F2FF" font-weight="700">اجتماعی</text>
+        <text x="92" y="371" text-anchor="middle" font-family="Vazirmatn" font-size="10" fill="#6B8BAD">Social</text>
+        <line x1="120" y1="337" x2="176" y2="296" stroke="rgba(58,127,232,.2)" stroke-width="1" stroke-dasharray="3,3"/>
+        <!-- left -->
+        <circle cx="60" cy="240" r="38" fill="#112244" stroke="#00C2CB" stroke-width="1.5"/>
+        <text x="60" y="234" text-anchor="middle" font-family="Vazirmatn" font-size="11" fill="#E8F2FF" font-weight="700">نقشه ۳D</text>
+        <text x="60" y="249" text-anchor="middle" font-family="Vazirmatn" font-size="10" fill="#6B8BAD">Earth</text>
+        <line x1="98" y1="240" x2="166" y2="240" stroke="rgba(0,194,203,.2)" stroke-width="1" stroke-dasharray="3,3"/>
+        <!-- left-top -->
+        <circle cx="92" cy="118" r="38" fill="#112244" stroke="#F0A500" stroke-width="1.5"/>
+        <text x="92" y="112" text-anchor="middle" font-family="Vazirmatn" font-size="11" fill="#E8F2FF" font-weight="700">اعتبارسنجی</text>
+        <text x="92" y="127" text-anchor="middle" font-family="Vazirmatn" font-size="10" fill="#6B8BAD">Reputation</text>
+        <line x1="120" y1="145" x2="176" y2="185" stroke="rgba(240,165,0,.2)" stroke-width="1" stroke-dasharray="3,3"/>
+      </svg>
+    </div>
+  </div>
+  <div class="footer"><span>Dilix · راه‌حل</span><span><span class="dot-acc"></span></span></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 4 — PLATFORM / ADAPTER MODEL
+════════════════════════════════════════════════════ -->
+<section class="slide pad">
+  <div class="kicker">مدل کسب‌وکار</div>
+  <h2>Dilix بستر است، نه رقیب</h2>
+  <div class="rule"></div>
+  <div class="grid2" style="height:auto;margin-top:0;gap:36px;">
+    <div class="col">
+      <div class="card" style="margin-bottom:18px;">
+        <div style="font-size:13px;color:var(--accent);font-weight:800;letter-spacing:.06em;margin-bottom:10px;">آنچه Dilix انجام می‌دهد</div>
+        <ul>
+          <li>بستر فناوری و تجربه‌ی کاربری</li>
+          <li>یکپارچه‌سازی ارائه‌دهندگان مجوزدار</li>
+          <li>هوش مصنوعی، هویت، و اعتبارسنجی</li>
+          <li>تطبیق تقاضا و عرضه (matching)</li>
+        </ul>
+      </div>
+      <div class="card" style="border-color:rgba(240,165,0,.25);">
+        <div style="font-size:13px;color:var(--accent2);font-weight:800;letter-spacing:.06em;margin-bottom:10px;">آنچه شرکا انجام می‌دهند</div>
+        <ul>
+          <li class="gold" style="font-size:21px;margin:10px 0;"><b>بانک سامان</b> — نگهداری وجه و تسویه</li>
+          <li class="gold" style="font-size:21px;margin:10px 0;"><b>بیمه البرز</b> — صدور بیمه‌نامه</li>
+          <li class="gold" style="font-size:21px;margin:10px 0;"><b>سازمان حمل‌ونقل</b> — صدور بارنامه رسمی</li>
+          <li class="gold" style="font-size:21px;margin:10px 0;"><b>شرکای بین‌المللی</b> — خدمات ریجن</li>
+        </ul>
+      </div>
+    </div>
+    <div class="col">
+      <!-- Adapter diagram -->
+      <svg viewBox="0 0 520 420" width="100%" style="direction:ltr;">
+        <!-- Dilix core -->
+        <rect x="160" y="160" width="200" height="100" rx="14" fill="#0D1A30" stroke="#00C2CB" stroke-width="2"/>
+        <text x="260" y="206" text-anchor="middle" font-family="Vazirmatn" font-size="18" font-weight="800" fill="#00C2CB">Dilix Core</text>
+        <text x="260" y="228" text-anchor="middle" font-family="Vazirmatn" font-size="13" fill="#6B8BAD">Provider Adapter Framework</text>
+        <!-- arrows up -->
+        <line x1="260" y1="160" x2="260" y2="100" stroke="rgba(0,194,203,.4)" stroke-width="1.5" marker-end="url(#arr)"/>
+        <!-- user -->
+        <rect x="185" y="50" width="150" height="44" rx="10" fill="#112244" stroke="#3A7FE8" stroke-width="1.5"/>
+        <text x="260" y="78" text-anchor="middle" font-family="Vazirmatn" font-size="15" font-weight="700" fill="#E8F2FF">کاربران نهایی</text>
+
+        <!-- left adapters -->
+        <line x1="160" y1="210" x2="100" y2="140" stroke="rgba(240,165,0,.4)" stroke-width="1.5"/>
+        <rect x="10" y="108" width="86" height="64" rx="10" fill="#112244" stroke="#F0A500" stroke-width="1.5"/>
+        <text x="53" y="136" text-anchor="middle" font-family="Vazirmatn" font-size="12" font-weight="700" fill="#F0A500">بیمه البرز</text>
+        <text x="53" y="154" text-anchor="middle" font-family="Vazirmatn" font-size="11" fill="#6B8BAD">Adapter</text>
+
+        <line x1="160" y1="220" x2="100" y2="240" stroke="rgba(0,194,203,.4)" stroke-width="1.5"/>
+        <rect x="10" y="208" width="86" height="64" rx="10" fill="#112244" stroke="#00C2CB" stroke-width="1.5"/>
+        <text x="53" y="236" text-anchor="middle" font-family="Vazirmatn" font-size="12" font-weight="700" fill="#00C2CB">راهداری</text>
+        <text x="53" y="254" text-anchor="middle" font-family="Vazirmatn" font-size="11" fill="#6B8BAD">Adapter</text>
+
+        <line x1="160" y1="230" x2="100" y2="320" stroke="rgba(58,127,232,.4)" stroke-width="1.5"/>
+        <rect x="10" y="292" width="86" height="64" rx="10" fill="#112244" stroke="#3A7FE8" stroke-width="1.5"/>
+        <text x="53" y="320" text-anchor="middle" font-family="Vazirmatn" font-size="12" font-weight="700" fill="#3A7FE8">بانک سامان</text>
+        <text x="53" y="338" text-anchor="middle" font-family="Vazirmatn" font-size="11" fill="#6B8BAD">Adapter</text>
+
+        <!-- right adapters -->
+        <line x1="360" y1="210" x2="420" y2="140" stroke="rgba(240,165,0,.4)" stroke-width="1.5"/>
+        <rect x="420" y="108" width="92" height="64" rx="10" fill="#112244" stroke="#F0A500" stroke-width="1.5"/>
+        <text x="466" y="136" text-anchor="middle" font-family="Vazirmatn" font-size="12" font-weight="700" fill="#F0A500">اپراتور</text>
+        <text x="466" y="154" text-anchor="middle" font-family="Vazirmatn" font-size="11" fill="#6B8BAD">eSIM</text>
+
+        <line x1="360" y1="220" x2="420" y2="240" stroke="rgba(0,194,203,.4)" stroke-width="1.5"/>
+        <rect x="420" y="208" width="92" height="64" rx="10" fill="#112244" stroke="#00C2CB" stroke-width="1.5"/>
+        <text x="466" y="236" text-anchor="middle" font-family="Vazirmatn" font-size="12" font-weight="700" fill="#00C2CB">شریک</text>
+        <text x="466" y="254" text-anchor="middle" font-family="Vazirmatn" font-size="11" fill="#6B8BAD">بین‌المللی</text>
+
+        <line x1="360" y1="230" x2="420" y2="320" stroke="rgba(0,194,203,.4)" stroke-width="1.5"/>
+        <rect x="420" y="292" width="92" height="64" rx="10" fill="#112244" stroke="#00C2CB" stroke-width="1.5"/>
+        <text x="466" y="320" text-anchor="middle" font-family="Vazirmatn" font-size="12" font-weight="700" fill="#00C2CB">Third</text>
+        <text x="466" y="338" text-anchor="middle" font-family="Vazirmatn" font-size="11" fill="#6B8BAD">Party API</text>
+
+        <defs>
+          <marker id="arr" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+            <path d="M0,0 L8,4 L0,8 Z" fill="rgba(0,194,203,.6)"/>
+          </marker>
+        </defs>
+      </svg>
+    </div>
+  </div>
+  <div class="footer"><span>Dilix · مدل بستر</span><span><span class="dot-acc"></span></span></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 5 — 12 MODULES
+════════════════════════════════════════════════════ -->
+<section class="slide pad">
+  <div class="kicker">ماژول‌ها</div>
+  <h2>۱۲ ماژول — یک اکوسیستم</h2>
+  <div class="rule"></div>
+  <div class="mod-grid" style="margin-top:10px;">
+    <div class="mod"><div class="ico">💬</div><div class="label">پیام‌رسان</div><div class="sub-s">E2EE · تماس · فایل</div></div>
+    <div class="mod"><div class="ico">📱</div><div class="label">شبکه اجتماعی</div><div class="sub-s">پست · ریلز · لایو</div></div>
+    <div class="mod" style="border-color:rgba(0,194,203,.3);"><div class="ico">🌍</div><div class="label">نقشه ۳D Earth</div><div class="sub-s">کشف افراد/مشاغل</div></div>
+    <div class="mod" style="border-color:rgba(240,165,0,.3);"><div class="ico">🚛</div><div class="label">حمل‌ونقل بار</div><div class="sub-s">بارنامه · GPS · تسویه</div></div>
+    <div class="mod" style="border-color:rgba(240,165,0,.3);"><div class="ico">🛡️</div><div class="label">بیمه</div><div class="sub-s">استعلام · صدور · خسارت</div></div>
+    <div class="mod" style="border-color:rgba(58,127,232,.3);"><div class="ico">💳</div><div class="label">خدمات مالی</div><div class="sub-s">کیف پول · Escrow</div></div>
+    <div class="mod"><div class="ico">📡</div><div class="label">مخابرات</div><div class="sub-s">eSIM · پلن · رومینگ</div></div>
+    <div class="mod"><div class="ico">🛒</div><div class="label">بازارگاه خدمات</div><div class="sub-s">فریلنس · مشاوره</div></div>
+    <div class="mod" style="border-color:rgba(240,165,0,.3);"><div class="ico">🤖</div><div class="label">هوش مصنوعی</div><div class="sub-s">۷ Agent تخصصی</div></div>
+    <div class="mod"><div class="ico">⭐</div><div class="label">اعتبارسنجی</div><div class="sub-s">امتیاز جهانی</div></div>
+    <div class="mod"><div class="ico">🏆</div><div class="label">گیمیفیکیشن</div><div class="sub-s">جوایز · سطح · رفرال</div></div>
+    <div class="mod"><div class="ico">🔌</div><div class="label">Open API</div><div class="sub-s">Third-party · Webhook</div></div>
+  </div>
+  <div class="footer"><span>Dilix · ماژول‌ها</span><span><span class="dot-acc"></span></span></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 6 — 3D EARTH DISCOVERY
+════════════════════════════════════════════════════ -->
+<section class="slide">
+  <div class="blob" style="width:550px;height:550px;background:var(--accent);top:-180px;right:-180px;opacity:.13;"></div>
+  <div class="grid2" style="padding:68px 88px;">
+    <div class="col">
+      <div class="kicker">امضای محصول</div>
+      <h2>نقشه‌ی ۳بعدی کره‌ی زمین</h2>
+      <div class="rule"></div>
+      <ul>
+        <li><b>زوم تدریجی:</b> کشور ← شهر ← منطقه</li>
+        <li><b>فیلتر:</b> شغل، زبان، سن، علایق، نوع کسب‌وکار</li>
+        <li><b>Privacy-first:</b> opt-in + نمایش منطقه‌ای (نه دقیق)</li>
+        <li><b>لایه‌ی بار:</b> ردیابی زنده‌ی محموله‌ها</li>
+        <li><b>Matchmaking AI:</b> معرفی افراد/مشاغل مرتبط</li>
+      </ul>
+      <div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;">
+        <span class="tag">CesiumJS / Mapbox 3D</span>
+        <span class="tag">نشان برای ایران</span>
+        <span class="tag">clustering هوشمند</span>
+      </div>
+    </div>
+    <div class="col media" style="display:flex;align-items:center;justify-content:center;">
+      <svg viewBox="0 0 420 420" width="400" style="direction:ltr;">
+        <!-- globe -->
+        <defs>
+          <radialGradient id="globe" cx="40%" cy="35%">
+            <stop offset="0%" stop-color="#1B4F72"/>
+            <stop offset="100%" stop-color="#080F1F"/>
+          </radialGradient>
+          <radialGradient id="glow" cx="50%" cy="50%">
+            <stop offset="0%" stop-color="#00C2CB" stop-opacity=".3"/>
+            <stop offset="100%" stop-color="#00C2CB" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <!-- glow -->
+        <circle cx="210" cy="210" r="200" fill="url(#glow)"/>
+        <!-- globe body -->
+        <circle cx="210" cy="210" r="170" fill="url(#globe)" stroke="rgba(0,194,203,.3)" stroke-width="1.5"/>
+        <!-- latitude lines -->
+        <ellipse cx="210" cy="210" rx="170" ry="30" fill="none" stroke="rgba(0,194,203,.12)" stroke-width="1"/>
+        <ellipse cx="210" cy="210" rx="170" ry="80" fill="none" stroke="rgba(0,194,203,.1)" stroke-width="1"/>
+        <ellipse cx="210" cy="170" rx="160" ry="22" fill="none" stroke="rgba(0,194,203,.1)" stroke-width="1"/>
+        <ellipse cx="210" cy="250" rx="160" ry="22" fill="none" stroke="rgba(0,194,203,.1)" stroke-width="1"/>
+        <!-- longitude -->
+        <line x1="210" y1="40" x2="210" y2="380" stroke="rgba(0,194,203,.12)" stroke-width="1"/>
+        <ellipse cx="210" cy="210" rx="55" ry="170" fill="none" stroke="rgba(0,194,203,.1)" stroke-width="1"/>
+        <!-- pins -->
+        <circle cx="230" cy="180" r="8" fill="#00C2CB" opacity=".9"/>
+        <circle cx="230" cy="180" r="14" fill="none" stroke="#00C2CB" stroke-width="1.5" opacity=".4"/>
+        <circle cx="160" cy="220" r="6" fill="#F0A500" opacity=".85"/>
+        <circle cx="160" cy="220" r="12" fill="none" stroke="#F0A500" stroke-width="1.5" opacity=".4"/>
+        <circle cx="280" cy="230" r="7" fill="#3A7FE8" opacity=".85"/>
+        <circle cx="280" cy="230" r="13" fill="none" stroke="#3A7FE8" stroke-width="1.5" opacity=".4"/>
+        <circle cx="200" cy="260" r="5" fill="#00C2CB" opacity=".7"/>
+        <circle cx="250" cy="155" r="5" fill="#F0A500" opacity=".7"/>
+        <!-- truck route -->
+        <polyline points="160,220 190,235 230,230 260,220 280,230" fill="none" stroke="#F0A500" stroke-width="2" stroke-dasharray="4,3" opacity=".5"/>
+        <!-- card popup -->
+        <rect x="248" y="145" width="130" height="56" rx="8" fill="#0D1A30" stroke="#00C2CB" stroke-width="1.2"/>
+        <text x="263" y="168" font-family="Vazirmatn" font-size="11" font-weight="700" fill="#E8F2FF">علی رضایی</text>
+        <text x="263" y="184" font-family="Vazirmatn" font-size="10" fill="#6B8BAD">مهندس نرم‌افزار · تهران</text>
+        <circle cx="355" cy="165" r="14" fill="#112244" stroke="#00C2CB" stroke-width="1"/>
+        <text x="355" y="170" text-anchor="middle" font-family="Vazirmatn" font-size="10" fill="#00C2CB">💬</text>
+      </svg>
+    </div>
+  </div>
+  <div class="footer"><span>Dilix · نقشه ۳D</span><span><span class="dot-acc"></span></span></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 7 — FREIGHT PLATFORM
+════════════════════════════════════════════════════ -->
+<section class="slide pad">
+  <div class="kicker">ماژول Freight</div>
+  <h2>از اعلام بار تا تسویه — کاملاً دیجیتال</h2>
+  <div class="rule"></div>
+  <!-- flow steps -->
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">۱</div>
+      <div class="step-box">ثبت بار<br><span style="font-size:13px;color:var(--muted);font-weight:400;">مبدا · مقصد · نوع</span></div>
+    </div>
+    <div class="arrow">←</div>
+    <div class="step">
+      <div class="step-num">۲</div>
+      <div class="step-box">تحلیل AI<br><span style="font-size:13px;color:var(--muted);font-weight:400;">قیمت · اولویت</span></div>
+    </div>
+    <div class="arrow">←</div>
+    <div class="step">
+      <div class="step-num">۳</div>
+      <div class="step-box">تطبیق راننده<br><span style="font-size:13px;color:var(--muted);font-weight:400;">منطقه · رتبه</span></div>
+    </div>
+    <div class="arrow">←</div>
+    <div class="step">
+      <div class="step-num">۴</div>
+      <div class="step-box" style="border-color:rgba(240,165,0,.4);">بارنامه آنی<br><span style="font-size:13px;color:var(--muted);font-weight:400;">راهداری رسمی</span></div>
+    </div>
+    <div class="arrow">←</div>
+    <div class="step">
+      <div class="step-num">۵</div>
+      <div class="step-box">GPS زنده<br><span style="font-size:13px;color:var(--muted);font-weight:400;">نقشه واقعی</span></div>
+    </div>
+    <div class="arrow">←</div>
+    <div class="step">
+      <div class="step-num">۶</div>
+      <div class="step-box" style="border-color:rgba(0,194,203,.4);">تسویه Escrow<br><span style="font-size:13px;color:var(--muted);font-weight:400;">سامان بانکی</span></div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:24px;">
+    <div class="card-sm" style="text-align:center;padding:28px 20px;">
+      <div style="font-size:36px;margin-bottom:10px;">📋</div>
+      <div style="font-size:19px;font-weight:700;">بارنامه رسمی</div>
+      <div style="font-size:15px;color:var(--muted);margin-top:6px;">تأییدیه دوطرفه</div>
+    </div>
+    <div class="card-sm" style="text-align:center;padding:28px 20px;">
+      <div style="font-size:36px;margin-bottom:10px;">🛡️</div>
+      <div style="font-size:19px;font-weight:700;">بیمه اختیاری</div>
+      <div style="font-size:15px;color:var(--muted);margin-top:6px;">همزمان با بارنامه</div>
+    </div>
+    <div class="card-sm" style="text-align:center;padding:28px 20px;">
+      <div style="font-size:36px;margin-bottom:10px;">📍</div>
+      <div style="font-size:19px;font-weight:700;">ردیابی آفلاین</div>
+      <div style="font-size:15px;color:var(--muted);margin-top:6px;">sync هنگام اتصال</div>
+    </div>
+    <div class="card-sm" style="text-align:center;padding:28px 20px;">
+      <div style="font-size:36px;margin-bottom:10px;">⚖️</div>
+      <div style="font-size:19px;font-weight:700;">داوری AI</div>
+      <div style="font-size:15px;color:var(--muted);margin-top:6px;">حل اختلاف خودکار</div>
+    </div>
+  </div>
+  <div style="margin-top:20px;" class="card-sm">
+    <div style="display:flex;gap:28px;justify-content:center;align-items:center;">
+      <div style="font-size:16px;color:var(--muted);">شریک بارنامه: <b style="color:var(--accent2);">سازمان حمل‌ونقل ایران</b></div>
+      <div style="width:1px;height:20px;background:var(--line);"></div>
+      <div style="font-size:16px;color:var(--muted);">شریک بیمه: <b style="color:var(--accent);">بیمه البرز</b></div>
+      <div style="width:1px;height:20px;background:var(--line);"></div>
+      <div style="font-size:16px;color:var(--muted);">شریک تسویه: <b style="color:var(--accent3);">بانک سامان</b></div>
+    </div>
+  </div>
+  <div class="footer"><span>Dilix · Freight Platform</span><span><span class="dot-acc"></span></span></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 8 — INSURANCE + PAYMENT
+════════════════════════════════════════════════════ -->
+<section class="slide pad">
+  <div class="grid2" style="height:auto;gap:36px;margin-top:0;padding-top:0;">
+    <div class="col">
+      <div class="kicker">بیمه</div>
+      <h2 style="font-size:36px;">صدور آنی همه نوع بیمه</h2>
+      <div class="rule"></div>
+      <ul>
+        <li>باربری · شخص ثالث · بدنه</li>
+        <li>سلامت · عمر · حوادث</li>
+        <li>آتش‌سوزی · مسافرت · مسئولیت</li>
+        <li><b>Microinsurance:</b> بیمه‌ی یک سفر در لحظه</li>
+      </ul>
+      <div class="card-sm" style="margin-top:18px;border-color:rgba(240,165,0,.3);">
+        <div style="font-size:14px;color:var(--accent2);font-weight:800;margin-bottom:8px;">شریک: بیمه البرز</div>
+        <div style="font-size:18px;color:var(--ink);">استعلام → مقایسه → صدور → تجدید → خسارت</div>
+      </div>
+    </div>
+    <div style="width:1px;background:var(--line);flex-shrink:0;"></div>
+    <div class="col">
+      <div class="kicker">مالی</div>
+      <h2 style="font-size:36px;">پرداخت امن و تسویه</h2>
+      <div class="rule"></div>
+      <ul>
+        <li><b>Escrow بانکی:</b> وجه نزد سامان تا تأیید تحویل</li>
+        <li>پرداخت QR · کیف پول داخلی</li>
+        <li>تسویه چندارزی (ریجن بین‌المللی)</li>
+        <li>وام خرد برای رانندگان (Embedded Finance)</li>
+      </ul>
+      <div class="card-sm" style="margin-top:18px;border-color:rgba(58,127,232,.3);">
+        <div style="font-size:14px;color:var(--accent3);font-weight:800;margin-bottom:8px;">شریک: بانک سامان · شاپرک</div>
+        <div style="font-size:18px;color:var(--ink);">Dilix فقط orchestrate — وجه در بانک</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Dilix · Insurance & Payment</span><span><span class="dot-acc"></span></span></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 9 — AI ECOSYSTEM
+════════════════════════════════════════════════════ -->
+<section class="slide pad">
+  <div class="blob" style="width:500px;height:500px;background:var(--accent2);bottom:-200px;left:-100px;opacity:.08;"></div>
+  <div class="kicker">هوش مصنوعی</div>
+  <h2>Earth AI — سیستم چندعاملی</h2>
+  <div class="rule"></div>
+  <div class="grid2" style="height:auto;gap:40px;">
+    <div class="col">
+      <ul>
+        <li><b>Supervisor Agent</b> — هدایت‌گر مرکزی هوشمند</li>
+        <li><b>Personal Assistant</b> — همراه روزمره‌ی کاربر</li>
+        <li><b>Freight Assistant</b> — مشاور بار و راننده</li>
+        <li><b>Insurance Assistant</b> — مشاور بیمه</li>
+        <li><b>Matchmaking AI</b> — معرفی افراد و مشاغل</li>
+        <li><b>Financial Assistant</b> — مشاور مالی</li>
+      </ul>
+      <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap;">
+        <span class="tag">LangGraph</span>
+        <span class="tag">RAG</span>
+        <span class="tag">MCP Tools</span>
+        <span class="tag">مدل محلی (ایران)</span>
+      </div>
+    </div>
+    <div class="col">
+      <svg viewBox="0 0 420 320" width="100%" style="direction:ltr;">
+        <!-- supervisor -->
+        <rect x="145" y="10" width="130" height="54" rx="10" fill="#112244" stroke="#F0A500" stroke-width="2"/>
+        <text x="210" y="34" text-anchor="middle" font-family="Vazirmatn" font-size="14" font-weight="800" fill="#F0A500">Supervisor</text>
+        <text x="210" y="52" text-anchor="middle" font-family="Vazirmatn" font-size="11" fill="#6B8BAD">Router Agent</text>
+        <!-- lines from supervisor -->
+        <line x1="210" y1="64" x2="70" y2="110" stroke="rgba(0,194,203,.3)" stroke-width="1.5"/>
+        <line x1="210" y1="64" x2="155" y2="110" stroke="rgba(0,194,203,.3)" stroke-width="1.5"/>
+        <line x1="210" y1="64" x2="210" y2="110" stroke="rgba(0,194,203,.3)" stroke-width="1.5"/>
+        <line x1="210" y1="64" x2="268" y2="110" stroke="rgba(0,194,203,.3)" stroke-width="1.5"/>
+        <line x1="210" y1="64" x2="355" y2="110" stroke="rgba(0,194,203,.3)" stroke-width="1.5"/>
+        <!-- agents -->
+        <rect x="20" y="110" width="100" height="44" rx="8" fill="#0D1A30" stroke="#00C2CB" stroke-width="1.2"/>
+        <text x="70" y="128" text-anchor="middle" font-family="Vazirmatn" font-size="11" font-weight="700" fill="#E8F2FF">Personal</text>
+        <text x="70" y="145" text-anchor="middle" font-family="Vazirmatn" font-size="10" fill="#6B8BAD">Assistant</text>
+
+        <rect x="106" y="110" width="100" height="44" rx="8" fill="#0D1A30" stroke="#00C2CB" stroke-width="1.2"/>
+        <text x="156" y="128" text-anchor="middle" font-family="Vazirmatn" font-size="11" font-weight="700" fill="#E8F2FF">Freight</text>
+        <text x="156" y="145" text-anchor="middle" font-family="Vazirmatn" font-size="10" fill="#6B8BAD">Assistant</text>
+
+        <rect x="160" y="110" width="100" height="44" rx="8" fill="#0D1A30" stroke="#F0A500" stroke-width="1.2"/>
+        <text x="210" y="128" text-anchor="middle" font-family="Vazirmatn" font-size="11" font-weight="700" fill="#E8F2FF">Insurance</text>
+        <text x="210" y="145" text-anchor="middle" font-family="Vazirmatn" font-size="10" fill="#6B8BAD">Assistant</text>
+
+        <rect x="216" y="110" width="104" height="44" rx="8" fill="#0D1A30" stroke="#00C2CB" stroke-width="1.2"/>
+        <text x="268" y="128" text-anchor="middle" font-family="Vazirmatn" font-size="11" font-weight="700" fill="#E8F2FF">Match</text>
+        <text x="268" y="145" text-anchor="middle" font-family="Vazirmatn" font-size="10" fill="#6B8BAD">Maker AI</text>
+
+        <rect x="306" y="110" width="100" height="44" rx="8" fill="#0D1A30" stroke="#00C2CB" stroke-width="1.2"/>
+        <text x="356" y="128" text-anchor="middle" font-family="Vazirmatn" font-size="11" font-weight="700" fill="#E8F2FF">Financial</text>
+        <text x="356" y="145" text-anchor="middle" font-family="Vazirmatn" font-size="10" fill="#6B8BAD">Assistant</text>
+
+        <!-- MCP layer -->
+        <line x1="70" y1="154" x2="210" y2="210" stroke="rgba(255,255,255,.1)" stroke-width="1"/>
+        <line x1="156" y1="154" x2="210" y2="210" stroke="rgba(255,255,255,.1)" stroke-width="1"/>
+        <line x1="210" y1="154" x2="210" y2="210" stroke="rgba(255,255,255,.1)" stroke-width="1"/>
+        <line x1="268" y1="154" x2="210" y2="210" stroke="rgba(255,255,255,.1)" stroke-width="1"/>
+        <line x1="356" y1="154" x2="210" y2="210" stroke="rgba(255,255,255,.1)" stroke-width="1"/>
+
+        <rect x="60" y="210" width="300" height="44" rx="10" fill="#112244" stroke="rgba(0,194,203,.4)" stroke-width="1.5"/>
+        <text x="210" y="228" text-anchor="middle" font-family="Vazirmatn" font-size="13" font-weight="700" fill="#00C2CB">MCP Tool Layer</text>
+        <text x="210" y="246" text-anchor="middle" font-family="Vazirmatn" font-size="11" fill="#6B8BAD">Freight · Insurance · Payment · Discovery · Reputation</text>
+
+        <!-- RAG -->
+        <rect x="60" y="278" width="135" height="36" rx="8" fill="#0D1A30" stroke="rgba(0,194,203,.25)" stroke-width="1"/>
+        <text x="127" y="302" text-anchor="middle" font-family="Vazirmatn" font-size="12" font-weight="700" fill="#6B8BAD">RAG · Vector DB</text>
+
+        <rect x="224" y="278" width="136" height="36" rx="8" fill="#0D1A30" stroke="rgba(240,165,0,.25)" stroke-width="1"/>
+        <text x="292" y="302" text-anchor="middle" font-family="Vazirmatn" font-size="12" font-weight="700" fill="#6B8BAD">LLM · مدل محلی</text>
+
+        <line x1="210" y1="254" x2="127" y2="278" stroke="rgba(0,194,203,.2)" stroke-width="1"/>
+        <line x1="210" y1="254" x2="292" y2="278" stroke="rgba(240,165,0,.2)" stroke-width="1"/>
+      </svg>
+    </div>
+  </div>
+  <div class="footer"><span>Dilix · Earth AI</span><span><span class="dot-acc"></span></span></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 10 — GROWTH STRATEGY
+════════════════════════════════════════════════════ -->
+<section class="slide pad">
+  <div class="kicker">استراتژی رشد</div>
+  <h2>سه موتور جذب و درآمد (قانونی)</h2>
+  <div class="rule"></div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:8px;">
+    <div class="card" style="border-color:rgba(0,194,203,.3);">
+      <div style="font-size:40px;margin-bottom:12px;">🔗</div>
+      <h3 style="color:var(--accent);">رفرال هوشمند</h3>
+      <p style="font-size:18px;color:#9BBAD9;line-height:1.65;margin:10px 0 0;">
+        <b style="color:var(--ink);">۳ سطح محدود</b> گره‌خورده به تراکنش واقعی. هر پاداش فقط از فعالیت اقتصادی — نه صرف عضوگیری.
+      </p>
+      <div style="margin-top:14px;font-size:15px;color:var(--muted);">الگوی: Uber Eats + Dropbox</div>
+    </div>
+    <div class="card" style="border-color:rgba(240,165,0,.3);">
+      <div style="font-size:40px;margin-bottom:12px;">🏅</div>
+      <h3 style="color:var(--accent2);">عضویت پریمیوم</h3>
+      <p style="font-size:18px;color:#9BBAD9;line-height:1.65;margin:10px 0 0;">
+        پلن‌های Basic · Plus · Pro با مزایای ملموس: کارمزد کمتر، اولویت در matching، دسترسی به آنالیتیکس.
+      </p>
+      <div style="margin-top:14px;font-size:15px;color:var(--muted);">الگوی: Walmart+</div>
+    </div>
+    <div class="card" style="border-color:rgba(58,127,232,.3);">
+      <div style="font-size:40px;margin-bottom:12px;">📈</div>
+      <h3 style="color:var(--accent3);">سهیم در سود پلتفرم</h3>
+      <p style="font-size:18px;color:#9BBAD9;line-height:1.65;margin:10px 0 0;">
+        کاربران فعال و پریمیوم در سود خالص کارمزد پلتفرم سهیم می‌شوند. اقتصاد تعاونی دیجیتال.
+      </p>
+      <div style="margin-top:14px;font-size:15px;color:var(--muted);">الگوی: Vanguard</div>
+    </div>
+  </div>
+  <div style="margin-top:22px;" class="card-sm" style="border-color:rgba(0,194,203,.2);">
+    <div style="display:flex;gap:40px;justify-content:center;">
+      <div style="text-align:center;"><div class="stat" style="font-size:42px;">+</div><div class="stat-label">گیمیفیکیشن: سطح · نشان · مأموریت · لیدربرد</div></div>
+      <div style="width:1px;background:var(--line);"></div>
+      <div style="text-align:center;"><div class="stat" style="font-size:42px;">+</div><div class="stat-label">سرمایه‌گذاری از طریق صندوق دارای مجوز (Adapter)</div></div>
+      <div style="width:1px;background:var(--line);"></div>
+      <div style="text-align:center;"><div class="stat" style="font-size:42px;">+</div><div class="stat-label">Earth Analytics — داده برای شرکای B2B</div></div>
+    </div>
+  </div>
+  <div class="footer"><span>Dilix · Growth Strategy</span><span><span class="dot-acc"></span></span></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 11 — PROVIDER SELF-SERVICE
+════════════════════════════════════════════════════ -->
+<section class="slide pad">
+  <div class="grid2" style="height:auto;gap:44px;">
+    <div class="col">
+      <div class="kicker">پورتال ارائه‌دهندگان</div>
+      <h2>هر شرکتی، خودش ثبت‌نام کند</h2>
+      <div class="rule"></div>
+      <ul>
+        <li><b>ثبت‌نام آنلاین:</b> بارگذاری مجوز + اطلاعات شرکت</li>
+        <li><b>KYB خودکار:</b> تأیید از بیمه مرکزی / راهداری / بانک مرکزی</li>
+        <li><b>Sandbox:</b> تست کامل قبل از production</li>
+        <li><b>ثبت API:</b> ارائه‌دهنده، API خودش را در سیستم register می‌کند</li>
+        <li><b>Webhook + داشبورد:</b> مدیریت کامل با هیچ وابستگی به تیم Dilix</li>
+      </ul>
+      <div style="margin-top:22px;display:flex;gap:10px;flex-wrap:wrap;">
+        <span class="tag">بیمه</span>
+        <span class="tag">حمل‌ونقل</span>
+        <span class="tag">بانک/PSP</span>
+        <span class="tag">تلکام</span>
+        <span class="tag">Third-Party</span>
+      </div>
+    </div>
+    <div class="col">
+      <!-- onboarding flow -->
+      <div style="display:flex;flex-direction:column;gap:16px;">
+        <div class="card-sm" style="display:flex;align-items:center;gap:16px;">
+          <div style="width:40px;height:40px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#080F1F;flex-shrink:0;">۱</div>
+          <div><div style="font-size:19px;font-weight:700;">ثبت‌نام و بارگذاری مجوز</div><div style="font-size:15px;color:var(--muted);margin-top:4px;">شناسه حقوقی + پروانه‌ی فعالیت</div></div>
+        </div>
+        <div class="card-sm" style="display:flex;align-items:center;gap:16px;">
+          <div style="width:40px;height:40px;border-radius:50%;background:var(--accent2);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#080F1F;flex-shrink:0;">۲</div>
+          <div><div style="font-size:19px;font-weight:700;">تأیید KYB خودکار</div><div style="font-size:15px;color:var(--muted);margin-top:4px;">استعلام از نهادهای رگولاتور</div></div>
+        </div>
+        <div class="card-sm" style="display:flex;align-items:center;gap:16px;">
+          <div style="width:40px;height:40px;border-radius:50%;background:var(--accent3);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;flex-shrink:0;">۳</div>
+          <div><div style="font-size:19px;font-weight:700;">Sandbox + ثبت API</div><div style="font-size:15px;color:var(--muted);margin-top:4px;">ارائه‌دهنده API خودش را می‌نویسد</div></div>
+        </div>
+        <div class="card-sm" style="display:flex;align-items:center;gap:16px;border-color:rgba(0,194,203,.3);">
+          <div style="width:40px;height:40px;border-radius:50%;background:rgba(0,194,203,.2);border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:var(--accent);flex-shrink:0;">۴</div>
+          <div><div style="font-size:19px;font-weight:700;color:var(--accent);">Go Live</div><div style="font-size:15px;color:var(--muted);margin-top:4px;">شروع خدمت‌رسانی به میلیون‌ها کاربر</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Dilix · Provider Portal</span><span><span class="dot-acc"></span></span></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 12 — TECH ARCHITECTURE
+════════════════════════════════════════════════════ -->
+<section class="slide pad">
+  <div class="kicker">زیرساخت فنی</div>
+  <h2>معماری مقیاس‌پذیر و امن</h2>
+  <div class="rule"></div>
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-top:4px;">
+    <div>
+      <div style="font-size:13px;color:var(--accent);font-weight:800;letter-spacing:.06em;margin-bottom:10px;">FRONTEND</div>
+      <div class="card-sm" style="margin-bottom:10px;text-align:center;"><div style="font-size:18px;font-weight:700;">Flutter</div><div style="font-size:13px;color:var(--muted);">iOS · Android · Desktop</div></div>
+      <div class="card-sm" style="text-align:center;"><div style="font-size:18px;font-weight:700;">Next.js</div><div style="font-size:13px;color:var(--muted);">Web · PWA · Portal</div></div>
+    </div>
+    <div>
+      <div style="font-size:13px;color:var(--accent);font-weight:800;letter-spacing:.06em;margin-bottom:10px;">BACKEND</div>
+      <div class="card-sm" style="margin-bottom:10px;text-align:center;"><div style="font-size:18px;font-weight:700;">FastAPI</div><div style="font-size:13px;color:var(--muted);">Python · REST · gRPC</div></div>
+      <div class="card-sm" style="text-align:center;"><div style="font-size:18px;font-weight:700;">WebSocket</div><div style="font-size:13px;color:var(--muted);">Realtime · WebRTC</div></div>
+    </div>
+    <div>
+      <div style="font-size:13px;color:var(--accent);font-weight:800;letter-spacing:.06em;margin-bottom:10px;">DATA</div>
+      <div class="card-sm" style="margin-bottom:10px;text-align:center;"><div style="font-size:18px;font-weight:700;">PostgreSQL</div><div style="font-size:13px;color:var(--muted);">منبع حقیقت</div></div>
+      <div class="card-sm" style="margin-bottom:10px;text-align:center;"><div style="font-size:18px;font-weight:700;">Redis</div><div style="font-size:13px;color:var(--muted);">Cache · Presence · Geo</div></div>
+      <div class="card-sm" style="text-align:center;"><div style="font-size:18px;font-weight:700;">Elasticsearch</div><div style="font-size:13px;color:var(--muted);">جستجو · Discovery</div></div>
+    </div>
+    <div>
+      <div style="font-size:13px;color:var(--accent);font-weight:800;letter-spacing:.06em;margin-bottom:10px;">AI & STORAGE</div>
+      <div class="card-sm" style="margin-bottom:10px;text-align:center;"><div style="font-size:18px;font-weight:700;">LangGraph</div><div style="font-size:13px;color:var(--muted);">Multi-Agent</div></div>
+      <div class="card-sm" style="margin-bottom:10px;text-align:center;"><div style="font-size:18px;font-weight:700;">Vector DB</div><div style="font-size:13px;color:var(--muted);">RAG · Knowledge</div></div>
+      <div class="card-sm" style="text-align:center;"><div style="font-size:18px;font-weight:700;">MinIO</div><div style="font-size:13px;color:var(--muted);">Object Storage</div></div>
+    </div>
+    <div>
+      <div style="font-size:13px;color:var(--accent);font-weight:800;letter-spacing:.06em;margin-bottom:10px;">INFRA</div>
+      <div class="card-sm" style="margin-bottom:10px;text-align:center;"><div style="font-size:18px;font-weight:700;">Kubernetes</div><div style="font-size:13px;color:var(--muted);">Hybrid Multi-Region</div></div>
+      <div class="card-sm" style="margin-bottom:10px;text-align:center;"><div style="font-size:18px;font-weight:700;">Kafka/NATS</div><div style="font-size:13px;color:var(--muted);">Event Backbone</div></div>
+      <div class="card-sm" style="text-align:center;"><div style="font-size:18px;font-weight:700;">آروان + Global</div><div style="font-size:13px;color:var(--muted);">Iran + بین‌المللی</div></div>
+    </div>
+  </div>
+  <div class="footer"><span>Dilix · Tech Stack</span><span><span class="dot-acc"></span></span></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 13 — SECURITY
+════════════════════════════════════════════════════ -->
+<section class="slide pad">
+  <div class="grid2" style="height:auto;gap:44px;">
+    <div class="col">
+      <div class="kicker">امنیت</div>
+      <h2>Zero Trust از پایه</h2>
+      <div class="rule"></div>
+      <ul>
+        <li><b>E2EE:</b> پیام‌ها فقط روی دستگاه رمزگشایی می‌شوند</li>
+        <li><b>MFA اجباری</b> برای مالی، بیمه، و ارائه‌دهندگان</li>
+        <li><b>RBAC + ABAC:</b> ۱۷ نقش + سیاست‌های زمینه‌ای</li>
+        <li><b>KYB:</b> تأیید مجوز هر ارائه‌دهنده قبل از production</li>
+        <li><b>Anti-Fraud AI:</b> شناسایی تقلب و الگوی هرمی</li>
+        <li><b>Audit Log:</b> زنجیره‌ی هش غیرقابل‌تغییر</li>
+      </ul>
+    </div>
+    <div class="col">
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;">
+        <div class="card-sm" style="border-color:rgba(0,194,203,.3);text-align:center;">
+          <div style="font-size:28px;margin-bottom:8px;">🔐</div>
+          <div style="font-size:17px;font-weight:700;">GDPR Ready</div>
+          <div style="font-size:14px;color:var(--muted);margin-top:4px;">حذف داده · consent · residency</div>
+        </div>
+        <div class="card-sm" style="border-color:rgba(240,165,0,.3);text-align:center;">
+          <div style="font-size:28px;margin-bottom:8px;">🛡️</div>
+          <div style="font-size:17px;font-weight:700;">Data Residency</div>
+          <div style="font-size:14px;color:var(--muted);margin-top:4px;">داده هر ریجن در همان ریجن</div>
+        </div>
+        <div class="card-sm" style="border-color:rgba(58,127,232,.3);text-align:center;">
+          <div style="font-size:28px;margin-bottom:8px;">🏦</div>
+          <div style="font-size:17px;font-weight:700;">Escrow بانکی</div>
+          <div style="font-size:14px;color:var(--muted);margin-top:4px;">وجه هرگز نزد Dilix نیست</div>
+        </div>
+        <div class="card-sm" style="border-color:rgba(0,194,203,.3);text-align:center;">
+          <div style="font-size:28px;margin-bottom:8px;">🤖</div>
+          <div style="font-size:17px;font-weight:700;">AI Threat Detection</div>
+          <div style="font-size:14px;color:var(--muted);margin-top:4px;">ناهنجاری real-time</div>
+        </div>
+      </div>
+      <div class="card-sm" style="margin-top:16px;border-color:rgba(240,165,0,.2);text-align:center;">
+        <div style="font-size:15px;color:var(--accent2);font-weight:700;">انطباق: شاپرک · بیمه مرکزی · راهداری · GDPR</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Dilix · Security</span><span><span class="dot-acc"></span></span></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 14 — PARTNERSHIPS & MARKETS
+════════════════════════════════════════════════════ -->
+<section class="slide pad">
+  <div class="kicker">شرکا و بازارها</div>
+  <h2>ایران — و جهان</h2>
+  <div class="rule"></div>
+  <div class="grid2" style="height:auto;gap:36px;margin-top:0;">
+    <div class="col">
+      <div style="font-size:15px;color:var(--accent);font-weight:800;letter-spacing:.04em;margin-bottom:14px;">شرکای تأییدشده‌ی ایران</div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div class="card-sm" style="display:flex;align-items:center;gap:14px;border-color:rgba(58,127,232,.3);">
+          <div style="width:36px;height:36px;border-radius:10px;background:rgba(58,127,232,.15);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🏦</div>
+          <div><div style="font-size:18px;font-weight:700;">بانک سامان</div><div style="font-size:14px;color:var(--muted);">PSP · Escrow · تسویه · پرداخت‌یاری</div></div>
+        </div>
+        <div class="card-sm" style="display:flex;align-items:center;gap:14px;border-color:rgba(0,194,203,.3);">
+          <div style="width:36px;height:36px;border-radius:10px;background:rgba(0,194,203,.15);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🛡️</div>
+          <div><div style="font-size:18px;font-weight:700;">بیمه البرز</div><div style="font-size:14px;color:var(--muted);">کانال فروش دیجیتال + صدور آنی</div></div>
+        </div>
+        <div class="card-sm" style="display:flex;align-items:center;gap:14px;border-color:rgba(240,165,0,.3);">
+          <div style="width:36px;height:36px;border-radius:10px;background:rgba(240,165,0,.15);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🚛</div>
+          <div><div style="font-size:18px;font-weight:700;">سازمان حمل‌ونقل ایران</div><div style="font-size:14px;color:var(--muted);">صدور رسمی بارنامه · یکپارچگی راهداری</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div style="font-size:15px;color:var(--accent2);font-weight:800;letter-spacing:.04em;margin-bottom:14px;">مسیر توسعه‌ی بین‌المللی</div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div class="card-sm" style="display:flex;align-items:center;gap:14px;">
+          <div style="font-size:28px;flex-shrink:0;">🇮🇷</div>
+          <div style="flex:1;"><div style="font-size:17px;font-weight:700;">ایران — بازار اول</div><div style="font-size:13px;color:var(--muted);">شرکا آماده · ریجن داخلی · ریجن آروان</div></div>
+          <span class="badge" style="font-size:13px;">در جریان</span>
+        </div>
+        <div class="card-sm" style="display:flex;align-items:center;gap:14px;">
+          <div style="font-size:28px;flex-shrink:0;">🇷🇺</div>
+          <div style="flex:1;"><div style="font-size:17px;font-weight:700;">روسیه</div><div style="font-size:13px;color:var(--muted);">قرارداد در حال امضا</div></div>
+          <span class="badge-gold badge" style="font-size:13px;">در مذاکره</span>
+        </div>
+        <div class="card-sm" style="display:flex;align-items:center;gap:14px;">
+          <div style="font-size:28px;flex-shrink:0;">🇴🇲</div>
+          <div style="flex:1;"><div style="font-size:17px;font-weight:700;">عمان</div><div style="font-size:13px;color:var(--muted);">قرارداد در حال امضا</div></div>
+          <span class="badge-gold badge" style="font-size:13px;">در مذاکره</span>
+        </div>
+        <div class="card-sm" style="display:flex;align-items:center;gap:14px;">
+          <div style="font-size:28px;flex-shrink:0;">🇹🇷</div>
+          <div style="flex:1;"><div style="font-size:17px;font-weight:700;">ترکیه</div><div style="font-size:13px;color:var(--muted);">قرارداد در حال امضا</div></div>
+          <span class="badge-gold badge" style="font-size:13px;">در مذاکره</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Dilix · Partnerships</span><span><span class="dot-acc"></span></span></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 15 — ROADMAP
+════════════════════════════════════════════════════ -->
+<section class="slide pad">
+  <div class="kicker">رودمپ</div>
+  <h2>مسیر پیاده‌سازی</h2>
+  <div class="rule"></div>
+  <div class="ms">
+    <div class="ms-item" style="border-color:rgba(0,194,203,.3);">
+      <div class="ms-num">MILESTONE ۰</div>
+      <div class="ms-title" style="color:var(--accent);">پایه (Foundation)</div>
+      <div class="ms-bullet">
+        Earth ID · Auth · RBAC<br>
+        Provider Adapter Framework<br>
+        Event Backbone · i18n<br>
+        Hybrid Multi-Region K8s
+      </div>
+    </div>
+    <div class="ms-item" style="border-color:rgba(58,127,232,.3);">
+      <div class="ms-num">MILESTONE ۱</div>
+      <div class="ms-title" style="color:var(--accent3);">Engagement Shell</div>
+      <div class="ms-bullet">
+        Messenger E2EE · تماس<br>
+        Social · استوری · ریلز · لایو<br>
+        3D Earth Discovery<br>
+        AI Assistant · Growth Engine
+      </div>
+    </div>
+    <div class="ms-item" style="border-color:rgba(240,165,0,.4);">
+      <div class="ms-num">MILESTONE ۲</div>
+      <div class="ms-title" style="color:var(--accent2);">Vertical اول (درآمد)</div>
+      <div class="ms-bullet">
+        Freight کامل (سازمان راهداری)<br>
+        Insurance (بیمه البرز)<br>
+        Payment Escrow (سامان)<br>
+        Reputation System
+      </div>
+    </div>
+    <div class="ms-item">
+      <div class="ms-num">MILESTONE ۳</div>
+      <div class="ms-title">Verticals بعدی</div>
+      <div class="ms-bullet">
+        Telecom · eSIM<br>
+        Service Marketplace<br>
+        Open API Marketplace<br>
+        Membership · Revenue-Share
+      </div>
+    </div>
+    <div class="ms-item" style="border-color:rgba(240,165,0,.2);">
+      <div class="ms-num">MILESTONE ۴</div>
+      <div class="ms-title">جهانی‌سازی</div>
+      <div class="ms-bullet">
+        روسیه · عمان · ترکیه<br>
+        GDPR + data residency<br>
+        چندارزی<br>
+        شرکای بین‌المللی
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:18px;" class="card-sm" style="border-color:rgba(0,194,203,.15);">
+    <div style="font-size:16px;color:var(--muted);text-align:center;">
+      طراحی جامع همه ماژول‌ها از روز اول · اجرا لایه‌به‌لایه · هیچ کدی قبل از تأیید معماری نوشته نمی‌شود
+    </div>
+  </div>
+  <div class="footer"><span>Dilix · Roadmap</span><span><span class="dot-acc"></span></span></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 16 — CALL TO ACTION (CLOSE)
+════════════════════════════════════════════════════ -->
+<section class="slide" style="display:flex;flex-direction:column;justify-content:center;
+  background:radial-gradient(140% 140% at 0% 110%, #0A2540 0%, var(--bg) 55%);">
+  <div class="blob" style="width:600px;height:600px;background:var(--accent);top:-250px;right:-100px;opacity:.1;"></div>
+  <div class="blob" style="width:350px;height:350px;background:var(--accent2);bottom:-100px;left:100px;opacity:.08;"></div>
+
+  <div style="padding:0 96px;position:relative;z-index:1;text-align:center;">
+    <div class="kicker" style="text-align:center;">گام بعدی</div>
+    <h1 style="font-size:68px;margin:16px 0 20px;">بستر جهانی را با هم بسازیم</h1>
+    <div class="sub" style="max-width:760px;margin:0 auto 36px;">
+      معماری تأییدشده است. شرکای کلیدی آماده‌اند.<br>
+      لحظه‌ی شروع ساخت اکوسیستم دیجیتال خاورمیانه فرا رسیده است.
+    </div>
+    <div style="display:flex;justify-content:center;gap:16px;margin-bottom:48px;">
+      <div class="card-sm" style="text-align:center;min-width:150px;border-color:rgba(0,194,203,.3);">
+        <div style="font-size:32px;font-weight:800;color:var(--accent);">۳</div>
+        <div style="font-size:15px;color:var(--muted);">شریک تأییدشده‌ی ایران</div>
+      </div>
+      <div class="card-sm" style="text-align:center;min-width:150px;border-color:rgba(240,165,0,.3);">
+        <div style="font-size:32px;font-weight:800;color:var(--accent2);">۴</div>
+        <div style="font-size:15px;color:var(--muted);">کشور در حال توسعه</div>
+      </div>
+      <div class="card-sm" style="text-align:center;min-width:150px;border-color:rgba(58,127,232,.3);">
+        <div style="font-size:32px;font-weight:800;color:var(--accent3);">۱۲</div>
+        <div style="font-size:15px;color:var(--muted);">ماژول یکپارچه</div>
+      </div>
+      <div class="card-sm" style="text-align:center;min-width:150px;border-color:rgba(0,194,203,.2);">
+        <div style="font-size:32px;font-weight:800;color:var(--accent);">∞</div>
+        <div style="font-size:15px;color:var(--muted);">ارائه‌دهنده قابل اتصال</div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:center;gap:16px;">
+      <span class="badge" style="font-size:18px;padding:10px 28px;">شروع Milestone 0</span>
+      <span class="badge-gold badge" style="font-size:18px;padding:10px 28px;">تأیید معماری</span>
+    </div>
+  </div>
+
+  <div class="footer" style="color:rgba(107,139,173,.7);">
+    <span>Dilix · Dilix Platform · v1.0</span>
+    <span>محرمانه — اکوسیستم دیجیتال جهانی<span class="dot-acc"></span></span>
+  </div>
+</section>
+
+</body></html>

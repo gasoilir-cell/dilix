@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: dilix-core
+  namespace: dilix
+  labels:
+    app: dilix-core
+spec:
+  selector:
+    app: dilix-core
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000
+      protocol: TCP
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dilix-core-ingress
+  namespace: dilix
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"   # WebSocket support
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.dilix.app
+      secretName: dilix-api-tls
+  rules:
+    - host: api.dilix.app
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: dilix-core
+                port:
+                  number: 80
