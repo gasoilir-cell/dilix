@@ -1,0 +1,25 @@
+# Noqte Platform
+.vibe/
+.noqte/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Env / secrets — هرگز commit نشود
+.env
+*.local
+
+# Build / outputs
+dist/
+build/
+node_modules/
+
+# IDE
+.idea/
+.vscode/
