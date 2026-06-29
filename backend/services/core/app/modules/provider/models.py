@@ -8,7 +8,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, String, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -46,3 +46,38 @@ class ProviderApi(Base):
     webhook_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
     provider: Mapped[Provider] = relationship(back_populates="apis")
+
+
+class ProviderWebhook(Base):
+    """Webhookِ ثبت‌شده توسطِ ارائه‌دهنده برای دریافتِ رویدادهای Dilix."""
+
+    __tablename__ = "provider_webhook"
+    __table_args__ = {"schema": "provider"}
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    provider_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("provider.provider.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    url: Mapped[str] = mapped_column(String(512), nullable=False)
+    event_types: Mapped[list] = mapped_column(JSONB, default=list, nullable=False)
+    # رازِ امضای HMAC که برای کلاینت فقط یک‌بار افشا می‌شود
+    secret: Mapped[str] = mapped_column(String(128), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), default="active", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ProviderCredential(Base):
+    """کلیدِ API ارائه‌دهنده. فقط hash ذخیره می‌شود؛ کلیدِ خام یک‌بار برمی‌گردد."""
+
+    __tablename__ = "provider_credential"
+    __table_args__ = {"schema": "provider"}
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    provider_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("provider.provider.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    env: Mapped[str] = mapped_column(String(16), default="sandbox", nullable=False)  # sandbox/production
+    key_prefix: Mapped[str] = mapped_column(String(16), nullable=False)  # برای نمایش/شناسایی
+    key_hash: Mapped[str] = mapped_column(String(128), nullable=False)   # sha256(کلید)
+    status: Mapped[str] = mapped_column(String(16), default="active", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

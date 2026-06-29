@@ -110,7 +110,7 @@ def test_marketplace_order_schema() -> None:
 
 def test_marketplace_status_constants() -> None:
     from app.modules.marketplace.models import (
-        ORDER_PENDING, ORDER_ACCEPTED, ORDER_DELIVERED, ORDER_COMPLETED,
+        ORDER_PENDING, ORDER_COMPLETED,
         SERVICE_ACTIVE, SERVICE_PAUSED,
     )
     assert ORDER_PENDING != ORDER_COMPLETED

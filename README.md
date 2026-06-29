@@ -16,7 +16,10 @@ dilix/
 │   ├── libs/
 │   │   └── shared/            Shared Kernel — Earth ID، رویدادها، خطاها
 │   └── services/
-│       └── core/              لایه ۰ (Modular Monolith): Identity · Auth · Authz · Provider
+│       ├── core/             Modular Monolith: لایه‌های ۰ تا ۳ (Identity, Auth, Social, Freight, …)
+│       └── ai/               سرویس AI (LangGraph Supervisor + Agents)
+├── frontend/
+│   └── web/                   Super-App Shell (Next.js, PWA, RTL): فید، کره، پیام‌ها، خدمات، من
 ├── infra/
 │   └── docker-compose.yml     زیرساخت توسعه‌ی محلی
 └── Makefile
@@ -39,6 +42,7 @@ dilix/
 | Provider (ثبت‌نام + KYB + ثبت API) | ✅ |
 | تست‌های واحد | ✅ ۷ تست |
 | Alembic migrations | ✅ پیکربندی |
+| Web Super-App Shell (فید/کره/پیام‌ها/خدمات/من + دستیار شناور) | ✅ Next.js + RTL |
 
 ---
 
@@ -51,6 +55,15 @@ cp backend/services/core/.env.example backend/services/core/.env
 make core-migrate      # ساخت جداول
 make core-run          # http://localhost:8000/docs
 make core-test         # اجرای تست‌ها
+```
+
+وب (Super-App Shell):
+
+```bash
+cd frontend/web
+cp .env.example .env.local      # NEXT_PUBLIC_API_BASE_URL → سرویس Core
+npm install                     # روی سرور SSH / CI (نه در کانتینر سبک)
+npm run dev                     # http://localhost:3000
 ```
 
 > ⚠️ **سیاست بیلد:** بیلد ایمیج Docker، Kubernetes و بیلدهای سنگین فقط روی **سرور SSH** انجام می‌شوند، نه در محیط توسعه.

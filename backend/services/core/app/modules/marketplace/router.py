@@ -34,7 +34,7 @@ async def search_listings(
     _: uuid.UUID = Depends(get_current_earth_id),
 ) -> list[ListingOut]:
     listings = await service.search_listings(db, category, keyword)
-    return [ListingOut.model_validate(l, from_attributes=True) for l in listings]
+    return [ListingOut.model_validate(item, from_attributes=True) for item in listings]
 
 
 @router.post("/orders", response_model=OrderOut, status_code=201)

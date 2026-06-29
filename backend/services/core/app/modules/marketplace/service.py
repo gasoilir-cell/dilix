@@ -16,10 +16,9 @@ from dilix_shared.events import DomainEvent
 
 from app.core.events import publisher
 from app.modules.marketplace.models import (
-    ORDER_ACCEPTED, ORDER_CANCELLED, ORDER_COMPLETED,
+    ORDER_ACCEPTED, ORDER_COMPLETED,
     ORDER_DELIVERED, ORDER_IN_PROGRESS, ORDER_PENDING,
-    SERVICE_ACTIVE, SERVICE_DELETED, SERVICE_PAUSED,
-    ServiceListing, ServiceOrder,
+    SERVICE_ACTIVE, ServiceListing, ServiceOrder,
 )
 from app.modules.marketplace.schemas import ListingCreate, OrderCreate
 from app.modules.payments.schemas import EscrowCreate
@@ -64,7 +63,10 @@ async def search_listings(
     listings = list(result.scalars().all())
     if keyword:
         kw = keyword.lower()
-        listings = [l for l in listings if kw in l.title.lower() or kw in l.description.lower()]
+        listings = [
+            item for item in listings
+            if kw in item.title.lower() or kw in item.description.lower()
+        ]
     return listings
 
 

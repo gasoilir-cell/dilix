@@ -12,7 +12,7 @@ import json
 import logging
 from datetime import datetime, timezone
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 
 from app.core.broker import broker
 from app.core.database import SessionLocal

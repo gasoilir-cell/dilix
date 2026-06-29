@@ -35,3 +35,38 @@ class ProviderApiOut(BaseModel):
     name: str
     env: str
     status: str
+
+
+class SandboxTestResult(BaseModel):
+    api_id: uuid.UUID
+    reachable: bool
+    http_status: int | None = None
+    latency_ms: int | None = None
+    detail: str
+
+
+class WebhookCreate(BaseModel):
+    url: str = Field(min_length=8, max_length=512)
+    event_types: list[str] = Field(default_factory=list)
+
+
+class WebhookOut(BaseModel):
+    id: uuid.UUID
+    url: str
+    event_types: list[str]
+    status: str
+    # فقط در پاسخِ ساخت برگردانده می‌شود
+    secret: str | None = None
+
+
+class CredentialCreate(BaseModel):
+    env: Literal["sandbox", "production"] = "sandbox"
+
+
+class CredentialOut(BaseModel):
+    id: uuid.UUID
+    env: str
+    key_prefix: str
+    status: str
+    # کلیدِ خام فقط یک‌بار هنگامِ ساخت برمی‌گردد
+    api_key: str | None = None

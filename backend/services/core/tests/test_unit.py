@@ -3,9 +3,8 @@ from __future__ import annotations
 
 import uuid
 
-import pytest
 
-from dilix_shared.earth_id import EarthId, EntityType
+from dilix_shared.earth_id import EarthId
 
 
 def test_earth_id_new_is_unique() -> None:

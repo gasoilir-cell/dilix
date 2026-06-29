@@ -13,6 +13,20 @@ class DilixError(Exception):
         self.detail = detail
 
 
+class ValidationError(DilixError):
+    """ورودی نامعتبر (قواعد دامنه). به‌صورتِ 400 نگاشت می‌شود."""
+
+    status_code = 400
+    error_type = "validation_error"
+
+
+class UnauthorizedError(DilixError):
+    """احراز هویت ناموفق یا نبودِ اعتبارنامه‌ی معتبر. به‌صورتِ 401 نگاشت می‌شود."""
+
+    status_code = 401
+    error_type = "unauthorized"
+
+
 class NotFoundError(DilixError):
     status_code = 404
     error_type = "not_found"

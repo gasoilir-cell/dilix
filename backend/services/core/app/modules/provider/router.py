@@ -10,10 +10,15 @@ from app.core.database import get_session
 from app.modules.auth.deps import CurrentUser, get_current_user
 from app.modules.provider import service
 from app.modules.provider.schemas import (
+    CredentialCreate,
+    CredentialOut,
     ProviderApiCreate,
     ProviderApiOut,
     ProviderOut,
     ProviderRegisterRequest,
+    SandboxTestResult,
+    WebhookCreate,
+    WebhookOut,
 )
 
 router = APIRouter(prefix="/v1/providers", tags=["provider"])
@@ -48,3 +53,62 @@ async def list_apis(
 ) -> list[ProviderApiOut]:
     apis = await service.list_apis(db, provider_id)
     return [ProviderApiOut.model_validate(a, from_attributes=True) for a in apis]
+
+
+@router.post(
+    "/{provider_id}/apis/{api_id}/sandbox-test",
+    response_model=SandboxTestResult,
+)
+async def sandbox_test(
+    provider_id: uuid.UUID,
+    api_id: uuid.UUID,
+    _user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session),
+) -> SandboxTestResult:
+    """تستِ دسترس‌پذیریِ sandbox روی API ثبت‌شده‌ی ارائه‌دهنده."""
+    result = await service.sandbox_test(db, provider_id, api_id)
+    return SandboxTestResult(**result)
+
+
+@router.post(
+    "/{provider_id}/webhooks",
+    response_model=WebhookOut,
+    status_code=201,
+)
+async def register_webhook(
+    provider_id: uuid.UUID,
+    data: WebhookCreate,
+    _user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session),
+) -> WebhookOut:
+    """ثبتِ webhook؛ secretِ امضای HMAC فقط همین‌جا برمی‌گردد."""
+    webhook = await service.register_webhook(db, provider_id, data)
+    return WebhookOut(
+        id=webhook.id,
+        url=webhook.url,
+        event_types=webhook.event_types,
+        status=webhook.status,
+        secret=webhook.secret,
+    )
+
+
+@router.post(
+    "/{provider_id}/credentials",
+    response_model=CredentialOut,
+    status_code=201,
+)
+async def issue_credential(
+    provider_id: uuid.UUID,
+    data: CredentialCreate,
+    _user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session),
+) -> CredentialOut:
+    """صدورِ کلیدِ sandbox/production؛ کلیدِ خام فقط همین‌جا برمی‌گردد."""
+    cred, raw_key = await service.issue_credential(db, provider_id, data)
+    return CredentialOut(
+        id=cred.id,
+        env=cred.env,
+        key_prefix=cred.key_prefix,
+        status=cred.status,
+        api_key=raw_key,
+    )

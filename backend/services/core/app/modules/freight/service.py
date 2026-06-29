@@ -21,8 +21,7 @@ from app.modules.carrier.schemas import ShipmentCreate
 from app.modules.carrier import service as carrier_svc
 from app.modules.freight.models import (
     BID_ACCEPTED, BID_PENDING, BID_REJECTED,
-    CARGO_ASSIGNED, CARGO_BIDDING, CARGO_CANCELLED,
-    CARGO_DELIVERED, CARGO_IN_TRANSIT, CARGO_OPEN, CARGO_SETTLED,
+    CARGO_ASSIGNED, CARGO_BIDDING, CARGO_DELIVERED, CARGO_IN_TRANSIT, CARGO_OPEN, CARGO_SETTLED,
     CargoPost, FreightBid, FreightLocation,
 )
 from app.modules.freight.schemas import CargoPostCreate, FreightBidCreate, LocationUpdate

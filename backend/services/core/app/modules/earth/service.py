@@ -8,7 +8,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dilix_shared.errors import ForbiddenError, NotFoundError
+from dilix_shared.errors import NotFoundError
 
 from app.modules.earth.models import (
     PRECISION_CITY, PRECISION_DISTRICT, PRECISION_EXACT, PRECISION_REGION,

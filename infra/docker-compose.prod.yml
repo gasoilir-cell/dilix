@@ -37,6 +37,23 @@ services:
     depends_on:
       - core
 
+  ai:
+    image: ghcr.io/dilix/dilix-ai-service:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    env_file: .env.production
+    expose:
+      - "8001"
+    depends_on:
+      - core
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      replicas: 1
+
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, Field, model_validator
 
@@ -38,6 +39,41 @@ class TokenPair(BaseModel):
 class RegisterResponse(BaseModel):
     earth_id: uuid.UUID
     tokens: TokenPair
+
+
+# ─────────────────── ورودِ فدراسیون (OAuth/OIDC) ───────────────────
+class OAuthLoginRequest(BaseModel):
+    """ورود/ثبت‌نام با ارائه‌دهنده‌ی بیرونی.
+
+    ``credential`` برای google/microsoft/apple همان ``id_token`` و برای facebook
+    همان ``access_token`` است.
+    """
+
+    credential: str = Field(min_length=8, description="id_token یا access_token از کلاینت")
+    home_region: str = Field(default="IR", max_length=8)
+
+
+class OAuthLoginResponse(BaseModel):
+    earth_id: uuid.UUID
+    tokens: TokenPair
+
+
+# ─────────────────── کدِ یک‌بارمصرف (OTP) ───────────────────
+class OtpRequest(BaseModel):
+    channel: str = Field(pattern="^(sms|facebook)$", description="کانالِ تحویل")
+    destination: str = Field(min_length=3, max_length=255, description="شماره‌ی موبایل یا PSID")
+    purpose: str = Field(default="login", pattern="^(login|register)$")
+
+
+class OtpRequestResponse(BaseModel):
+    challenge_id: uuid.UUID
+    channel: str
+    expires_at: datetime
+
+
+class OtpVerifyRequest(BaseModel):
+    challenge_id: uuid.UUID
+    code: str = Field(min_length=4, max_length=8)
 
 
 # ─────────────────────── MFA ───────────────────────

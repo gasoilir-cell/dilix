@@ -39,6 +39,7 @@ from app.modules.freight.router import router as freight_router
 
 # ── Layer 3 — رشد و توسعه ──
 from app.modules.referral.router import router as referral_router
+from app.modules.growth.router import router as growth_router
 from app.modules.gamification.router import router as gamification_router
 from app.modules.membership.router import router as membership_router
 from app.modules.telecom.router import router as telecom_router
@@ -159,6 +160,7 @@ app.include_router(freight_router)
 
 # Layer 3 — رشد، توسعه، بازارگاه
 app.include_router(referral_router)
+app.include_router(growth_router)
 app.include_router(gamification_router)
 app.include_router(membership_router)
 app.include_router(telecom_router)

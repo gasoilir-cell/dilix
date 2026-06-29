@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 class ConversationCreate(BaseModel):
     agent_type: str = Field(
         default="personal",
-        pattern="^(personal|freight|insurance|financial)$",
+        pattern="^(personal|freight|insurance|financial|matchmaking|travel|business)$",
     )
     title: str | None = Field(default=None, max_length=200)
 

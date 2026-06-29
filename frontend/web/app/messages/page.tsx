@@ -1,0 +1,88 @@
+"use client";
+
+import { useState } from "react";
+import { api, type MessageOut, type RoomOut, isAuthenticated } from "@/lib/api";
+
+// لیست/چتِ پیام‌رسان. پیام‌ها در محصولِ نهایی E2EE هستند (نشانِ قفل).
+export default function Messenger() {
+  const [room, setRoom] = useState<RoomOut | null>(null);
+  const [messages, setMessages] = useState<MessageOut[]>([]);
+  const [draft, setDraft] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const authed = typeof window !== "undefined" && isAuthenticated();
+
+  async function startRoom() {
+    setError(null);
+    try {
+      const r = await api.messaging.createRoom({ room_type: "group", title: "گفتگوی جدید" });
+      setRoom(r);
+      setMessages(await api.messaging.messages(r.id));
+    } catch {
+      setError("ساخت گفتگو ممکن نشد. ابتدا وارد شوید.");
+    }
+  }
+
+  async function send() {
+    const content = draft.trim();
+    if (!content || !room) return;
+    setDraft("");
+    try {
+      const m = await api.messaging.send(room.id, content);
+      setMessages((prev) => [...prev, m]);
+    } catch {
+      setError("ارسال پیام ناموفق بود.");
+    }
+  }
+
+  return (
+    <main className="page">
+      <h1>پیام‌ها</h1>
+      <p className="muted">
+        گفتگوهای رمزنگاری‌شده‌ی سرتاسری <span aria-hidden>🔒</span>
+      </p>
+
+      {!authed && <div className="card muted">برای استفاده از پیام‌رسان ابتدا از بخش «من» وارد شوید.</div>}
+      {error && <div className="card danger">{error}</div>}
+
+      {!room ? (
+        <div className="card">
+          <p className="muted">هنوز گفتگویی باز نیست.</p>
+          <button className="btn" onClick={startRoom} disabled={!authed}>
+            شروع گفتگو
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="card">
+            <div className="row-between">
+              <strong>{room.title ?? "گفتگو"}</strong>
+              {room.is_e2ee && <span className="badge">E2EE 🔒</span>}
+            </div>
+          </div>
+
+          <div className="chat">
+            {messages.length === 0 && <p className="muted">پیامی نیست؛ اولین پیام را بفرستید.</p>}
+            {messages.map((m) => (
+              <div key={m.id} className="bubble user">
+                {m.content}
+              </div>
+            ))}
+          </div>
+
+          <div className="assistant-input">
+            <input
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && send()}
+              placeholder="پیام…"
+              aria-label="متن پیام"
+            />
+            <button className="btn" onClick={send}>
+              ارسال
+            </button>
+          </div>
+        </>
+      )}
+    </main>
+  );
+}

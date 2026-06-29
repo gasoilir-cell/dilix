@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     # i18n — زبان پیش‌فرض پاسخ‌های API
     default_locale: str = Field(default="fa", description="fa | en | ru | ar | tr")
 
+    # آدرس عمومی اپ — برای ساختِ لینکِ دعوت (Growth)
+    public_app_url: str = Field(default="https://dilix.app")
+
     # MinIO (ذخیره‌سازی رسانه)
     minio_endpoint: str = Field(default="localhost:9000")
     minio_access_key: str = Field(default="")
@@ -55,9 +58,53 @@ class Settings(BaseSettings):
     # Elasticsearch
     elasticsearch_url: str = Field(default="http://localhost:9200")
 
+    # ─────────────────── ورودِ فدراسیون (OAuth2/OIDC) ───────────────────
+    # هر کدام Client ID مجاز است؛ چند ID با کاما جدا می‌شود (وب/iOS/اندروید).
+    google_client_ids: str = Field(default="", description="Client IDهای مجازِ Google (با کاما)")
+    microsoft_client_ids: str = Field(default="", description="Client IDهای مجازِ Microsoft (با کاما)")
+    microsoft_tenant: str = Field(default="common", description="common | organizations | <tenant-id>")
+    apple_client_ids: str = Field(default="", description="Service/Bundle IDهای مجازِ Apple (با کاما)")
+    facebook_app_id: str = Field(default="", description="App ID فیسبوک برای اعتبارسنجیِ توکن")
+    facebook_app_secret: str = Field(default="", description="App Secret فیسبوک")
+
+    # ─────────────────── کدِ یک‌بارمصرف (OTP) ───────────────────
+    otp_length: int = Field(default=6, ge=4, le=8)
+    otp_ttl_seconds: int = Field(default=300, description="پنجره‌ی اعتبارِ کد (پیش‌فرض ۵ دقیقه)")
+    otp_max_attempts: int = Field(default=5, description="بیشینه‌ی تلاشِ تأیید برای هر چالش")
+    # فرستنده‌ی پیامک
+    sms_base_url: str = Field(default="", description="آدرسِ درگاهِ پیامک")
+    sms_api_key: str = Field(default="")
+    sms_sender: str = Field(default="", description="شماره/نامِ فرستنده")
+    # فرستنده‌ی فیسبوک مسنجر (Send API)
+    facebook_page_token: str = Field(default="", description="Page Access Token برای ارسالِ پیام")
+
     @property
     def saman_enabled(self) -> bool:
         return bool(self.saman_base_url and self.saman_secret)
+
+    @staticmethod
+    def _csv(value: str) -> set[str]:
+        return {item.strip() for item in value.split(",") if item.strip()}
+
+    @property
+    def google_client_id_set(self) -> set[str]:
+        return self._csv(self.google_client_ids)
+
+    @property
+    def microsoft_client_id_set(self) -> set[str]:
+        return self._csv(self.microsoft_client_ids)
+
+    @property
+    def apple_client_id_set(self) -> set[str]:
+        return self._csv(self.apple_client_ids)
+
+    @property
+    def sms_enabled(self) -> bool:
+        return bool(self.sms_base_url and self.sms_api_key)
+
+    @property
+    def facebook_otp_enabled(self) -> bool:
+        return bool(self.facebook_page_token)
 
     @property
     def is_production(self) -> bool:

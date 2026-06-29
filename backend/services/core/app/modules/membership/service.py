@@ -7,7 +7,6 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dilix_shared.errors import NotFoundError
 from dilix_shared.events import DomainEvent
 
 from app.core.events import publisher
