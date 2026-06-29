@@ -11,8 +11,11 @@ const items = [
   { href: "/me", icon: "👤", key: "nav_me", label: "من" },
 ];
 
+const HIDE_ON = ["/login"];
+
 export default function BottomNav() {
   const pathname = usePathname();
+  if (HIDE_ON.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return null;
   return (
     <nav className="bottom-nav" aria-label="ناوبری اصلی">
       {items.map((it) => {

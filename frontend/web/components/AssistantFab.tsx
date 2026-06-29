@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { api } from "@/lib/api";
 
 interface Turn {
@@ -8,8 +9,11 @@ interface Turn {
   text: string;
 }
 
+const HIDE_ON = ["/login"];
+
 // دستیار هوشمندِ شناورِ سراسری (سند ۷ §۲) — روی همه‌ی صفحات در دسترس.
 export default function AssistantFab() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [conversationId] = useState(() =>
     typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `c-${Date.now()}`,
@@ -36,6 +40,8 @@ export default function AssistantFab() {
       setBusy(false);
     }
   }
+
+  if (HIDE_ON.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return null;
 
   return (
     <>
