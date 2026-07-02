@@ -8,6 +8,7 @@ import {
 import BottomNav from "@/components/layout/BottomNav";
 import { useRouter } from "next/navigation";
 import { toPersianNum } from "@/lib/utils";
+import { earthApi } from "@/lib/api";
 
 // ── Role metadata ──────────────────────────────────────────────────────────────
 const ROLE_COLOR: Record<string, string> = {
@@ -95,9 +96,9 @@ function ll2v(lat: number, lng: number, r = 1.0): [number, number, number] {
   const phi   = (90 - lat)  * (Math.PI / 180);
   const theta = (lng + 180) * (Math.PI / 180);
   return [
-    r * Math.sin(phi) * Math.cos(theta),
-    r * Math.cos(phi),
-   -r * Math.sin(phi) * Math.sin(theta),
+    -r * Math.sin(phi) * Math.cos(theta),
+     r * Math.cos(phi),
+     r * Math.sin(phi) * Math.sin(theta),
   ];
 }
 
@@ -248,8 +249,10 @@ export default function EarthPage() {
   const router    = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const threeRef  = useRef<any>({});
+  const usersRef  = useRef<EarthUser[]>(DEMO);   // starts with demo, updated from API
 
   const [ready,      setReady]      = useState(false);
+  const [userCount,  setUserCount]  = useState(DEMO.length);
   const [search,     setSearch]     = useState("");
   const [roleFilter, setRole]       = useState("همه");
   const [showFilter, setFilter]     = useState(false);
@@ -351,31 +354,42 @@ export default function EarthPage() {
       setReady(true);
     }).catch(() => setReady(true));
 
-    // ── Build markers from clusters ───────────────────────────
-    const userSprites:    any[] = [];
-    const clusterSprites: any[] = [];
-    threeRef.current.userSprites    = userSprites;
-    threeRef.current.clusterSprites = clusterSprites;
+    // ── Build markers (callable with any user array) ──────────
+    const buildMarkers = (users: EarthUser[]) => {
+      // remove old sprites
+      const oldSprites: any[] = [
+        ...(threeRef.current.userSprites    ?? []),
+        ...(threeRef.current.clusterSprites ?? []),
+      ];
+      oldSprites.forEach((s: any) => earthGroup.remove(s));
 
-    const clusters = buildClusters(DEMO, 22);
+      const userSprites:    any[] = [];
+      const clusterSprites: any[] = [];
+      threeRef.current.userSprites    = userSprites;
+      threeRef.current.clusterSprites = clusterSprites;
 
-    for (const cluster of clusters) {
-      const isSingle = cluster.count === 1;
-      const color    = rc(cluster.dominant_role);
-      const tex = isSingle
-        ? makeUserDot(THREE, color)
-        : makeClusterDot(THREE, color, cluster.count);
-      const spriteMat = new THREE.SpriteMaterial({ map: tex, depthTest: false });
-      const spr       = new THREE.Sprite(spriteMat);
-      const scale     = isSingle ? 0.065 : 0.10;
-      spr.scale.set(scale, scale, scale);
-      const [x, y, z] = ll2v(cluster.lat, cluster.lng, 1.05);
-      spr.position.set(x, y, z);
-      spr.userData = { cluster };
-      earthGroup.add(spr);
-      if (isSingle) userSprites.push(spr);
-      else          clusterSprites.push(spr);
-    }
+      const clusters = buildClusters(users, 22);
+      for (const cluster of clusters) {
+        const isSingle = cluster.count === 1;
+        const color    = rc(cluster.dominant_role);
+        const tex = isSingle
+          ? makeUserDot(THREE, color)
+          : makeClusterDot(THREE, color, cluster.count);
+        const spriteMat = new THREE.SpriteMaterial({ map: tex, depthTest: false });
+        const spr       = new THREE.Sprite(spriteMat);
+        const scale     = isSingle ? 0.065 : 0.10;
+        spr.scale.set(scale, scale, scale);
+        const [x, y, z] = ll2v(cluster.lat, cluster.lng, 1.05);
+        spr.position.set(x, y, z);
+        spr.userData = { cluster };
+        earthGroup.add(spr);
+        if (isSingle) userSprites.push(spr);
+        else          clusterSprites.push(spr);
+      }
+    };
+
+    threeRef.current.buildMarkers = buildMarkers;
+    buildMarkers(usersRef.current);
 
     // ── Controls ──────────────────────────────────────────────
     let isDrag = false, moved = false;
@@ -490,6 +504,34 @@ export default function EarthPage() {
     };
   }, []);
 
+  // ── Fetch real users from API ─────────────────────────────
+  useEffect(() => {
+    earthApi.getUsers({ limit: 500 })
+      .then((res) => {
+        const apiUsers: EarthUser[] = (res.data.users ?? []).map((u: any) => ({
+          earth_id:  u.earth_id,
+          name:      u.name,
+          role:      u.role,
+          lat:       u.lat,
+          lng:       u.lng,
+          rating:    u.rating ?? 0,
+          kyc_level: u.kyc_level ?? 0,
+          avatar_url: u.avatar_url ?? undefined,
+        }));
+        // merge with DEMO if API returns few users
+        const merged = apiUsers.length > 0 ? apiUsers : DEMO;
+        usersRef.current = merged;
+        setUserCount(merged.length);
+        // rebuild markers if Three.js already running
+        if (threeRef.current.buildMarkers) {
+          threeRef.current.buildMarkers(merged);
+        }
+      })
+      .catch(() => {
+        // silently fall back to demo data
+      });
+  }, []);
+
   useEffect(() => {
     const win = window as any;
     let cleanup: (() => void) | undefined;
@@ -588,7 +630,7 @@ export default function EarthPage() {
                   backdropFilter: "blur(12px)",
                 }}
               >
-                {r === "همه" ? `همه (${DEMO.length})` : `${rem(r)} ${rl(r)}`}
+                {r === "همه" ? `همه (${toPersianNum(userCount)})` : `${rem(r)} ${rl(r)}`}
               </button>
             ))}
           </div>
