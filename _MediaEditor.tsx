@@ -107,6 +107,8 @@ interface Overlay {
   border?: string | null;               // رنگِ حاشیه (null/undefined = بدون)
   aspect?: number;                       // برای لایهٔ تصویری: w/h
   el?: HTMLImageElement;                 // المانِ بارگذاری‌شدهٔ تصویر
+  filterCss?: string;                    // فیلترِ مخصوصِ همین لایهٔ تصویری
+  blocks?: number;                       // شطرنجیِ مخصوصِ همین لایهٔ تصویری
 }
 interface Pt { nx: number; ny: number }
 interface Stroke { points: Pt[]; color: string; width: number; erase: boolean }
@@ -200,6 +202,21 @@ function paintBorder(ctx: CanvasRenderingContext2D, ov: Overlay, cx: number, cy:
   roundRect(ctx, cx - w / 2 - pad, cy - h / 2 - pad, w + pad * 2, h + pad * 2, Math.min(w, h) * 0.14);
   ctx.stroke(); ctx.restore();
 }
+// ترسیمِ لایهٔ تصویری با فیلتر/شطرنجیِ مخصوصِ خودِ لایه
+function drawOverlayImage(ctx: CanvasRenderingContext2D, el: HTMLImageElement, dx: number, dy: number, dw: number, dh: number, filterCss: string, blocks: number) {
+  const f = filterCss && filterCss !== "none" ? filterCss : "none";
+  if (blocks > 0) {
+    const pw = Math.max(2, blocks), ph = Math.max(2, Math.round(blocks * dh / dw));
+    const pc = document.createElement("canvas"); pc.width = pw; pc.height = ph;
+    const pctx = pc.getContext("2d")!;
+    pctx.filter = f; pctx.drawImage(el, 0, 0, pw, ph);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(pc, dx, dy, dw, dh);
+    ctx.imageSmoothingEnabled = true;
+  } else {
+    ctx.filter = f; ctx.drawImage(el, dx, dy, dw, dh); ctx.filter = "none";
+  }
+}
 function paintOverlays(ctx: CanvasRenderingContext2D, overlays: Overlay[], W: number, H: number) {
   for (const ov of overlays) {
     const x = ov.nx * W, y = ov.ny * H;
@@ -208,7 +225,7 @@ function paintOverlays(ctx: CanvasRenderingContext2D, overlays: Overlay[], W: nu
       if (ov.el) {
         ctx.save();
         ctx.shadowColor = "rgba(0,0,0,0.3)"; ctx.shadowBlur = box.w * 0.03;
-        ctx.drawImage(ov.el, x - box.w / 2, y - box.h / 2, box.w, box.h);
+        drawOverlayImage(ctx, ov.el, x - box.w / 2, y - box.h / 2, box.w, box.h, ov.filterCss || "none", ov.blocks || 0);
         ctx.restore();
       }
       paintBorder(ctx, ov, x, y, box.w, box.h);
@@ -335,6 +352,7 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
   const [preset, setPreset] = useState(kind === "image" ? IMG_PRESETS[1] : VID_PRESETS[1]);
 
   const [tool, setTool] = useState<"move" | "draw">("move");
+  const [mtab, setMtab] = useState<"layer" | "filter" | "adjust">("layer");
   const [draft, setDraft] = useState("");
   const [textColor, setTextColor] = useState(COLORS[0]);
   const [textFontId, setTextFontId] = useState(FONTS[0].id);
@@ -354,6 +372,19 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
 
   const selected = overlays.find((o) => o.id === selectedId) || null;
   const selectedText = selected?.kind === "text" ? selected : null;
+  const selectedImage = selected?.kind === "image" ? selected : null;
+
+  // فیلتر/شطرنجی: اگر لایهٔ تصویری انتخاب شده باشد روی همان لایه، وگرنه روی تصویرِ پایه اعمال می‌شود
+  const activeFilterCss = selectedImage ? (selectedImage.filterCss || "none") : filter.css;
+  const activeBlocks = selectedImage ? (selectedImage.blocks || 0) : pixel.blocks;
+  const applyFilter = (f: typeof FILTERS[number]) => {
+    if (selectedImage) setOverlays((p) => p.map((o) => o.id === selectedImage.id ? { ...o, filterCss: f.css } : o));
+    else setFilter(f);
+  };
+  const applyPixel = (pl: typeof PIXEL_LEVELS[number]) => {
+    if (selectedImage) setOverlays((p) => p.map((o) => o.id === selectedImage.id ? { ...o, blocks: pl.blocks } : o));
+    else setPixel(pl);
+  };
 
   // fit box from natural aspect
   const fitBox = useCallback((w: number, h: number) => {
@@ -619,95 +650,124 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
           </>
         ) : (
           <>
-            {/* add text / emoji / image / translate */}
-            <div className="flex items-center gap-2">
-              <button onClick={() => setShowEmoji((s) => !s)} className={`p-2 rounded-xl shrink-0 ${showEmoji ? "bg-indigo-500/20 text-indigo-300" : "bg-white/5 text-white/60"}`}><Smile size={18} /></button>
-              <button onClick={() => imgInputRef.current?.click()} className="p-2 rounded-xl shrink-0 bg-white/5 text-white/60" title="تصویر در تصویر"><ImagePlus size={18} /></button>
-              <input ref={imgInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) addImageOverlay(f); e.target.value = ""; }} />
-              <input value={draft} onChange={(e) => onDraftChange(e.target.value)} maxLength={80} placeholder={selectedText ? "ویرایشِ متنِ انتخاب‌شده" : "متن روی رسانه"}
-                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm placeholder-white/30 focus:outline-none min-w-0" />
-              <button onClick={() => setShowTr((s) => !s)} className={`p-2 rounded-xl shrink-0 ${showTr ? "bg-emerald-500/20 text-emerald-300" : "bg-white/5 text-white/60"}`} title="ترجمه"><Languages size={18} /></button>
-              {!selectedText && <button onClick={addText} disabled={!draft.trim()} className="px-3 py-2 rounded-xl bg-indigo-600 text-white text-xs disabled:opacity-40 shrink-0 flex items-center gap-1"><TypeIcon size={14} /> افزودن</button>}
+            {/* دسته‌بندیِ تنظیمات */}
+            <div className="flex gap-1 bg-white/5 rounded-xl p-0.5 text-xs">
+              {([["layer", "نوشته و لایه"], ["filter", "فیلتر و افکت"], ["adjust", "برش و کیفیت"]] as const).map(([id, label]) => (
+                <button key={id} onClick={() => setMtab(id)} className={`flex-1 py-1.5 rounded-lg transition ${mtab === id ? "bg-indigo-600 text-white" : "text-white/60"}`}>{label}</button>
+              ))}
             </div>
-            {showTr && (
-              <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-                {translating ? <span className="text-white/50 text-xs flex items-center gap-2 px-2"><Loader2 size={14} className="animate-spin" /> در حالِ ترجمه…</span> :
-                  TRANSLATE_LANGS.map((l) => (<button key={l.code} onClick={() => translate(l.code)} className={chip(false)}>{l.label}</button>))}
-              </div>
-            )}
-            {showEmoji && (
-              <div className="flex gap-1 flex-wrap">
-                {QUICK_EMOJIS.map((e) => (<button key={e} onClick={() => addEmoji(e)} className="w-8 h-8 rounded-lg hover:bg-white/10 text-lg flex items-center justify-center">{e}</button>))}
-              </div>
-            )}
-            {/* selected overlay controls */}
-            {selected && (
-              <div className="space-y-2 rounded-xl bg-white/[0.03] p-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-white/50 text-[11px]">{selected.kind === "emoji" ? "ایموجیِ انتخاب‌شده" : "متنِ انتخاب‌شده"}</span>
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => resizeSelected(-0.015)} className="w-7 h-7 rounded-lg bg-white/5 text-white/70 text-sm">ــ</button>
-                    <button onClick={() => resizeSelected(0.015)} className="w-7 h-7 rounded-lg bg-white/5 text-white/70 text-sm">＋</button>
-                    <button onClick={deleteSelected} className="w-7 h-7 rounded-lg bg-rose-500/15 text-rose-300 flex items-center justify-center"><Trash2 size={14} /></button>
-                  </div>
+
+            {/* ── تبِ نوشته و لایه ── */}
+            {mtab === "layer" && (
+              <>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setShowEmoji((s) => !s)} className={`p-2 rounded-xl shrink-0 ${showEmoji ? "bg-indigo-500/20 text-indigo-300" : "bg-white/5 text-white/60"}`}><Smile size={18} /></button>
+                  <button onClick={() => imgInputRef.current?.click()} className="p-2 rounded-xl shrink-0 bg-white/5 text-white/60" title="تصویر در تصویر"><ImagePlus size={18} /></button>
+                  <input ref={imgInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) addImageOverlay(f); e.target.value = ""; }} />
+                  <input value={draft} onChange={(e) => onDraftChange(e.target.value)} maxLength={80} placeholder={selectedText ? "ویرایشِ متنِ انتخاب‌شده" : "متن روی رسانه"}
+                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm placeholder-white/30 focus:outline-none min-w-0" />
+                  <button onClick={() => setShowTr((s) => !s)} className={`p-2 rounded-xl shrink-0 ${showTr ? "bg-emerald-500/20 text-emerald-300" : "bg-white/5 text-white/60"}`} title="ترجمه"><Languages size={18} /></button>
+                  {!selectedText && <button onClick={addText} disabled={!draft.trim()} className="px-3 py-2 rounded-xl bg-indigo-600 text-white text-xs disabled:opacity-40 shrink-0 flex items-center gap-1"><TypeIcon size={14} /> افزودن</button>}
                 </div>
                 {selectedText && (
-                  <>
-                    <div className="flex gap-1.5 overflow-x-auto">
-                      {FONTS.map((f) => (<button key={f.id} onClick={() => setFont(f.id)} className={chip(textFontId === f.id)} style={{ fontFamily: f.css }}>{f.label}</button>))}
-                    </div>
-                    <div className="flex gap-1.5 overflow-x-auto">
-                      {TEXT_EFFECTS.map((e) => (<button key={e.id} onClick={() => setEffect(e.id)} className={chip(textEffect === e.id)}>{e.label}</button>))}
-                    </div>
-                    <div className="flex gap-1.5 overflow-x-auto">
-                      {COLORS.map((c) => (<button key={c} onClick={() => setColor(c)} className={`w-6 h-6 rounded-full border-2 shrink-0 ${textColor === c ? "border-white" : "border-white/20"}`} style={{ backgroundColor: c }} />))}
-                    </div>
-                  </>
+                  <button onClick={() => { setSelectedId(null); setDraft(""); }} className="text-[11px] text-indigo-300/80">＋ نوشتهٔ جدید (لغوِ انتخاب)</button>
                 )}
-                {/* افکتِ حاشیه — برای همه‌ی لایه‌ها */}
-                <div className="flex items-center gap-1.5 overflow-x-auto">
-                  <span className="text-white/40 text-[11px] shrink-0 ml-1">حاشیه</span>
-                  {BORDER_COLORS.map((b) => (
-                    <button key={b.id} onClick={() => setBorder(b.color)} className={chip((selected.border ?? null) === b.color)}>{b.label}</button>
-                  ))}
+                {showTr && (
+                  <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+                    {translating ? <span className="text-white/50 text-xs flex items-center gap-2 px-2"><Loader2 size={14} className="animate-spin" /> در حالِ ترجمه…</span> :
+                      TRANSLATE_LANGS.map((l) => (<button key={l.code} onClick={() => translate(l.code)} className={chip(false)}>{l.label}</button>))}
+                  </div>
+                )}
+                {showEmoji && (
+                  <div className="flex gap-1 flex-wrap">
+                    {QUICK_EMOJIS.map((e) => (<button key={e} onClick={() => addEmoji(e)} className="w-8 h-8 rounded-lg hover:bg-white/10 text-lg flex items-center justify-center">{e}</button>))}
+                  </div>
+                )}
+                {selected ? (
+                  <div className="space-y-2 rounded-xl bg-white/[0.03] p-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-indigo-300/80 text-[11px]">{selected.kind === "emoji" ? "ایموجیِ انتخاب‌شده" : selected.kind === "image" ? "تصویرِ انتخاب‌شده" : "متنِ انتخاب‌شده"}</span>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => resizeSelected(-0.015)} className="w-7 h-7 rounded-lg bg-white/5 text-white/70 text-sm">ــ</button>
+                        <button onClick={() => resizeSelected(0.015)} className="w-7 h-7 rounded-lg bg-white/5 text-white/70 text-sm">＋</button>
+                        <button onClick={deleteSelected} className="w-7 h-7 rounded-lg bg-rose-500/15 text-rose-300 flex items-center justify-center"><Trash2 size={14} /></button>
+                      </div>
+                    </div>
+                    {selectedText && (
+                      <>
+                        <div className="flex gap-1.5 overflow-x-auto">
+                          {FONTS.map((f) => (<button key={f.id} onClick={() => setFont(f.id)} className={chip(textFontId === f.id)} style={{ fontFamily: f.css }}>{f.label}</button>))}
+                        </div>
+                        <div className="flex gap-1.5 overflow-x-auto">
+                          {TEXT_EFFECTS.map((e) => (<button key={e.id} onClick={() => setEffect(e.id)} className={chip(textEffect === e.id)}>{e.label}</button>))}
+                        </div>
+                        <div className="flex gap-1.5 overflow-x-auto">
+                          {COLORS.map((c) => (<button key={c} onClick={() => setColor(c)} className={`w-6 h-6 rounded-full border-2 shrink-0 ${textColor === c ? "border-white" : "border-white/20"}`} style={{ backgroundColor: c }} />))}
+                        </div>
+                      </>
+                    )}
+                    <div className="flex items-center gap-1.5 overflow-x-auto">
+                      <span className="text-white/40 text-[11px] shrink-0 ml-1">حاشیه</span>
+                      {BORDER_COLORS.map((b) => (
+                        <button key={b.id} onClick={() => setBorder(b.color)} className={chip((selected.border ?? null) === b.color)}>{b.label}</button>
+                      ))}
+                    </div>
+                    {selectedImage && (
+                      <p className="text-white/35 text-[10px] leading-relaxed">فیلتر و شطرنجیِ این تصویر را از تبِ «فیلتر و افکت» تنظیم کن.</p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-white/35 text-[11px] text-center py-1">برای ویرایش، لایه‌ای را روی تصویر لمس کن.</p>
+                )}
+              </>
+            )}
+
+            {/* ── تبِ فیلتر و افکت ── */}
+            {mtab === "filter" && (
+              <>
+                <p className={`text-[11px] text-center ${selectedImage ? "text-indigo-300/80" : "text-white/40"}`}>
+                  {selectedImage ? "روی لایهٔ تصویرِ انتخاب‌شده اعمال می‌شود" : "روی کلِ تصویر اعمال می‌شود"}
+                </p>
+                <div className="flex gap-2 overflow-x-auto pb-0.5">
+                  {FILTERS.map((f) => (<button key={f.id} onClick={() => applyFilter(f)} className={chip(activeFilterCss === f.css)}>{f.label}</button>))}
                 </div>
-              </div>
+                <div className="flex gap-2 overflow-x-auto pb-0.5">
+                  {PIXEL_LEVELS.map((p) => (<button key={p.id} onClick={() => applyPixel(p)} className={chip(activeBlocks === p.blocks)}>{p.label}</button>))}
+                </div>
+              </>
+            )}
+
+            {/* ── تبِ برش و کیفیت ── */}
+            {mtab === "adjust" && (
+              <>
+                <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
+                  <span className="text-white/40 text-[11px] shrink-0 ml-1">قاب</span>
+                  <FrameIcon size={14} className="text-white/40 shrink-0" />
+                  {FRAMES.map((f) => (<button key={f.id} onClick={() => setFrame(f)} className={chip(frame.id === f.id)}>{f.label}</button>))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-white/40 text-[11px] shrink-0 ml-1">برش</span>
+                  <button onClick={() => setSquare((s) => !s)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs shrink-0 border ${square ? "bg-indigo-600/25 border-indigo-400/50 text-white" : "bg-white/5 border-white/10 text-white/70"}`}>
+                    {square ? <Square size={14} /> : <Crop size={14} />} {square ? "مربع" : "کامل"}
+                  </button>
+                </div>
+                <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+                  <span className="text-white/40 text-[11px] self-center shrink-0 ml-1">کیفیت</span>
+                  {presets.map((p) => (<button key={p.id} onClick={() => setPreset(p)} className={chip(preset.id === p.id)}>{p.label}</button>))}
+                </div>
+                <div className="flex items-center justify-center gap-2 text-[12px]">
+                  <span className="text-white/40">حجمِ اصلی: <span className="text-white/70">{toPersianDigits(fmtBytes(origSize))}</span></span>
+                  {changed && (<>
+                    <span className="text-white/30">←</span>
+                    <span className="text-emerald-400">جدید: {toPersianDigits(fmtBytes(outSize!))}</span>
+                    {outSize! < origSize && <span className="text-emerald-400/70">({toPersianDigits(String(Math.round((1 - outSize! / origSize) * 100)))}٪ کمتر)</span>}
+                  </>)}
+                  {kind === "video" && preset.id !== "orig" && <span className="text-white/40">— پس از فشرده‌سازی</span>}
+                </div>
+              </>
             )}
           </>
         )}
-
-        {/* filters */}
-        <div className="flex gap-2 overflow-x-auto pb-0.5">
-          {FILTERS.map((f) => (<button key={f.id} onClick={() => setFilter(f)} className={chip(filter.id === f.id)}>{f.label}</button>))}
-        </div>
-        {/* frames — قابِ دورِ تصویر و لایه‌ها */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
-          <FrameIcon size={14} className="text-white/40 shrink-0" />
-          {FRAMES.map((f) => (<button key={f.id} onClick={() => setFrame(f)} className={chip(frame.id === f.id)}>{f.label}</button>))}
-        </div>
-        {/* pixelate + crop */}
-        <div className="flex gap-2 overflow-x-auto pb-0.5">
-          {PIXEL_LEVELS.map((p) => (<button key={p.id} onClick={() => setPixel(p)} className={chip(pixel.id === p.id)}>{p.label}</button>))}
-          <button onClick={() => setSquare((s) => !s)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs shrink-0 border ${square ? "bg-indigo-600/25 border-indigo-400/50 text-white" : "bg-white/5 border-white/10 text-white/70"}`}>
-            {square ? <Square size={14} /> : <Crop size={14} />} {square ? "مربع" : "کامل"}
-          </button>
-        </div>
-        {/* size presets */}
-        <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-          <span className="text-white/40 text-[11px] self-center shrink-0 ml-1">کیفیت</span>
-          {presets.map((p) => (<button key={p.id} onClick={() => setPreset(p)} className={chip(preset.id === p.id)}>{p.label}</button>))}
-        </div>
-
-        {/* size info */}
-        <div className="flex items-center justify-center gap-2 text-[12px]">
-          <span className="text-white/40">حجمِ اصلی: <span className="text-white/70">{toPersianDigits(fmtBytes(origSize))}</span></span>
-          {changed && (<>
-            <span className="text-white/30">←</span>
-            <span className="text-emerald-400">جدید: {toPersianDigits(fmtBytes(outSize!))}</span>
-            {outSize! < origSize && <span className="text-emerald-400/70">({toPersianDigits(String(Math.round((1 - outSize! / origSize) * 100)))}٪ کمتر)</span>}
-          </>)}
-          {kind === "video" && preset.id !== "orig" && <span className="text-white/40">— پس از فشرده‌سازی</span>}
-        </div>
 
         {/* send */}
         <button onClick={send} disabled={working || !ready} className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm disabled:opacity-50">
