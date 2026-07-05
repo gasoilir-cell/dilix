@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   X, Send, Type as TypeIcon, Square, Crop, Smile, Loader2, Pencil,
-  Eraser, Move, Trash2, Languages, Undo2,
+  Eraser, Move, Trash2, Languages, Undo2, ImagePlus, Frame as FrameIcon,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { messagesApi } from "@/lib/api";
@@ -64,6 +64,27 @@ const TRANSLATE_LANGS: { code: string; label: string }[] = [
   { code: "ru", label: "روسی" }, { code: "fr", label: "فرانسه" },
 ];
 
+// افکتِ حاشیه برای لایه‌های اضافه‌شده (رنگِ null = بدونِ حاشیه)
+const BORDER_COLORS: { id: string; label: string; color: string | null }[] = [
+  { id: "off", label: "بدون", color: null },
+  { id: "white", label: "سفید", color: "#FFFFFF" },
+  { id: "black", label: "مشکی", color: "#000000" },
+  { id: "amber", label: "طلایی", color: "#FACC15" },
+  { id: "rose", label: "صورتی", color: "#EC4899" },
+  { id: "sky", label: "آبی", color: "#38BDF8" },
+];
+
+// افکتِ قابِ دورِ تصویرِ اصلی + همه‌ی لایه‌ها
+const FRAMES: { id: string; label: string }[] = [
+  { id: "none", label: "بدون قاب" },
+  { id: "white", label: "سفید" },
+  { id: "black", label: "مشکی" },
+  { id: "gold", label: "طلایی" },
+  { id: "polaroid", label: "پولاروید" },
+  { id: "film", label: "فیلم" },
+  { id: "neon", label: "نئون" },
+];
+
 const IMG_PRESETS = [
   { id: "orig", label: "اصل", maxDim: 0, q: 0.92 },
   { id: "high", label: "بالا", maxDim: 1600, q: 0.85 },
@@ -80,13 +101,16 @@ const VID_PRESETS = [
 // ── types ────────────────────────────────────────────────────
 type EffectId = "stroke" | "shadow" | "neon" | "label" | "plain";
 interface Overlay {
-  id: string; kind: "text" | "emoji"; value: string;
+  id: string; kind: "text" | "emoji" | "image"; value: string;
   nx: number; ny: number; size: number; // size = fraction of width
   color: string; fontCss: string; effect: EffectId;
+  border?: string | null;               // رنگِ حاشیه (null/undefined = بدون)
+  aspect?: number;                       // برای لایهٔ تصویری: w/h
+  el?: HTMLImageElement;                 // المانِ بارگذاری‌شدهٔ تصویر
 }
 interface Pt { nx: number; ny: number }
 interface Stroke { points: Pt[]; color: string; width: number; erase: boolean }
-interface SceneOpts { square: boolean; filterCss: string; blocks: number; overlays: Overlay[]; strokes: Stroke[] }
+interface SceneOpts { square: boolean; filterCss: string; blocks: number; overlays: Overlay[]; strokes: Stroke[]; frame: string }
 
 // ── utils ────────────────────────────────────────────────────
 function fmtBytes(n: number): string {
@@ -159,10 +183,38 @@ function paintStrokes(ctx: CanvasRenderingContext2D, cache: Cache, strokes: Stro
 function textFont(ov: Overlay, fs: number) {
   return ov.kind === "emoji" ? `${fs}px "Segoe UI Emoji","Noto Color Emoji",sans-serif` : `bold ${fs}px ${ov.fontCss}`;
 }
+// اندازهٔ کادرِ هر لایه (برای border و hit-test)
+function measureOverlay(ctx: CanvasRenderingContext2D, ov: Overlay, W: number) {
+  if (ov.kind === "image") { const w = Math.max(8, ov.size * W); return { w, h: w / (ov.aspect || 1) }; }
+  const fs = Math.max(8, ov.size * W);
+  ctx.font = textFont(ov, fs);
+  const w = (ov.kind === "emoji" ? fs * 1.15 : ctx.measureText(ov.value).width) + fs * 0.4;
+  return { w, h: fs * 1.3 };
+}
+function paintBorder(ctx: CanvasRenderingContext2D, ov: Overlay, cx: number, cy: number, w: number, h: number) {
+  if (!ov.border) return;
+  const pad = Math.min(w, h) * 0.08;
+  const bw = Math.max(2, Math.min(w, h) * 0.05);
+  ctx.save();
+  ctx.strokeStyle = ov.border; ctx.lineWidth = bw;
+  roundRect(ctx, cx - w / 2 - pad, cy - h / 2 - pad, w + pad * 2, h + pad * 2, Math.min(w, h) * 0.14);
+  ctx.stroke(); ctx.restore();
+}
 function paintOverlays(ctx: CanvasRenderingContext2D, overlays: Overlay[], W: number, H: number) {
   for (const ov of overlays) {
-    const fs = Math.max(8, ov.size * W);
     const x = ov.nx * W, y = ov.ny * H;
+    if (ov.kind === "image") {
+      const box = measureOverlay(ctx, ov, W);
+      if (ov.el) {
+        ctx.save();
+        ctx.shadowColor = "rgba(0,0,0,0.3)"; ctx.shadowBlur = box.w * 0.03;
+        ctx.drawImage(ov.el, x - box.w / 2, y - box.h / 2, box.w, box.h);
+        ctx.restore();
+      }
+      paintBorder(ctx, ov, x, y, box.w, box.h);
+      continue;
+    }
+    const fs = Math.max(8, ov.size * W);
     ctx.save();
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.font = textFont(ov, fs);
@@ -190,20 +242,43 @@ function paintOverlays(ctx: CanvasRenderingContext2D, overlays: Overlay[], W: nu
       }
     }
     ctx.restore();
+    const box = measureOverlay(ctx, ov, W);
+    paintBorder(ctx, ov, x, y, box.w, box.h);
   }
 }
 function overlayBox(ctx: CanvasRenderingContext2D, ov: Overlay, W: number, H: number) {
-  const fs = Math.max(8, ov.size * W);
-  ctx.font = textFont(ov, fs);
-  const w = (ov.kind === "emoji" ? fs * 1.15 : ctx.measureText(ov.value).width) + fs * 0.4;
-  const h = fs * 1.3;
+  const { w, h } = measureOverlay(ctx, ov, W);
   return { cx: ov.nx * W, cy: ov.ny * H, w, h };
+}
+function paintFrame(ctx: CanvasRenderingContext2D, id: string, W: number, H: number) {
+  if (!id || id === "none") return;
+  ctx.save();
+  const t = Math.max(6, Math.round(Math.min(W, H) * 0.035));
+  if (id === "white" || id === "black" || id === "gold") {
+    if (id === "gold") { const g = ctx.createLinearGradient(0, 0, W, H); g.addColorStop(0, "#f7d774"); g.addColorStop(0.5, "#c9922e"); g.addColorStop(1, "#f7d774"); ctx.strokeStyle = g; }
+    else ctx.strokeStyle = id === "white" ? "#FFFFFF" : "#000000";
+    ctx.lineWidth = t; ctx.strokeRect(t / 2, t / 2, W - t, H - t);
+  } else if (id === "polaroid") {
+    ctx.fillStyle = "#FFFFFF";
+    const b = t, bottom = t * 3.2;
+    ctx.fillRect(0, 0, W, b); ctx.fillRect(0, H - bottom, W, bottom); ctx.fillRect(0, 0, b, H); ctx.fillRect(W - b, 0, b, H);
+  } else if (id === "film") {
+    const b = Math.round(H * 0.07);
+    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, b); ctx.fillRect(0, H - b, W, b);
+    ctx.fillStyle = "#fff"; const hw = b * 0.42, hh = b * 0.4, gap = hw * 2.2;
+    for (let x = gap; x < W - hw; x += gap) { ctx.fillRect(x, b * 0.3, hw, hh); ctx.fillRect(x, H - b + b * 0.3, hw, hh); }
+  } else if (id === "neon") {
+    ctx.strokeStyle = "#6366f1"; ctx.lineWidth = t * 0.7; ctx.shadowColor = "#6366f1"; ctx.shadowBlur = t * 1.6;
+    ctx.strokeRect(t / 2, t / 2, W - t, H - t);
+  }
+  ctx.restore();
 }
 function drawScene(ctx: CanvasRenderingContext2D, cache: Cache, src: CanvasImageSource, natW: number, natH: number, W: number, H: number, o: SceneOpts) {
   const crop = baseCrop(natW, natH, o.square);
   blit(ctx, cache, src, crop, W, H, o.filterCss, o.blocks);
   paintStrokes(ctx, cache, o.strokes, W, H);
   paintOverlays(ctx, o.overlays, W, H);
+  paintFrame(ctx, o.frame, W, H);
 }
 
 function transcodeVideo(file: File, o: SceneOpts & { maxDim: number; bitrate: number }, onProgress: (p: number) => void): Promise<Blob> {
@@ -241,6 +316,7 @@ function transcodeVideo(file: File, o: SceneOpts & { maxDim: number; bitrate: nu
 // ── component ────────────────────────────────────────────────
 export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const imgInputRef = useRef<HTMLInputElement | null>(null);
   const cacheRef = useRef<Cache>({});
   const srcElRef = useRef<HTMLImageElement | HTMLVideoElement | null>(null);
   const natRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
@@ -252,6 +328,7 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
   const [square, setSquare] = useState(false);
   const [filter, setFilter] = useState(FILTERS[0]);
   const [pixel, setPixel] = useState(PIXEL_LEVELS[0]);
+  const [frame, setFrame] = useState(FRAMES[0]);
   const [overlays, setOverlays] = useState<Overlay[]>([]);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -306,7 +383,7 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
 
   useEffect(() => { if (ready) fitBox(natRef.current.w, natRef.current.h); }, [square, ready, fitBox]);
 
-  const sceneOpts = useCallback((): SceneOpts => ({ square, filterCss: filter.css, blocks: pixel.blocks, overlays, strokes }), [square, filter, pixel, overlays, strokes]);
+  const sceneOpts = useCallback((): SceneOpts => ({ square, filterCss: filter.css, blocks: pixel.blocks, overlays, strokes, frame: frame.id }), [square, filter, pixel, overlays, strokes, frame]);
 
   // paint preview
   const paint = useCallback(() => {
@@ -344,7 +421,7 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
     paint();
   }, [ready, kind, paint, box]);
 
-  const hasEdits = square || filter.id !== "none" || pixel.blocks > 0 || overlays.length > 0 || strokes.length > 0;
+  const hasEdits = square || filter.id !== "none" || pixel.blocks > 0 || overlays.length > 0 || strokes.length > 0 || frame.id !== "none";
 
   // live image size
   useEffect(() => {
@@ -355,7 +432,7 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
     }, 300);
     return () => { cancelled = true; clearTimeout(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kind, ready, square, filter, pixel, overlays, strokes, preset]);
+  }, [kind, ready, square, filter, pixel, overlays, strokes, preset, frame]);
 
   const renderImageOutput = useCallback((): Promise<Blob> => {
     return new Promise((resolve, reject) => {
@@ -364,10 +441,10 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
       const { W, H } = outDims(crop.sw, crop.sh, preset.maxDim);
       const c = document.createElement("canvas"); c.width = W; c.height = H;
       const ctx = c.getContext("2d"); if (!ctx) return reject(new Error("no ctx"));
-      drawScene(ctx, {}, src, natRef.current.w, natRef.current.h, W, H, { square, filterCss: filter.css, blocks: pixel.blocks, overlays, strokes });
+      drawScene(ctx, {}, src, natRef.current.w, natRef.current.h, W, H, { square, filterCss: filter.css, blocks: pixel.blocks, overlays, strokes, frame: frame.id });
       c.toBlob((b) => b ? resolve(b) : reject(new Error("toBlob")), "image/jpeg", (preset as { q: number }).q);
     });
-  }, [square, preset, filter, pixel, overlays, strokes]);
+  }, [square, preset, filter, pixel, overlays, strokes, frame]);
 
   // ── pointer interactions ─────────────────────────────────
   const normFromEvent = (e: React.PointerEvent) => {
@@ -425,8 +502,21 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
   const setColor = (c: string) => { setTextColor(c); patchSelectedText({ color: c }); };
   const setFont = (id: string) => { setTextFontId(id); patchSelectedText({ fontCss: FONTS.find((f) => f.id === id)!.css }); };
   const setEffect = (id: EffectId) => { setTextEffect(id); patchSelectedText({ effect: id }); };
-  const resizeSelected = (delta: number) => setOverlays((p) => p.map((o) => o.id === selectedId ? { ...o, size: Math.min(0.5, Math.max(0.04, o.size + delta)) } : o));
+  const resizeSelected = (delta: number) => setOverlays((p) => p.map((o) => o.id === selectedId ? { ...o, size: Math.min(0.85, Math.max(0.04, o.size + delta)) } : o));
   const deleteSelected = () => { if (!selectedId) return; setOverlays((p) => p.filter((o) => o.id !== selectedId)); setSelectedId(null); setDraft(""); };
+  const setBorder = (color: string | null) => { if (!selectedId) return; setOverlays((p) => p.map((o) => o.id === selectedId ? { ...o, border: color } : o)); };
+
+  // تصویر در تصویر: افزودنِ لایهٔ تصویری
+  const addImageOverlay = (f: File) => {
+    const url = URL.createObjectURL(f);
+    const im = new Image();
+    im.onload = () => {
+      const ov: Overlay = { id: uid(), kind: "image", value: url, nx: 0.5, ny: 0.5, size: 0.42, color: "#fff", fontCss: "sans-serif", effect: "plain", aspect: im.naturalWidth / im.naturalHeight, el: im, border: "#FFFFFF" };
+      setOverlays((p) => [...p, ov]); setSelectedId(ov.id); setTool("move");
+    };
+    im.onerror = () => { toast.error("بارگذاریِ تصویر ناموفق بود"); URL.revokeObjectURL(url); };
+    im.src = url;
+  };
 
   const translate = async (lang: string) => {
     const text = (selectedText?.value ?? draft).trim(); if (!text) { setShowTr(false); return; }
@@ -457,7 +547,7 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
     } else {
       setWorking(true); setProgress(0);
       try {
-        const blob = await transcodeVideo(file, { square, filterCss: filter.css, blocks: pixel.blocks, overlays, strokes, maxDim: preset.maxDim, bitrate: (preset as { bitrate: number }).bitrate }, (p) => setProgress(p));
+        const blob = await transcodeVideo(file, { square, filterCss: filter.css, blocks: pixel.blocks, overlays, strokes, frame: frame.id, maxDim: preset.maxDim, bitrate: (preset as { bitrate: number }).bitrate }, (p) => setProgress(p));
         toast.success(`حجم: ${toPersianDigits(fmtBytes(origSize))} ← ${toPersianDigits(fmtBytes(blob.size))}`);
         onDone(new File([blob], `video-${Date.now()}.webm`, { type: "video/webm" }));
       } catch { toast.error("فشرده‌سازیِ ویدیو ناموفق بود — فایلِ اصلی ارسال شد"); onDone(file); }
@@ -529,9 +619,11 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
           </>
         ) : (
           <>
-            {/* add text / emoji / translate */}
+            {/* add text / emoji / image / translate */}
             <div className="flex items-center gap-2">
               <button onClick={() => setShowEmoji((s) => !s)} className={`p-2 rounded-xl shrink-0 ${showEmoji ? "bg-indigo-500/20 text-indigo-300" : "bg-white/5 text-white/60"}`}><Smile size={18} /></button>
+              <button onClick={() => imgInputRef.current?.click()} className="p-2 rounded-xl shrink-0 bg-white/5 text-white/60" title="تصویر در تصویر"><ImagePlus size={18} /></button>
+              <input ref={imgInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) addImageOverlay(f); e.target.value = ""; }} />
               <input value={draft} onChange={(e) => onDraftChange(e.target.value)} maxLength={80} placeholder={selectedText ? "ویرایشِ متنِ انتخاب‌شده" : "متن روی رسانه"}
                 className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm placeholder-white/30 focus:outline-none min-w-0" />
               <button onClick={() => setShowTr((s) => !s)} className={`p-2 rounded-xl shrink-0 ${showTr ? "bg-emerald-500/20 text-emerald-300" : "bg-white/5 text-white/60"}`} title="ترجمه"><Languages size={18} /></button>
@@ -572,6 +664,13 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
                     </div>
                   </>
                 )}
+                {/* افکتِ حاشیه — برای همه‌ی لایه‌ها */}
+                <div className="flex items-center gap-1.5 overflow-x-auto">
+                  <span className="text-white/40 text-[11px] shrink-0 ml-1">حاشیه</span>
+                  {BORDER_COLORS.map((b) => (
+                    <button key={b.id} onClick={() => setBorder(b.color)} className={chip((selected.border ?? null) === b.color)}>{b.label}</button>
+                  ))}
+                </div>
               </div>
             )}
           </>
@@ -580,6 +679,11 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
         {/* filters */}
         <div className="flex gap-2 overflow-x-auto pb-0.5">
           {FILTERS.map((f) => (<button key={f.id} onClick={() => setFilter(f)} className={chip(filter.id === f.id)}>{f.label}</button>))}
+        </div>
+        {/* frames — قابِ دورِ تصویر و لایه‌ها */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
+          <FrameIcon size={14} className="text-white/40 shrink-0" />
+          {FRAMES.map((f) => (<button key={f.id} onClick={() => setFrame(f)} className={chip(frame.id === f.id)}>{f.label}</button>))}
         </div>
         {/* pixelate + crop */}
         <div className="flex gap-2 overflow-x-auto pb-0.5">
