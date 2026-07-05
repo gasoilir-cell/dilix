@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, Suspense } from "react";
+import { useState, useEffect, useRef, useCallback, Suspense, Fragment } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, MessageCircle, Send, ArrowRight, Loader2, Users, Reply, Pencil, Trash2, Check, CheckCheck, X, UserPlus, LogOut, Crown, Paperclip, Mic, FileText, Download, Play, Pause, MapPin, Radio, Image as ImageIcon, Languages, Phone, Video, PhoneMissed, Smile, Camera, Copy, Palette, Sticker, Star, Compass, Forward, MoreHorizontal } from "lucide-react";
+import { Search, MessageCircle, Send, ArrowRight, Loader2, Users, Reply, Pencil, Trash2, Check, CheckCheck, X, UserPlus, LogOut, Crown, Paperclip, Mic, FileText, Download, Play, Pause, MapPin, Radio, Image as ImageIcon, Languages, Phone, Video, PhoneMissed, Smile, Camera, Copy, Palette, Sticker, Star, Compass, Forward, MoreHorizontal, ChevronDown, Pin, PinOff } from "lucide-react";
 import AppShell from "@/components/layout/AppShell";
 import { messagesApi, stickersApi, getApiErrorMessage} from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
@@ -26,12 +26,27 @@ const ROLE_LABEL: Record<string, string> = {
   insurance_agent: "نماینده بیمه", creator: "بازاریاب", admin: "سیستم", user: "کاربر",
 };
 
+function lastSeenLabel(iso?: string | null): string {
+  if (!iso) return "آفلاین";
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (diff < 60) return "چند لحظه پیش";
+  if (diff < 3600) return `${toPersianNum(Math.floor(diff / 60))} دقیقه پیش`;
+  if (diff < 86400) return `${toPersianNum(Math.floor(diff / 3600))} ساعت پیش`;
+  const days = Math.floor(diff / 86400);
+  if (days === 1) return "دیروز";
+  if (days < 7) return `${toPersianNum(days)} روز پیش`;
+  try {
+    return new Date(iso).toLocaleDateString("fa-IR", { month: "long", day: "numeric" });
+  } catch { return "خیلی وقت پیش"; }
+}
+
 interface Room {
   id: string; type: string; name: string | null;
   partner_name: string | null; partner_earth_id: string | null;
   partner_role: string | null; partner_avatar: string | null;
   last_message: string | null; last_message_at: string | null;
   unread_count: number; member_count?: number; is_admin?: boolean;
+  partner_online?: boolean; partner_last_seen?: string | null;
   created_at: string;
 }
 
@@ -65,6 +80,7 @@ interface Message {
   location?: LocationData | null;
   is_forwarded?: boolean;
   forwarded_from?: string | null;
+  is_pinned?: boolean;
   _uploading?: boolean;
 }
 
@@ -199,7 +215,7 @@ function LocationBubble({ loc, mine, canStop, onStop }: {
       <button onClick={openMap} className="relative block w-[200px] h-[200px] rounded-xl overflow-hidden bg-[#1a2733]">
         <img
           src={`/globe-tiles/${Z}/${tx}/${ty}`} alt="map"
-          className="w-full h-full object-fill select-none pointer-events-none"
+          className="w-full h-full object-cover select-none pointer-events-none"
           draggable={false}
         />
         {/* pin */}
@@ -314,6 +330,17 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
   const [editorMedia, setEditorMedia] = useState<{ file: File; kind: "image" | "video" } | null>(null);
   const [chatTheme, setChatTheme] = useState<ChatTheme>({ bg: "dark", accent: "#4F46E5" });
   const [showChatSettings, setShowChatSettings] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQ, setSearchQ] = useState("");
+  const [searchResults, setSearchResults] = useState<Message[]>([]);
+  const [searchBusy, setSearchBusy] = useState(false);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const msgRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [showScrollDown, setShowScrollDown] = useState(false);
+  const [presence, setPresence] = useState<{ online: boolean; lastSeen: string | null; typing: string[] }>({ online: false, lastSeen: null, typing: [] });
+  const typingSentRef = useRef(0);
+  const [pins, setPins] = useState<Message[]>([]);
+  const [pinIdx, setPinIdx] = useState(0);
   const me = useAuthStore((s) => s.user);
 
   useEffect(() => { setChatTheme(getChatTheme()); }, []);
@@ -343,6 +370,24 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
       toast.error("کپی ناموفق بود");
     }
     setSheetMsg(null);
+  };
+
+  const togglePin = async (msg: Message) => {
+    setSheetMsg(null);
+    const willPin = !msg.is_pinned;
+    // optimistic on the message list
+    setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, is_pinned: willPin } : m));
+    try {
+      await messagesApi.pin(msg.id);
+      const r = await messagesApi.pins(room.id);
+      setPins(r.data);
+      setPinIdx(0);
+      toast.success(willPin ? "پیام سنجاق شد" : "سنجاق برداشته شد");
+    } catch {
+      // revert
+      setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, is_pinned: !willPin } : m));
+      toast.error("عملیات ناموفق بود");
+    }
   };
 
   // ── Translation ──────────────────────────────────────────
@@ -430,6 +475,7 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
       const data: Message[] = res.data;
       setMessages(data);
       messagesApi.markRead(room.id).catch(() => {});
+      messagesApi.pins(room.id).then((r) => setPins(r.data)).catch(() => {});
       // resume watcher for my still-active live share
       const mine = data.filter(m => m.is_mine && m.media_type === "live_location" && m.location?.active);
       if (mine.length) {
@@ -457,6 +503,32 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
     const t = setInterval(load, 5000);
     return () => clearInterval(t);
   }, [load]);
+
+  // poll presence (online/last-seen) + typing every 4s
+  useEffect(() => {
+    let alive = true;
+    const tick = async () => {
+      try {
+        const { data } = await messagesApi.roomStatus(room.id);
+        if (alive) setPresence({
+          online: !!data.partner_online,
+          lastSeen: data.partner_last_seen ?? null,
+          typing: Array.isArray(data.typing) ? data.typing : [],
+        });
+      } catch { /* ignore transient */ }
+    };
+    tick();
+    const t = setInterval(tick, 4000);
+    return () => { alive = false; clearInterval(t); };
+  }, [room.id]);
+
+  // اعلامِ «در حال نوشتن» با throttle (حداکثر هر ۳ ثانیه)
+  const signalTyping = () => {
+    const now = Date.now();
+    if (now - typingSentRef.current < 3000) return;
+    typingSentRef.current = now;
+    messagesApi.setTyping(room.id).catch(() => {});
+  };
 
   // auto-translate incoming (others') text messages when enabled
   useEffect(() => {
@@ -801,6 +873,34 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
     setTimeout(() => inputRef.current?.focus(), 50);
   };
 
+  const runSearch = async () => {
+    const q = searchQ.trim();
+    if (q.length < 2) { setSearchResults([]); return; }
+    setSearchBusy(true);
+    try {
+      const res = await messagesApi.searchMessages(room.id, q);
+      setSearchResults(res.data as Message[]);
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setSearchBusy(false);
+    }
+  };
+
+  const jumpToMessage = (m: Message) => {
+    setShowSearch(false);
+    setSearchQ("");
+    setSearchResults([]);
+    const el = msgRefs.current[m.id];
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      setHighlightId(m.id);
+      setTimeout(() => setHighlightId((h) => (h === m.id ? null : h)), 2200);
+    } else {
+      toast("این پیام قدیمی است؛ کمی در گفتگو بالا برو تا بارگذاری شود", { icon: "🔎" });
+    }
+  };
+
   const startForward = async (msg: Message) => {
     setSheetMsg(null);
     setForwardAnon(false);
@@ -881,12 +981,31 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
     }
   };
 
+  const dayLabel = (iso: string) => {
+    const d = new Date(iso);
+    const today = new Date();
+    const yst = new Date(); yst.setDate(today.getDate() - 1);
+    const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+    if (sameDay(d, today)) return "امروز";
+    if (sameDay(d, yst)) return "دیروز";
+    return d.toLocaleDateString("fa-IR", { weekday: "long", day: "numeric", month: "long" });
+  };
+  const isNewDay = (curIso: string, prevIso?: string) => {
+    if (!prevIso) return true;
+    const a = new Date(curIso), b = new Date(prevIso);
+    return a.getFullYear() !== b.getFullYear() || a.getMonth() !== b.getMonth() || a.getDate() !== b.getDate();
+  };
+  const onMessagesScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    setShowScrollDown(el.scrollHeight - el.scrollTop - el.clientHeight > 320);
+  };
+
   const partnerName = isGroup ? (room.name ?? "گروه") : (room.partner_name ?? room.name ?? "مکالمه");
   const partnerRole = room.partner_role ?? "user";
   const iAmAdmin = members.find(m => m.is_me)?.is_admin ?? room.is_admin ?? false;
 
   return (
-    <div className="flex flex-col h-screen bg-[#0A0A0A]">
+    <div className="flex flex-col h-[100dvh] bg-[#0A0A0A] relative">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 bg-[rgba(10,10,10,0.95)] border-b border-white/8 safe-top">
         <button onClick={onBack} className="p-2 rounded-xl hover:bg-white/5 text-white/70">
@@ -907,10 +1026,20 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
           className="flex-1 min-w-0 text-right"
         >
           <p className="text-white font-semibold truncate">{partnerName}</p>
-          <p className="text-white/40 text-xs">
-            {isGroup
-              ? `${toPersianNum(room.member_count ?? members.length)} عضو`
-              : (ROLE_LABEL[partnerRole] ?? "کاربر")}
+          <p className="text-xs truncate">
+            {presence.typing.length > 0 ? (
+              <span className="text-emerald-400">
+                {isGroup ? `${presence.typing[0]} در حال نوشتن…` : "در حال نوشتن…"}
+              </span>
+            ) : isGroup ? (
+              <span className="text-white/40">{toPersianNum(room.member_count ?? members.length)} عضو</span>
+            ) : presence.online ? (
+              <span className="text-emerald-400">آنلاین</span>
+            ) : presence.lastSeen ? (
+              <span className="text-white/40">آخرین بازدید {lastSeenLabel(presence.lastSeen)}</span>
+            ) : (
+              <span className="text-white/40">{ROLE_LABEL[partnerRole] ?? "کاربر"}</span>
+            )}
           </p>
         </button>
         {!isGroup && room.partner_earth_id && (
@@ -931,6 +1060,13 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
             </button>
           </>
         )}
+        <button
+          onClick={() => { setShowSearch(true); setSearchQ(""); setSearchResults([]); }}
+          className="p-2 rounded-xl hover:bg-white/5 text-white/60"
+          title="جستجو در گفتگو"
+        >
+          <Search size={20} />
+        </button>
         <button
           onClick={() => setShowLangMenu(true)}
           className={`relative p-2 rounded-xl hover:bg-white/5 ${autoTr ? "text-emerald-400" : "text-white/60"}`}
@@ -953,8 +1089,29 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
         )}
       </div>
 
+      {/* Pinned banner */}
+      {pins.length > 0 && (() => {
+        const idx = Math.min(pinIdx, pins.length - 1);
+        const p = pins[idx];
+        const preview = p.is_deleted ? "حذف شد" : (p.content?.trim() || (p.media_type ? "رسانه" : "پیام"));
+        return (
+          <button
+            onClick={() => { jumpToMessage(p); if (pins.length > 1) setPinIdx((i) => (i + 1) % pins.length); }}
+            className="flex items-center gap-2 w-full px-4 py-2 bg-[#141414] border-b border-white/8 text-right active:bg-white/5"
+          >
+            <Pin size={15} className="text-indigo-400 shrink-0 rotate-45" />
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] text-indigo-300/80">
+                پیام سنجاق‌شده{pins.length > 1 ? ` ${toPersianNum(idx + 1)}/${toPersianNum(pins.length)}` : ""}
+              </p>
+              <p className="text-xs text-white/70 truncate">{preview}</p>
+            </div>
+          </button>
+        );
+      })()}
+
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3" style={bgStyle(chatTheme.bg)}>
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 relative" onScroll={onMessagesScroll} style={bgStyle(chatTheme.bg)}>
         {loading ? (
           <div className="flex justify-center pt-10">
             <Loader2 size={28} className="text-indigo-400 animate-spin" />
@@ -965,10 +1122,20 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
             <p className="text-white/30 text-sm">اولین نفری باش که پیام می‌فرستی</p>
           </div>
         ) : (
-          messages.map((msg) => {
+          messages.map((msg, i) => {
             const reactionEntries = Object.entries(msg.reactions ?? {}).filter(([, c]) => c > 0);
+            const showDay = isNewDay(msg.created_at, messages[i - 1]?.created_at);
             return (
-            <div key={msg.id} className={`flex flex-col ${msg.is_mine ? "items-end" : "items-start"}`}>
+            <Fragment key={msg.id}>
+            {showDay && (
+              <div className="flex justify-center py-1">
+                <span className="text-[11px] text-white/60 bg-black/30 px-3 py-1 rounded-full">{dayLabel(msg.created_at)}</span>
+              </div>
+            )}
+            <div
+              ref={(el) => { msgRefs.current[msg.id] = el; }}
+              className={`flex flex-col ${msg.is_mine ? "items-end" : "items-start"} ${highlightId === msg.id ? "rounded-2xl ring-2 ring-yellow-400/70 transition" : ""}`}
+            >
               <button
                 onClick={() => !msg.is_deleted && !msg.id.startsWith("tmp-") && setSheetMsg(msg)}
                 style={msg.is_mine && !msg.is_deleted ? { backgroundColor: chatTheme.accent } : undefined}
@@ -1081,6 +1248,7 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
                   </div>
                 )}
                 <div className={`flex items-center gap-1 mt-1 ${msg.is_mine ? "text-indigo-200/60" : "text-white/30"} justify-end`}>
+                  {msg.is_pinned && !msg.is_deleted && <Pin size={11} className="rotate-45" />}
                   {msg.edited && !msg.is_deleted && <span className="text-[10px]">ویرایش‌شده</span>}
                   <span className="text-[10px]">{formatTime(msg.created_at)}</span>
                   {msg.is_mine && !msg.is_deleted && (
@@ -1120,11 +1288,23 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
                 </div>
               )}
             </div>
+            </Fragment>
             );
           })
         )}
         <div ref={bottomRef} />
       </div>
+
+      {/* scroll-to-bottom */}
+      {showScrollDown && (
+        <button
+          onClick={() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); setShowScrollDown(false); }}
+          className="absolute bottom-24 left-4 z-30 w-11 h-11 rounded-full bg-[#2C2C2E] border border-white/10 shadow-lg flex items-center justify-center text-white/80 hover:bg-[#3A3A3C]"
+          aria-label="پرش به آخرین پیام"
+        >
+          <ChevronDown size={22} />
+        </button>
+      )}
 
       {/* Action sheet (react / reply / edit / delete) */}
       {sheetMsg && (
@@ -1163,6 +1343,16 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
               >
                 <Forward size={18} className="text-white/60" /> بازارسال
               </button>
+              {!sheetMsg.is_deleted && (
+                <button
+                  onClick={() => togglePin(sheetMsg)}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-white text-sm text-right"
+                >
+                  {sheetMsg.is_pinned
+                    ? <><PinOff size={18} className="text-white/60" /> برداشتن سنجاق</>
+                    : <><Pin size={18} className="text-indigo-400" /> سنجاق کردن</>}
+                </button>
+              )}
               {!!sheetMsg.sticker_id && (
                 <>
                   <button
@@ -1514,11 +1704,62 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
         <ChatSettingsSheet theme={chatTheme} onChange={applyTheme} onClose={() => setShowChatSettings(false)} />
       )}
 
+      {/* In-chat message search */}
+      {showSearch && (
+        <div className="fixed inset-0 z-[55] flex flex-col bg-[#0A0A0A]">
+          <div className="flex items-center gap-2 px-3 py-3 border-b border-white/8 safe-top">
+            <button onClick={() => setShowSearch(false)} className="p-2 rounded-xl hover:bg-white/5 text-white/70">
+              <ArrowRight size={20} />
+            </button>
+            <div className="flex-1 flex items-center gap-2 bg-white/5 rounded-xl px-3">
+              <Search size={16} className="text-white/40" />
+              <input
+                autoFocus
+                value={searchQ}
+                onChange={(e) => setSearchQ(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && runSearch()}
+                placeholder="جستجو در این گفتگو…"
+                className="flex-1 bg-transparent py-2.5 text-white text-sm outline-none placeholder:text-white/30"
+              />
+              {searchQ && (
+                <button onClick={() => { setSearchQ(""); setSearchResults([]); }} className="text-white/40 hover:text-white/70"><X size={16} /></button>
+              )}
+            </div>
+            <button onClick={runSearch} className="px-3 py-2 rounded-xl bg-indigo-600 text-white text-sm">جستجو</button>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {searchBusy ? (
+              <div className="flex justify-center pt-10"><Loader2 size={26} className="text-indigo-400 animate-spin" /></div>
+            ) : searchQ.trim().length < 2 ? (
+              <p className="text-white/30 text-sm text-center pt-10">حداقل ۲ حرف بنویس</p>
+            ) : searchResults.length === 0 ? (
+              <p className="text-white/30 text-sm text-center pt-10">نتیجه‌ای پیدا نشد</p>
+            ) : (
+              <div className="divide-y divide-white/5">
+                {searchResults.map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => jumpToMessage(m)}
+                    className="w-full text-right px-4 py-3 hover:bg-white/5"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-indigo-300 text-xs font-medium truncate">{m.is_mine ? "شما" : (m.sender_name ?? "کاربر")}</span>
+                      <span className="text-white/30 text-[11px]">{new Date(m.created_at).toLocaleDateString("fa-IR")}</span>
+                    </div>
+                    <p className="text-white/80 text-sm line-clamp-2">{m.content}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* In-app camera (front/back) → editor */}
       {showCamera && (
         <CameraCapture
           onClose={() => setShowCamera(false)}
-          onCapture={(file) => { setShowCamera(false); setEditorMedia({ file, kind: "image" }); }}
+          onCapture={(file, kind) => { setShowCamera(false); setEditorMedia({ file, kind }); }}
         />
       )}
 
@@ -1629,7 +1870,7 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
             <input
               ref={inputRef}
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={(e) => { setText(e.target.value); signalTyping(); }}
               onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), send())}
               placeholder={editing ? "ویرایش پیام..." : "پیام..."}
               className="flex-1 bg-[#1C1C1E] border border-white/8 rounded-2xl px-4 py-3 text-white text-sm placeholder-white/30 focus:outline-none focus:border-indigo-500/50 resize-none"
@@ -1895,6 +2136,9 @@ function MessagesInner() {
                       <span className="absolute -top-1 -left-1 min-w-5 h-5 px-1 bg-indigo-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                         {toPersianNum(room.unread_count)}
                       </span>
+                    )}
+                    {!isGroup && room.partner_online && (
+                      <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-[#0A0A0A]" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">

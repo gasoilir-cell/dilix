@@ -68,8 +68,15 @@ api.interceptors.response.use(
 
         original.headers.Authorization = `Bearer ${newToken}`;
         return api(original);
-      } catch {
-        useAuthStore.getState().logout();
+      } catch (refreshErr) {
+        refreshQueue = [];
+        // فقط وقتی refresh token واقعاً نامعتبر است logout کن.
+        // خطای شبکه/تایم‌اوت (به‌ویژه حین تماسِ تصویریِ پرترافیک) نباید کاربر را
+        // به صفحهٔ ورود پرتاب کند؛ در این حالت اجازه می‌دهیم درخواستِ بعدی دوباره refresh کند.
+        const re = refreshErr as AxiosError;
+        if (re.response && [400, 401, 403].includes(re.response.status)) {
+          useAuthStore.getState().logout();
+        }
         return Promise.reject(error);
       } finally {
         isRefreshing = false;
@@ -205,7 +212,13 @@ export const messagesApi = {
     api.post(`/messages/messages/${messageId}/react`, { emoji }),
   forward: (messageId: string, roomId: string, anonymous: boolean) =>
     api.post(`/messages/messages/${messageId}/forward`, { room_id: roomId, anonymous }),
+  searchMessages: (roomId: string, q: string) =>
+    api.get(`/messages/rooms/${roomId}/messages/search`, { params: { q } }),
   markRead: (roomId: string) => api.post(`/messages/rooms/${roomId}/read`),
+  roomStatus: (roomId: string) => api.get(`/messages/rooms/${roomId}/status`),
+  setTyping: (roomId: string) => api.post(`/messages/rooms/${roomId}/typing`),
+  pin: (messageId: string) => api.post(`/messages/messages/${messageId}/pin`),
+  pins: (roomId: string) => api.get(`/messages/rooms/${roomId}/pins`),
   createGroup: (name: string, memberEarthIds: string[]) =>
     api.post("/messages/groups", { name, member_earth_ids: memberEarthIds }),
   members: (roomId: string) => api.get(`/messages/rooms/${roomId}/members`),

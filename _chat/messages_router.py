@@ -21,6 +21,7 @@ DELETE /api/v1/messages/rooms/{id}/members/{earth_id}  حذف/ترکِ عضو
 """
 import os
 import json
+import time
 import uuid as _uuid
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict
@@ -170,6 +171,8 @@ class RoomOut(BaseModel):
     unread_count: int
     member_count: int = 0
     is_admin: bool = False
+    partner_online: bool = False
+    partner_last_seen: Optional[datetime] = None
     created_at: datetime
 
 
@@ -211,6 +214,7 @@ class MessageOut(BaseModel):
     location: Optional[LocationInfo] = None
     is_forwarded: bool = False
     forwarded_from: Optional[str] = None
+    is_pinned: bool = False
     created_at: datetime
 
 
@@ -340,6 +344,27 @@ async def _partner_last_read(db: AsyncSession, room_id, me_id) -> Optional[datet
     return r.scalar_one_or_none()
 
 
+# ── حضور (آنلاین/آخرین بازدید) و «در حال نوشتن» ──────────────────
+_ONLINE_WINDOW = 45          # ثانیه؛ کاربر «آنلاین» اگر در این بازه فعال بوده باشد
+_TYPING_TTL = 6.0            # ثانیه؛ اعتبارِ سیگنالِ در حال نوشتن
+# وضعیتِ گذرای «در حال نوشتن»؛ کلید f"{room_id}:{user_id}" -> زمانِ انقضا (epoch)
+_typing_state: Dict[str, float] = {}
+
+
+def _is_online(last_seen: Optional[datetime]) -> bool:
+    if not last_seen:
+        return False
+    if last_seen.tzinfo is None:
+        last_seen = last_seen.replace(tzinfo=timezone.utc)
+    return (datetime.now(timezone.utc) - last_seen).total_seconds() <= _ONLINE_WINDOW
+
+
+async def _touch_presence(db: AsyncSession, me: User) -> None:
+    """ثبتِ حضور: آخرین فعالیتِ کاربرِ جاری = اکنون (heartbeat)."""
+    me.last_seen_at = datetime.now(timezone.utc)
+    await db.commit()
+
+
 async def _resolve_reply(db: AsyncSession, rid, reply_to_id: Optional[str]):
     """اعتبارسنجیِ reply هم‌اتاق؛ برمی‌گرداند (reply_to_uuid, ReplyPreview|None)"""
     if not reply_to_id:
@@ -385,6 +410,8 @@ async def list_rooms(
     result = []
     for room in rooms:
         partner_name = partner_earth_id = partner_role = partner_avatar = None
+        partner_online = False
+        partner_last_seen = None
         if room.type == "direct":
             members_q = (
                 select(User)
@@ -398,6 +425,8 @@ async def list_rooms(
                 partner_earth_id = partner.earth_id
                 partner_role = partner.role
                 partner_avatar = partner.avatar_url
+                partner_last_seen = partner.last_seen_at
+                partner_online = _is_online(partner.last_seen_at)
 
         last_msg_q = (
             select(Message)
@@ -440,9 +469,12 @@ async def list_rooms(
             unread_count=unread_count,
             member_count=member_count,
             is_admin=(room.created_by == me.id),
+            partner_online=partner_online,
+            partner_last_seen=partner_last_seen,
             created_at=room.created_at,
         ))
 
+    await _touch_presence(db, me)
     return sorted(result, key=lambda r: r.last_message_at or r.created_at, reverse=True)
 
 
@@ -475,8 +507,81 @@ async def start_or_get_room(
         last_message=None,
         last_message_at=None,
         unread_count=0,
+        partner_online=_is_online(partner.last_seen_at),
+        partner_last_seen=partner.last_seen_at,
         created_at=room.created_at,
     )
+
+
+class RoomStatusOut(BaseModel):
+    partner_online: bool = False
+    partner_last_seen: Optional[datetime] = None
+    typing: List[str] = []            # نامِ اعضایی که همین حالا در حال نوشتن‌اند
+
+
+@router.get("/rooms/{room_id}/status", response_model=RoomStatusOut)
+async def room_status(
+    room_id: str,
+    db: AsyncSession = Depends(get_db),
+    me: User = Depends(get_current_user),
+):
+    """وضعیتِ لحظه‌ایِ اتاق: آنلاین/آخرین‌بازدیدِ طرف مقابل + «در حال نوشتن».
+    خودِ این فراخوانی به‌عنوانِ heartbeat حضورِ منِ جاری را تازه می‌کند."""
+    me_id = me.id
+    try:
+        rid = _uuid.UUID(room_id)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="اتاقِ نامعتبر")
+    await _require_member(db, rid, me_id)
+
+    now_e = time.time()
+    others = (
+        await db.execute(
+            select(User)
+            .join(RoomMember, RoomMember.user_id == User.id)
+            .where(and_(RoomMember.room_id == rid, User.id != me_id))
+        )
+    ).scalars().all()
+
+    typing: List[str] = []
+    partner_online = False
+    partner_last_seen = None
+    for u in others:
+        exp = _typing_state.get(f"{room_id}:{u.id}")
+        if exp and exp > now_e:
+            typing.append(u.full_name or u.username or u.earth_id)
+        if partner_last_seen is None:  # اتاقِ direct: یک عضوِ دیگر
+            partner_last_seen = u.last_seen_at
+            partner_online = _is_online(u.last_seen_at)
+
+    await _touch_presence(db, me)
+    return RoomStatusOut(
+        partner_online=partner_online,
+        partner_last_seen=partner_last_seen,
+        typing=typing,
+    )
+
+
+@router.post("/rooms/{room_id}/typing", status_code=status.HTTP_204_NO_CONTENT)
+async def set_typing(
+    room_id: str,
+    db: AsyncSession = Depends(get_db),
+    me: User = Depends(get_current_user),
+):
+    """اعلامِ «در حال نوشتن» (گذرا، اعتبارِ ~۶ ثانیه)."""
+    try:
+        rid = _uuid.UUID(room_id)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="اتاقِ نامعتبر")
+    await _require_member(db, rid, me.id)
+    _typing_state[f"{room_id}:{me.id}"] = time.time() + _TYPING_TTL
+    # پاکسازیِ سبک از ورودی‌های منقضی تا dict رشد نکند
+    if len(_typing_state) > 500:
+        now_e = time.time()
+        for k in [k for k, v in _typing_state.items() if v <= now_e]:
+            _typing_state.pop(k, None)
+    await _touch_presence(db, me)
+    return None
 
 
 @router.get("/rooms/{room_id}/messages", response_model=List[MessageOut])
@@ -570,9 +675,172 @@ async def get_messages(
             location=None if msg.is_deleted else _build_location(msg),
             is_forwarded=bool(getattr(msg, "is_forwarded", False)) and not msg.is_deleted,
             forwarded_from=None if msg.is_deleted else getattr(msg, "forwarded_from", None),
+            is_pinned=bool(getattr(msg, "pinned_at", None)) and not msg.is_deleted,
             created_at=msg.created_at,
         ))
     return msgs
+
+
+@router.get("/rooms/{room_id}/messages/search", response_model=List[MessageOut])
+async def search_messages(
+    room_id: str,
+    q: str = Query(..., min_length=2, max_length=100, description="عبارتِ جستجو"),
+    limit: int = Query(50, le=100),
+    db: AsyncSession = Depends(get_db),
+    me: User = Depends(get_current_user),
+):
+    """جستجوی متنِ پیام‌ها در یک اتاق (ILIKE روی content و caption)."""
+    rid = _uuid.UUID(room_id)
+    await _require_member(db, rid, me.id)
+
+    term = q.strip()
+    if len(term) < 2:
+        return []
+    like = f"%{term}%"
+
+    query = (
+        select(Message, User.full_name, User.username, User.earth_id)
+        .join(User, User.id == Message.sender_id)
+        .where(and_(
+            Message.room_id == rid,
+            Message.is_deleted == False,
+            Message.content.isnot(None),
+            Message.content.ilike(like),
+        ))
+        .order_by(Message.created_at.desc())
+        .limit(limit)
+    )
+    r = await db.execute(query)
+    rows = r.all()
+
+    partner_read_at = await _partner_last_read(db, rid, me.id)
+
+    out = []
+    for msg, full_name, username, earth_id in rows:
+        is_mine = msg.sender_id == me.id
+        out.append(MessageOut(
+            id=str(msg.id),
+            sender_id=str(msg.sender_id),
+            sender_name=full_name or username or earth_id,
+            sender_earth_id=earth_id,
+            content=msg.content,
+            is_mine=is_mine,
+            is_deleted=False,
+            edited=msg.edited_at is not None,
+            reply_to=None,
+            reactions={},
+            my_reaction=None,
+            is_read=bool(is_mine and partner_read_at is not None and msg.created_at <= partner_read_at),
+            media_url=msg.media_url,
+            media_type=msg.media_type,
+            media_name=msg.media_name,
+            media_meta=msg.media_meta,
+            sticker_id=(str(msg.sticker_id) if msg.sticker_id else None),
+            location=_build_location(msg),
+            is_forwarded=bool(getattr(msg, "is_forwarded", False)),
+            forwarded_from=getattr(msg, "forwarded_from", None),
+            created_at=msg.created_at,
+        ))
+    return out
+
+
+class PinStateOut(BaseModel):
+    is_pinned: bool
+    pinned_count: int
+
+
+@router.post("/messages/{message_id}/pin", response_model=PinStateOut)
+async def toggle_pin(
+    message_id: str,
+    db: AsyncSession = Depends(get_db),
+    me: User = Depends(get_current_user),
+):
+    """سنجاق/برداشتنِ سنجاقِ یک پیام (toggle). هر عضوِ اتاق مجاز است."""
+    try:
+        mid = _uuid.UUID(message_id)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="پیامِ نامعتبر")
+    msg = await db.get(Message, mid)
+    if not msg or msg.is_deleted:
+        raise HTTPException(status_code=404, detail="پیام پیدا نشد")
+    room_id_local = msg.room_id
+    await _require_member(db, room_id_local, me.id)
+
+    if getattr(msg, "pinned_at", None):
+        msg.pinned_at = None
+        msg.pinned_by = None
+        is_pinned_now = False
+    else:
+        msg.pinned_at = datetime.now(timezone.utc)
+        msg.pinned_by = me.id
+        is_pinned_now = True
+    await db.commit()
+
+    cnt = (await db.execute(
+        select(func.count(Message.id)).where(and_(
+            Message.room_id == room_id_local,
+            Message.pinned_at.isnot(None),
+            Message.is_deleted == False,
+        ))
+    )).scalar_one_or_none() or 0
+    return PinStateOut(is_pinned=is_pinned_now, pinned_count=cnt)
+
+
+@router.get("/rooms/{room_id}/pins", response_model=List[MessageOut])
+async def list_pins(
+    room_id: str,
+    db: AsyncSession = Depends(get_db),
+    me: User = Depends(get_current_user),
+):
+    """پیام‌های سنجاق‌شدهٔ اتاق (جدید‌ترین سنجاق اول)."""
+    try:
+        rid = _uuid.UUID(room_id)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="اتاقِ نامعتبر")
+    await _require_member(db, rid, me.id)
+
+    query = (
+        select(Message, User.full_name, User.username, User.earth_id)
+        .join(User, User.id == Message.sender_id)
+        .where(and_(
+            Message.room_id == rid,
+            Message.is_deleted == False,
+            Message.pinned_at.isnot(None),
+        ))
+        .order_by(Message.pinned_at.desc())
+        .limit(50)
+    )
+    rows = (await db.execute(query)).all()
+    partner_read_at = await _partner_last_read(db, rid, me.id)
+
+    out = []
+    for msg, full_name, username, earth_id in rows:
+        is_mine = msg.sender_id == me.id
+        out.append(MessageOut(
+            id=str(msg.id),
+            sender_id=str(msg.sender_id),
+            sender_name=full_name or username or earth_id,
+            sender_earth_id=earth_id,
+            content=msg.content,
+            is_mine=is_mine,
+            is_deleted=False,
+            edited=msg.edited_at is not None,
+            reply_to=None,
+            reactions={},
+            my_reaction=None,
+            is_read=bool(is_mine and partner_read_at is not None and msg.created_at <= partner_read_at),
+            media_url=msg.media_url,
+            media_type=msg.media_type,
+            media_name=msg.media_name,
+            media_meta=msg.media_meta,
+            sticker_id=(str(msg.sticker_id) if msg.sticker_id else None),
+            location=_build_location(msg),
+            is_forwarded=bool(getattr(msg, "is_forwarded", False)),
+            forwarded_from=getattr(msg, "forwarded_from", None),
+            is_pinned=True,
+            created_at=msg.created_at,
+        ))
+    return out
 
 
 @router.post("/rooms/{room_id}/messages", response_model=MessageOut, status_code=status.HTTP_201_CREATED)

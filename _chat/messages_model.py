@@ -63,6 +63,8 @@ class Message(Base):
     live_updated_at = Column(DateTime(timezone=True), nullable=True)  # last position update
     is_forwarded   = Column(Boolean, default=False)   # forwarded message (attributed)
     forwarded_from = Column(String(120), nullable=True)  # original sender display name (None = anonymous)
+    pinned_at   = Column(DateTime(timezone=True), nullable=True)  # سنجاق: زمانِ سنجاق (null = بدونِ سنجاق)
+    pinned_by   = Column(UUID(as_uuid=True), nullable=True)       # سنجاق: کاربرِ سنجاق‌کننده
     created_at  = Column(DateTime(timezone=True), nullable=False, default=_now)
 
 
