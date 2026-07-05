@@ -1005,7 +1005,7 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
   const iAmAdmin = members.find(m => m.is_me)?.is_admin ?? room.is_admin ?? false;
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-[#0A0A0A] relative">
+    <div className="flex flex-col h-[100dvh] bg-[#0A0A0A] relative overflow-x-hidden">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 bg-[rgba(10,10,10,0.95)] border-b border-white/8 safe-top">
         <button onClick={onBack} className="p-2 rounded-xl hover:bg-white/5 text-white/70">
