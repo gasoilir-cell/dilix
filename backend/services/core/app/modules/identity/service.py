@@ -6,8 +6,8 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dilix_shared.earth_id import EarthId, EntityType
-from dilix_shared.errors import NotFoundError
+from dilix_shared.earth_id import SELF_SERVICE_ROLES, EarthId, EntityType
+from dilix_shared.errors import ForbiddenError, NotFoundError
 from dilix_shared.events import DomainEvent
 
 from app.core.events import publisher
@@ -89,3 +89,39 @@ async def update_visibility(
         ),
     )
     return vis
+
+
+async def change_role(
+    db: AsyncSession, earth_id: uuid.UUID, target: EntityType
+) -> EarthIdentity:
+    """سوییچِ نقشِ کاربر بینِ نقش‌های خودسرویس.
+
+    Invariant امنیتی: کاربر فقط می‌تواند به نقشی در ``SELF_SERVICE_ROLES`` سوییچ کند.
+    نقش‌های ممتاز (moderator/*_admin) و دارای مجوز (insurer/telecom/…) از این مسیر
+    قابلِ خوداعطا نیستند — جلوگیری از privilege escalation.
+    """
+    if target not in SELF_SERVICE_ROLES:
+        raise ForbiddenError(
+            "این نقش خوداعطا نیست؛ نیازمندِ احرازِ کسب‌وکار (KYB) یا اعطای مدیر است."
+        )
+
+    identity = await get_identity(db, earth_id)
+    previous = identity.entity_type
+    if previous == target.value:
+        return identity
+
+    identity.entity_type = target.value
+    await db.flush()
+
+    await publisher.publish(
+        db,
+        DomainEvent(
+            name="identity.RoleChanged",
+            payload={
+                "earth_id": str(earth_id),
+                "from_role": previous,
+                "to_role": target.value,
+            },
+        ),
+    )
+    return identity

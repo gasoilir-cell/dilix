@@ -49,3 +49,18 @@ class VisibilityUpdate(BaseModel):
     visible_fields: list[
         Literal["gender", "age_range", "marital_status", "profession", "interests"]
     ] = []
+
+
+class RoleChange(BaseModel):
+    """درخواستِ سوییچِ نقش. فقط نقش‌های خودسرویس در service پذیرفته می‌شوند."""
+
+    entity_type: EntityType
+
+
+class RoleOption(BaseModel):
+    """یک نقشِ قابلِ انتخاب در کاتالوگِ سوییچرِ نقش."""
+
+    entity_type: EntityType
+    label: str
+    description: str
+    self_service: bool = True

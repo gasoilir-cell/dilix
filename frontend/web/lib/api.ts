@@ -123,6 +123,13 @@ export interface VisibilityUpdate {
   visible_fields: Array<"gender" | "age_range" | "marital_status" | "profession" | "interests">;
 }
 
+export interface RoleOption {
+  entity_type: string;
+  label: string;
+  description: string;
+  self_service: boolean;
+}
+
 export interface PostOut {
   id: string;
   author_earth_id: string;
@@ -288,6 +295,14 @@ export const api = {
       request<Identity>("/v1/identity/me", { method: "PATCH", body: JSON.stringify(body) }),
     setVisibility: (body: VisibilityUpdate) =>
       request<void>("/v1/identity/me/visibility", { method: "PUT", body: JSON.stringify(body) }),
+    // کاتالوگِ نقش‌های خودسرویس که کاربر می‌تواند به آن‌ها سوییچ کند.
+    roles: () => request<RoleOption[]>("/v1/identity/roles"),
+    // سوییچِ نقشِ کاربر جاری (فقط نقش‌های خودسرویس؛ بک‌اند اعتبارسنجی می‌کند).
+    changeRole: (entityType: string) =>
+      request<Identity>("/v1/identity/me/role", {
+        method: "POST",
+        body: JSON.stringify({ entity_type: entityType }),
+      }),
   },
 
   social: {

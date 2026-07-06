@@ -250,6 +250,33 @@ export const messagesApi = {
       ...(durationMinutes ? { duration_minutes: durationMinutes } : {}),
     }),
   clearChat: (roomId: string) => api.post(`/messages/rooms/${roomId}/clear`),
+  shareContact: (roomId: string, earth_id: string, replyToId?: string | null) =>
+    api.post(`/messages/rooms/${roomId}/contact`, {
+      earth_id,
+      ...(replyToId ? { reply_to_id: replyToId } : {}),
+    }),
+  createEvent: (
+    roomId: string,
+    p: { title: string; starts_at: string; location?: string; description?: string; replyToId?: string | null }
+  ) =>
+    api.post(`/messages/rooms/${roomId}/event`, {
+      title: p.title,
+      starts_at: p.starts_at,
+      ...(p.location ? { location: p.location } : {}),
+      ...(p.description ? { description: p.description } : {}),
+      ...(p.replyToId ? { reply_to_id: p.replyToId } : {}),
+    }),
+  setDisappearing: (roomId: string, seconds: number) =>
+    api.post(`/messages/rooms/${roomId}/disappearing`, { seconds }),
+  reportUser: (
+    earthId: string,
+    p: { reason: string; note?: string; message_id?: string }
+  ) =>
+    api.post(`/messages/users/${earthId}/report`, {
+      reason: p.reason,
+      ...(p.note ? { note: p.note } : {}),
+      ...(p.message_id ? { message_id: p.message_id } : {}),
+    }),
 };
 
 // ─── Sticker / Emoji Library API ──────────────────────────────

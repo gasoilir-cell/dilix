@@ -46,6 +46,19 @@ BUSINESS_LIKE_TYPES = frozenset(
     }
 )
 
+# نقش‌هایی که کاربر می‌تواند خودش آزادانه به آن‌ها سوییچ کند (بدونِ KYB/تأییدِ ادمین).
+# نقش‌های ممتاز (moderator/*_admin) و دارای مجوز (insurer/telecom/…) هرگز خوداعطا
+# نمی‌شوند؛ آن‌ها فقط از مسیرِ KYB یا اعطای ادمین به دست می‌آیند — جلوگیری از
+# privilege escalation.
+SELF_SERVICE_ROLES = frozenset(
+    {
+        EntityType.INDIVIDUAL,
+        EntityType.DRIVER,
+        EntityType.CARGO_OWNER,
+        EntityType.FREELANCER,
+    }
+)
+
 
 @dataclass(frozen=True, slots=True)
 class EarthId:

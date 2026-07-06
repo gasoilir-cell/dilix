@@ -9,8 +9,10 @@ import {
   type Identity,
   type RewardWallet,
   type ReferralLink,
+  type RoleOption,
 } from "@/lib/api";
 import { t } from "@/lib/i18n";
+import { panelsForRole, setStoredRole } from "@/lib/roles";
 
 export default function MePage() {
   const tr = t("fa");
@@ -18,21 +20,42 @@ export default function MePage() {
   const [me, setMe] = useState<Identity | null>(null);
   const [wallet, setWallet] = useState<RewardWallet | null>(null);
   const [referral, setReferral] = useState<ReferralLink | null>(null);
+  const [roles, setRoles] = useState<RoleOption[]>([]);
+  const [switching, setSwitching] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
   async function loadAccount() {
     try {
-      const [identity, w, r] = await Promise.all([
+      const [identity, w, r, roleList] = await Promise.all([
         api.identity.me(),
         api.growth.rewards().catch(() => null),
         api.growth.referralLink().catch(() => null),
+        api.identity.roles().catch(() => [] as RoleOption[]),
       ]);
       setMe(identity);
       setWallet(w);
       setReferral(r);
+      setRoles(roleList);
+      // هم‌گام‌سازیِ ناوبریِ نقش‌آگاه با نقشِ واقعیِ کاربر.
+      setStoredRole(identity.entity_type);
     } catch {
       setError("بارگذاری حساب ممکن نشد.");
+    }
+  }
+
+  async function switchRole(entityType: string) {
+    if (!me || entityType === me.entity_type) return;
+    setSwitching(entityType);
+    setError(null);
+    try {
+      const updated = await api.identity.changeRole(entityType);
+      setMe(updated);
+      setStoredRole(updated.entity_type);
+    } catch {
+      setError("تغییرِ نقش ممکن نشد. برخی نقش‌ها نیازمندِ تأیید هستند.");
+    } finally {
+      setSwitching(null);
     }
   }
 
@@ -47,6 +70,7 @@ export default function MePage() {
 
   function logout() {
     setAccessToken(null);
+    setStoredRole(null);
     router.replace("/login");
   }
 
@@ -80,6 +104,45 @@ export default function MePage() {
           <span className="badge">KYC L{me?.kyc_level ?? 0}</span>
         </div>
       </div>
+
+      <div className="card">
+        <strong>نقشِ من</strong>
+        <p className="muted">
+          نقشِ فعلی، پنل و ابزارهایی که می‌بینید را تعیین می‌کند. می‌توانید هر زمان بین
+          نقش‌های زیر جابجا شوید.
+        </p>
+        <div className="role-switch">
+          {roles.map((r) => {
+            const active = me?.entity_type === r.entity_type;
+            return (
+              <button
+                key={r.entity_type}
+                className={`role-chip${active ? " active" : ""}`}
+                onClick={() => switchRole(r.entity_type)}
+                disabled={active || switching != null}
+                title={r.description}
+              >
+                {switching === r.entity_type ? "…" : r.label}
+                {active && <span className="role-current"> ✓</span>}
+              </button>
+            );
+          })}
+        </div>
+        {roles.length === 0 && (
+          <p className="muted">فهرستِ نقش‌ها در دسترس نیست.</p>
+        )}
+      </div>
+
+      {me &&
+        panelsForRole(me.entity_type).map((panel) => (
+          <a key={panel.href} className="card service-tile" href={panel.href}>
+            <span className="ico-lg" aria-hidden>
+              {panel.icon}
+            </span>
+            <strong>{panel.title}</strong>
+            <span className="muted">{panel.subtitle}</span>
+          </a>
+        ))}
 
       <div className="card">
         <strong>{tr.wallet}</strong>

@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useRef, useCallback, Suspense, Fragment } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, MessageCircle, Send, ArrowRight, Loader2, Users, Reply, Pencil, Trash2, Check, CheckCheck, X, UserPlus, LogOut, Crown, Paperclip, Mic, FileText, Download, Play, Pause, MapPin, Radio, Image as ImageIcon, Languages, Phone, Video, PhoneMissed, Smile, Camera, Copy, Palette, Sticker, Star, Compass, Forward, MoreHorizontal, MoreVertical, ChevronDown, Pin, PinOff, BarChart3, PlusCircle, CheckCircle2, BellOff, Bell, Ban, Share2, ListChecks, Plus } from "lucide-react";
+import { Search, MessageCircle, Send, ArrowRight, Loader2, Users, Reply, Pencil, Trash2, Check, CheckCheck, X, UserPlus, LogOut, Crown, Paperclip, Mic, FileText, Download, Play, Pause, MapPin, Radio, Image as ImageIcon, Languages, Phone, Video, PhoneMissed, Smile, Camera, Copy, Palette, Sticker, Star, Compass, Forward, MoreHorizontal, MoreVertical, ChevronDown, Pin, PinOff, BarChart3, PlusCircle, CheckCircle2, BellOff, Bell, Ban, Share2, ListChecks, Plus, UserRound, CalendarClock, Timer, Flag, CalendarPlus } from "lucide-react";
 import AppShell from "@/components/layout/AppShell";
-import { messagesApi, stickersApi, getApiErrorMessage} from "@/lib/api";
+import { messagesApi, stickersApi, socialApi, getApiErrorMessage} from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
 import { useCallStore } from "@/store/call";
 import { toPersianNum } from "@/lib/utils";
@@ -69,6 +69,11 @@ interface PollData {
   id: string; question: string; multiple: boolean;
   total_votes: number; options: PollOptionData[];
 }
+interface ContactData { earth_id: string; name: string; avatar_url?: string | null; }
+interface EventData {
+  id: string; title: string; starts_at: string;
+  location?: string | null; description?: string | null;
+}
 interface Message {
   id: string; sender_id: string; sender_name: string | null;
   sender_earth_id: string | null; content: string;
@@ -85,11 +90,32 @@ interface Message {
   sticker_id?: string | null;
   location?: LocationData | null;
   poll?: PollData | null;
+  contact?: ContactData | null;
+  event?: EventData | null;
   is_forwarded?: boolean;
   forwarded_from?: string | null;
   is_pinned?: boolean;
   _uploading?: boolean;
 }
+
+// گزینه‌های زمانِ پیامِ ناپدیدشونده (باید با بک‌اند هماهنگ باشد)
+const DISAPPEAR_OPTS: { sec: number; label: string }[] = [
+  { sec: 0, label: "خاموش" },
+  { sec: 3600, label: "۱ ساعت" },
+  { sec: 86400, label: "۱ روز" },
+  { sec: 604800, label: "۱ هفته" },
+];
+const disappearLabel = (sec: number) =>
+  DISAPPEAR_OPTS.find((o) => o.sec === sec)?.label ?? "خاموش";
+
+// دلایلِ گزارشِ کاربر
+const REPORT_REASONS: { key: string; label: string }[] = [
+  { key: "spam", label: "هرزنامه / تبلیغ" },
+  { key: "harassment", label: "آزار و توهین" },
+  { key: "scam", label: "کلاهبرداری" },
+  { key: "inappropriate", label: "محتوای نامناسب" },
+  { key: "other", label: "دیگر" },
+];
 
 const REACTION_EMOJIS = ["❤️", "👍", "😂", "😮", "😢", "🙏", "🔥", "👏"];
 
@@ -347,6 +373,26 @@ function ChatView({ room, onBack, onLeave, initialDraft }: { room: Room; onBack:
   const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
   const [pollMultiple, setPollMultiple] = useState(false);
   const [pollSending, setPollSending] = useState(false);
+  // پیامِ ناپدیدشونده
+  const [disappearSec, setDisappearSec] = useState<number>(0);
+  const [showDisappear, setShowDisappear] = useState(false);
+  // اشتراکِ مخاطب
+  const [showContactPick, setShowContactPick] = useState(false);
+  const [contactQ, setContactQ] = useState("");
+  const [contactResults, setContactResults] = useState<{ earth_id: string; name: string | null; avatar_url: string | null }[]>([]);
+  const [contactBusy, setContactBusy] = useState(false);
+  // رویداد
+  const [showEventCreate, setShowEventCreate] = useState(false);
+  const [evTitle, setEvTitle] = useState("");
+  const [evWhen, setEvWhen] = useState("");
+  const [evLoc, setEvLoc] = useState("");
+  const [evDesc, setEvDesc] = useState("");
+  const [evSending, setEvSending] = useState(false);
+  // گزارشِ کاربر
+  const [reportTarget, setReportTarget] = useState<Message | null>(null);
+  const [reportReason, setReportReason] = useState("");
+  const [reportNote, setReportNote] = useState("");
+  const [reportBusy, setReportBusy] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [showStudio, setShowStudio] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
@@ -447,6 +493,140 @@ function ChatView({ room, onBack, onLeave, initialDraft }: { room: Room; onBack:
       setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, poll: r.data } : m));
     } catch {
       toast.error("ثبتِ رأی ناموفق بود");
+    }
+  };
+
+  // ── اشتراکِ مخاطب ────────────────────────────────────────
+  const openContactPick = () => {
+    setContactQ("");
+    setContactResults([]);
+    setShowContactPick(true);
+  };
+
+  const searchContacts = useCallback(async (q: string) => {
+    const query = q.trim();
+    if (query.length < 2) { setContactResults([]); return; }
+    setContactBusy(true);
+    try {
+      const r = await socialApi.search(query);
+      setContactResults((r.data || []).map((x: any) => ({
+        earth_id: x.earth_id, name: x.name ?? x.username ?? x.earth_id, avatar_url: x.avatar_url ?? null,
+      })));
+    } catch {
+      setContactResults([]);
+    } finally {
+      setContactBusy(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!showContactPick) return;
+    const t = setTimeout(() => searchContacts(contactQ), 350);
+    return () => clearTimeout(t);
+  }, [contactQ, showContactPick, searchContacts]);
+
+  const sendContact = async (earthId: string) => {
+    setShowContactPick(false);
+    try {
+      const r = await messagesApi.shareContact(room.id, earthId, replyTo?.id ?? null);
+      setMessages((prev) => [...prev, r.data]);
+      setReplyTo(null);
+      requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
+    } catch {
+      toast.error("اشتراکِ مخاطب ناموفق بود");
+    }
+  };
+
+  // ── رویداد ───────────────────────────────────────────────
+  const openEventCreate = () => {
+    setEvTitle(""); setEvWhen(""); setEvLoc(""); setEvDesc("");
+    setShowEventCreate(true);
+  };
+
+  const submitEvent = async () => {
+    const title = evTitle.trim();
+    if (!title || !evWhen) return;
+    setEvSending(true);
+    try {
+      const startsAt = new Date(evWhen).toISOString();
+      const r = await messagesApi.createEvent(room.id, {
+        title, starts_at: startsAt,
+        location: evLoc.trim() || undefined,
+        description: evDesc.trim() || undefined,
+        replyToId: replyTo?.id ?? null,
+      });
+      setMessages((prev) => [...prev, r.data]);
+      setReplyTo(null);
+      setShowEventCreate(false);
+      requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
+    } catch {
+      toast.error("ساختِ رویداد ناموفق بود");
+    } finally {
+      setEvSending(false);
+    }
+  };
+
+  const addEventToCalendar = (ev: EventData) => {
+    try {
+      const dt = (iso: string) => new Date(iso).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+      const start = dt(ev.starts_at);
+      const end = dt(new Date(new Date(ev.starts_at).getTime() + 3600_000).toISOString());
+      const ics = [
+        "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Dilix//Event//FA", "BEGIN:VEVENT",
+        `UID:${ev.id}@dilix.ir`, `DTSTART:${start}`, `DTEND:${end}`,
+        `SUMMARY:${ev.title}`,
+        ...(ev.location ? [`LOCATION:${ev.location}`] : []),
+        ...(ev.description ? [`DESCRIPTION:${ev.description}`] : []),
+        "END:VEVENT", "END:VCALENDAR",
+      ].join("\r\n");
+      const url = URL.createObjectURL(new Blob([ics], { type: "text/calendar;charset=utf-8" }));
+      const a = document.createElement("a");
+      a.href = url; a.download = `${ev.title}.ics`; a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("افزودن به تقویم ناموفق بود");
+    }
+  };
+
+  // ── پیامِ ناپدیدشونده ─────────────────────────────────────
+  const applyDisappearing = async (seconds: number) => {
+    setShowDisappear(false);
+    const prev = disappearSec;
+    setDisappearSec(seconds);
+    try {
+      await messagesApi.setDisappearing(room.id, seconds);
+      toast.success(seconds > 0 ? "پیام‌های ناپدیدشونده روشن شد" : "پیام‌های ناپدیدشونده خاموش شد");
+    } catch {
+      setDisappearSec(prev);
+      toast.error("تغییرِ وضعیت ناموفق بود");
+    }
+  };
+
+  // ── گزارشِ کاربر ─────────────────────────────────────────
+  const openReport = (msg: Message) => {
+    setSheetMsg(null);
+    setReportReason("");
+    setReportNote("");
+    setReportTarget(msg);
+  };
+
+  const submitReport = async () => {
+    if (!reportTarget || !reportReason) return;
+    const earthId = reportTarget.sender_earth_id || room.partner_earth_id;
+    if (!earthId) { toast.error("مخاطبِ گزارش یافت نشد"); return; }
+    setReportBusy(true);
+    try {
+      await messagesApi.reportUser(earthId, {
+        reason: reportReason,
+        note: reportNote.trim() || undefined,
+        message_id: reportTarget.id,
+      });
+      setReportTarget(null);
+      toast.success("گزارشِ شما ثبت شد. سپاسگزاریم.");
+    } catch {
+      toast.error("ثبتِ گزارش ناموفق بود");
+    } finally {
+      setReportBusy(false);
     }
   };
 
@@ -633,11 +813,14 @@ function ChatView({ room, onBack, onLeave, initialDraft }: { room: Room; onBack:
     const tick = async () => {
       try {
         const { data } = await messagesApi.roomStatus(room.id);
-        if (alive) setPresence({
-          online: !!data.partner_online,
-          lastSeen: data.partner_last_seen ?? null,
-          typing: Array.isArray(data.typing) ? data.typing : [],
-        });
+        if (alive) {
+          setPresence({
+            online: !!data.partner_online,
+            lastSeen: data.partner_last_seen ?? null,
+            typing: Array.isArray(data.typing) ? data.typing : [],
+          });
+          setDisappearSec(Number(data.disappear_seconds) || 0);
+        }
       } catch { /* ignore transient */ }
     };
     tick();
@@ -1540,7 +1723,53 @@ function ChatView({ room, onBack, onLeave, initialDraft }: { room: Room; onBack:
                     </p>
                   </div>
                 )}
-                {(msg.is_deleted || (msg.content && msg.media_type !== "call" && msg.media_type !== "poll") || (!msg.media_url && !msg.location && msg.media_type !== "call" && msg.media_type !== "poll")) && (
+                {!msg.is_deleted && msg.media_type === "contact" && msg.contact && (
+                  <a
+                    href={`/u/${msg.contact.earth_id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex items-center gap-3 min-w-[13rem] rounded-xl bg-black/20 p-2.5 hover:bg-black/30 transition"
+                  >
+                    <span className="shrink-0 w-11 h-11 rounded-full overflow-hidden bg-white/10 flex items-center justify-center text-lg">
+                      {msg.contact.avatar_url
+                        ? <img src={msg.contact.avatar_url} alt="" className="w-full h-full object-cover" />
+                        : (msg.contact.name?.[0] ?? "👤")}
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="flex items-center gap-1 text-[11px] opacity-60">
+                        <UserRound size={12} /> مخاطب
+                      </span>
+                      <span className="block text-sm font-semibold truncate">{msg.contact.name}</span>
+                      <span className="block text-[11px] opacity-60 truncate">{msg.contact.earth_id}</span>
+                    </span>
+                  </a>
+                )}
+                {!msg.is_deleted && msg.media_type === "event" && msg.event && (
+                  <div onClick={(e) => e.stopPropagation()} className="min-w-[14rem]">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <CalendarClock size={14} className={msg.is_mine ? "text-indigo-100" : "text-emerald-400"} />
+                      <span className="text-[11px] opacity-70">رویداد</span>
+                    </div>
+                    <p className="font-bold text-sm mb-1 leading-snug">{msg.event.title}</p>
+                    <p className="text-[12px] opacity-80 mb-1">
+                      {(() => { try { return new Date(msg.event.starts_at).toLocaleString("fa-IR", { dateStyle: "full", timeStyle: "short" }); } catch { return msg.event.starts_at; } })()}
+                    </p>
+                    {msg.event.location && (
+                      <p className="flex items-center gap-1 text-[12px] opacity-70 mb-1">
+                        <MapPin size={12} /> {msg.event.location}
+                      </p>
+                    )}
+                    {msg.event.description && (
+                      <p className="text-[12px] opacity-60 mb-2 whitespace-pre-wrap">{msg.event.description}</p>
+                    )}
+                    <button
+                      onClick={() => addEventToCalendar(msg.event!)}
+                      className={`mt-1 w-full flex items-center justify-center gap-1.5 rounded-xl py-2 text-[12px] font-semibold ${msg.is_mine ? "bg-white/15 hover:bg-white/25" : "bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25"} transition`}
+                    >
+                      <CalendarPlus size={14} /> افزودن به تقویم
+                    </button>
+                  </div>
+                )}
+                {(msg.is_deleted || (msg.content && msg.media_type !== "call" && msg.media_type !== "poll" && msg.media_type !== "contact" && msg.media_type !== "event") || (!msg.media_url && !msg.location && msg.media_type !== "call" && msg.media_type !== "poll" && msg.media_type !== "contact" && msg.media_type !== "event")) && (
                   <p>{msg.is_deleted ? "این پیام حذف شد" : msg.content}</p>
                 )}
                 {/* inline translation */}
@@ -1796,6 +2025,14 @@ function ChatView({ room, onBack, onLeave, initialDraft }: { room: Room; onBack:
                     </div>
                   </div>
                 )
+              )}
+              {!sheetMsg.is_mine && (
+                <button
+                  onClick={() => openReport(sheetMsg)}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-rose-400 text-sm text-right"
+                >
+                  <Flag size={18} /> گزارشِ پیام
+                </button>
               )}
               {sheetMsg.is_mine && (
                 <>
@@ -2088,6 +2325,13 @@ function ChatView({ room, onBack, onLeave, initialDraft }: { room: Room; onBack:
                 ? <><Bell size={17} className="text-white/70 shrink-0" /> روشن کردنِ اعلان</>
                 : <><BellOff size={17} className="text-white/70 shrink-0" /> بی‌صدا کردنِ اعلان</>}
             </button>
+            <button
+              onClick={() => { setShowOptions(false); setShowDisappear(true); }}
+              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 text-white text-[13px] text-right"
+            >
+              <Timer size={17} className="text-orange-400 shrink-0" /> پیام‌های ناپدیدشونده
+              {disappearSec > 0 && <span className="mr-auto text-[10px] text-orange-400">{disappearLabel(disappearSec)}</span>}
+            </button>
             <div className="my-1 border-t border-white/8" />
             <button
               onClick={doClearChat}
@@ -2146,6 +2390,20 @@ function ChatView({ room, onBack, onLeave, initialDraft }: { room: Room; onBack:
                 className="w-14 h-14 rounded-full bg-amber-500/15 flex items-center justify-center active:scale-95 transition"
               >
                 <BarChart3 size={24} className="text-amber-400" />
+              </button>
+              <button
+                onClick={() => { setShowAttach(false); openContactPick(); }}
+                title="اشتراکِ مخاطب"
+                className="w-14 h-14 rounded-full bg-teal-500/15 flex items-center justify-center active:scale-95 transition"
+              >
+                <UserRound size={24} className="text-teal-400" />
+              </button>
+              <button
+                onClick={() => { setShowAttach(false); openEventCreate(); }}
+                title="رویداد"
+                className="w-14 h-14 rounded-full bg-fuchsia-500/15 flex items-center justify-center active:scale-95 transition"
+              >
+                <CalendarClock size={24} className="text-fuchsia-400" />
               </button>
             </div>
           </div>
@@ -2213,6 +2471,168 @@ function ChatView({ room, onBack, onLeave, initialDraft }: { room: Room; onBack:
               className="w-full py-3 rounded-xl bg-amber-500 text-black font-bold text-sm disabled:opacity-40 active:scale-[0.99] transition"
             >
               {pollSending ? "در حال ارسال…" : "ایجادِ نظرسنجی"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Disappearing-messages picker */}
+      {showDisappear && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => setShowDisappear(false)}>
+          <div className="w-full max-w-md bg-[#1C1C1E] rounded-t-3xl p-4 pb-safe animate-[slideUp_0.2s_ease]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-1">
+              <Timer size={20} className="text-orange-400" />
+              <p className="text-white font-bold">پیام‌های ناپدیدشونده</p>
+            </div>
+            <p className="text-white/40 text-xs mb-3">پیام‌های جدید پس از مدتِ انتخابی، به‌طور خودکار از این گفتگو حذف می‌شوند.</p>
+            <div className="space-y-1">
+              {DISAPPEAR_OPTS.map((o) => (
+                <button
+                  key={o.sec}
+                  onClick={() => applyDisappearing(o.sec)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-right ${disappearSec === o.sec ? "bg-orange-500/15 text-orange-300" : "hover:bg-white/5 text-white"}`}
+                >
+                  <Timer size={18} className={disappearSec === o.sec ? "text-orange-400" : "text-white/50"} />
+                  <span className="flex-1">{o.label}</span>
+                  {disappearSec === o.sec && <Check size={17} className="text-orange-400" />}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Contact picker */}
+      {showContactPick && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => setShowContactPick(false)}>
+          <div className="w-full max-w-md bg-[#1C1C1E] rounded-t-3xl p-4 pb-safe animate-[slideUp_0.2s_ease] max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-3">
+              <UserRound size={20} className="text-teal-400" />
+              <p className="text-white font-bold">اشتراکِ مخاطب</p>
+            </div>
+            <div className="relative mb-3">
+              <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40" />
+              <input
+                autoFocus
+                value={contactQ}
+                onChange={(e) => setContactQ(e.target.value)}
+                placeholder="نام یا شناسهٔ کاربر…"
+                className="w-full bg-[#0A0A0A] border border-white/10 rounded-xl pr-9 pl-3 py-2.5 text-sm text-white outline-none focus:border-teal-500/50"
+              />
+            </div>
+            <div className="flex-1 overflow-y-auto -mx-1 px-1">
+              {contactBusy ? (
+                <div className="flex justify-center py-6"><Loader2 size={20} className="text-white/40 animate-spin" /></div>
+              ) : contactResults.length === 0 ? (
+                <p className="text-center text-white/30 text-xs py-6">{contactQ.trim().length < 2 ? "برای جستجو حداقل ۲ نویسه بنویسید" : "کاربری یافت نشد"}</p>
+              ) : (
+                contactResults.map((u) => (
+                  <button
+                    key={u.earth_id}
+                    onClick={() => sendContact(u.earth_id)}
+                    className="w-full flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-white/5 text-right"
+                  >
+                    <span className="shrink-0 w-10 h-10 rounded-full overflow-hidden bg-white/10 flex items-center justify-center">
+                      {u.avatar_url ? <img src={u.avatar_url} alt="" className="w-full h-full object-cover" /> : (u.name?.[0] ?? "👤")}
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-sm text-white truncate">{u.name ?? u.earth_id}</span>
+                      <span className="block text-[11px] text-white/40 truncate">{u.earth_id}</span>
+                    </span>
+                    <Send size={16} className="text-teal-400 shrink-0" />
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Event creation sheet */}
+      {showEventCreate && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => setShowEventCreate(false)}>
+          <div className="w-full max-w-md bg-[#1C1C1E] rounded-t-3xl p-4 pb-safe animate-[slideUp_0.2s_ease] max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-3">
+              <CalendarClock size={20} className="text-fuchsia-400" />
+              <p className="text-white font-bold">رویدادِ جدید</p>
+            </div>
+            <label className="block text-white/40 text-xs mb-1">عنوان</label>
+            <input
+              value={evTitle}
+              onChange={(e) => setEvTitle(e.target.value)}
+              maxLength={200}
+              placeholder="عنوانِ رویداد…"
+              className="w-full bg-[#0A0A0A] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-fuchsia-500/50 mb-3"
+            />
+            <label className="block text-white/40 text-xs mb-1">زمان</label>
+            <input
+              type="datetime-local"
+              value={evWhen}
+              onChange={(e) => setEvWhen(e.target.value)}
+              className="w-full bg-[#0A0A0A] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-fuchsia-500/50 mb-3 [color-scheme:dark]"
+            />
+            <label className="block text-white/40 text-xs mb-1">مکان (اختیاری)</label>
+            <input
+              value={evLoc}
+              onChange={(e) => setEvLoc(e.target.value)}
+              maxLength={300}
+              placeholder="مکانِ رویداد…"
+              className="w-full bg-[#0A0A0A] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-fuchsia-500/50 mb-3"
+            />
+            <label className="block text-white/40 text-xs mb-1">توضیح (اختیاری)</label>
+            <textarea
+              value={evDesc}
+              onChange={(e) => setEvDesc(e.target.value)}
+              rows={2}
+              placeholder="توضیحِ رویداد…"
+              className="w-full bg-[#0A0A0A] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-fuchsia-500/50 mb-4 resize-none"
+            />
+            <button
+              onClick={submitEvent}
+              disabled={evSending || !evTitle.trim() || !evWhen}
+              className="w-full py-3 rounded-xl bg-fuchsia-500 text-white font-bold text-sm disabled:opacity-40 active:scale-[0.99] transition"
+            >
+              {evSending ? "در حال ارسال…" : "ایجادِ رویداد"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Report sheet */}
+      {reportTarget && (
+        <div className="fixed inset-0 z-[55] flex items-end justify-center bg-black/50" onClick={() => setReportTarget(null)}>
+          <div className="w-full max-w-md bg-[#1C1C1E] rounded-t-3xl p-4 pb-safe animate-[slideUp_0.2s_ease]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-1">
+              <Flag size={20} className="text-rose-400" />
+              <p className="text-white font-bold">گزارشِ پیام</p>
+            </div>
+            <p className="text-white/40 text-xs mb-3">دلیلِ گزارش را انتخاب کنید. تیمِ پشتیبانی بررسی خواهد کرد.</p>
+            <div className="space-y-1 mb-3">
+              {REPORT_REASONS.map((r) => (
+                <button
+                  key={r.key}
+                  onClick={() => setReportReason(r.key)}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-right ${reportReason === r.key ? "bg-rose-500/15 text-rose-300 ring-1 ring-rose-500/40" : "hover:bg-white/5 text-white"}`}
+                >
+                  <span className="flex-1">{r.label}</span>
+                  {reportReason === r.key && <Check size={16} className="text-rose-400" />}
+                </button>
+              ))}
+            </div>
+            <textarea
+              value={reportNote}
+              onChange={(e) => setReportNote(e.target.value)}
+              rows={2}
+              maxLength={500}
+              placeholder="توضیحِ بیشتر (اختیاری)…"
+              className="w-full bg-[#0A0A0A] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-rose-500/50 mb-4 resize-none"
+            />
+            <button
+              onClick={submitReport}
+              disabled={reportBusy || !reportReason}
+              className="w-full py-3 rounded-xl bg-rose-500 text-white font-bold text-sm disabled:opacity-40 active:scale-[0.99] transition"
+            >
+              {reportBusy ? "در حال ارسال…" : "ثبتِ گزارش"}
             </button>
           </div>
         </div>

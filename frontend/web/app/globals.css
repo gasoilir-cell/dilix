@@ -404,3 +404,30 @@ a { color: inherit; text-decoration: none; }
 .auth-error { margin-top: 10px; }
 .auth-terms { margin-top: 14px; text-align: center; font-size: 0.78rem; }
 .auth-terms a { color: var(--color-primary); }
+
+/* سوییچرِ نقش (صفحه‌ی «من») */
+.role-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.role-chip {
+  font-size: 0.85rem;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.role-chip:hover:not(:disabled) { border-color: var(--color-primary); }
+.role-chip.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+  cursor: default;
+}
+.role-chip:disabled:not(.active) { opacity: 0.6; cursor: not-allowed; }
+.role-current { font-weight: 700; }
