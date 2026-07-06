@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, Suspense, Fragment } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, MessageCircle, Send, ArrowRight, Loader2, Users, Reply, Pencil, Trash2, Check, CheckCheck, X, UserPlus, LogOut, Crown, Paperclip, Mic, FileText, Download, Play, Pause, MapPin, Radio, Image as ImageIcon, Languages, Phone, Video, PhoneMissed, Smile, Camera, Copy, Palette, Sticker, Star, Compass, Forward, MoreHorizontal, MoreVertical, ChevronDown, Pin, PinOff, BarChart3, PlusCircle, CheckCircle2, BellOff, Bell, Ban, Share2, ListChecks } from "lucide-react";
+import { Search, MessageCircle, Send, ArrowRight, Loader2, Users, Reply, Pencil, Trash2, Check, CheckCheck, X, UserPlus, LogOut, Crown, Paperclip, Mic, FileText, Download, Play, Pause, MapPin, Radio, Image as ImageIcon, Languages, Phone, Video, PhoneMissed, Smile, Camera, Copy, Palette, Sticker, Star, Compass, Forward, MoreHorizontal, MoreVertical, ChevronDown, Pin, PinOff, BarChart3, PlusCircle, CheckCircle2, BellOff, Bell, Ban, Share2, ListChecks, Plus } from "lucide-react";
 import AppShell from "@/components/layout/AppShell";
 import { messagesApi, stickersApi, getApiErrorMessage} from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
@@ -321,6 +321,7 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
   const [replyTo,  setReplyTo]  = useState<Message | null>(null);
   const [editing,  setEditing]  = useState<Message | null>(null);
   const [sheetMsg, setSheetMsg] = useState<Message | null>(null); // action sheet target
+  const [reactPicker, setReactPicker] = useState(false); // انتخابِ ایموجیِ دلخواه برای واکنش
   const [forwardMsg, setForwardMsg] = useState<Message | null>(null); // forward picker target
   const [forwardRooms, setForwardRooms] = useState<Room[]>([]);
   const [forwardAnon, setForwardAnon] = useState(false);
@@ -946,6 +947,7 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
 
   const doReact = async (msg: Message, emoji: string) => {
     setSheetMsg(null);
+    setReactPicker(false);
     // optimistic toggle
     setMessages(prev => prev.map(m => {
       if (m.id !== msg.id) return m;
@@ -1622,7 +1624,7 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
       {sheetMsg && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/50"
-          onClick={() => setSheetMsg(null)}
+          onClick={() => { setSheetMsg(null); setReactPicker(false); }}
         >
           <div
             className="w-full max-w-md bg-[#1C1C1E] rounded-t-3xl p-4 pb-safe animate-[slideUp_0.2s_ease]"
@@ -1641,7 +1643,32 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
                   {emoji}
                 </button>
               ))}
+              <button
+                onClick={() => setReactPicker((v) => !v)}
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition ${
+                  reactPicker ? "bg-indigo-500/25 text-indigo-300" : "bg-white/5 text-white/70 hover:bg-white/10"
+                }`}
+                aria-label="ایموجیِ دلخواه"
+              >
+                <Plus size={22} />
+              </button>
             </div>
+            {/* گزینشِ ایموجیِ دلخواه برای واکنش */}
+            {reactPicker && (
+              <div className="grid grid-cols-8 gap-1 mb-4 px-1 max-h-52 overflow-y-auto">
+                {COMPOSE_EMOJIS.map((emoji, i) => (
+                  <button
+                    key={`${emoji}-${i}`}
+                    onClick={() => doReact(sheetMsg, emoji)}
+                    className={`text-2xl w-9 h-9 rounded-lg flex items-center justify-center transition-transform active:scale-125 ${
+                      sheetMsg.my_reaction === emoji ? "bg-indigo-500/25" : "hover:bg-white/5"
+                    }`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="space-y-1">
               <button
                 onClick={() => startReply(sheetMsg)}
