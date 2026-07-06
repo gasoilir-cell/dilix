@@ -242,6 +242,14 @@ export const messagesApi = {
       sticker_id: stickerId,
       ...(replyToId ? { reply_to_id: replyToId } : {}),
     }),
+  blockUser: (earthId: string) => api.post(`/messages/users/${earthId}/block`),
+  getBlocks: () => api.get(`/messages/blocks`),
+  muteRoom: (roomId: string, muted: boolean, durationMinutes?: number | null) =>
+    api.post(`/messages/rooms/${roomId}/mute`, {
+      muted,
+      ...(durationMinutes ? { duration_minutes: durationMinutes } : {}),
+    }),
+  clearChat: (roomId: string) => api.post(`/messages/rooms/${roomId}/clear`),
 };
 
 // ─── Sticker / Emoji Library API ──────────────────────────────

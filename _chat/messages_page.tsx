@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, Suspense, Fragment } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, MessageCircle, Send, ArrowRight, Loader2, Users, Reply, Pencil, Trash2, Check, CheckCheck, X, UserPlus, LogOut, Crown, Paperclip, Mic, FileText, Download, Play, Pause, MapPin, Radio, Image as ImageIcon, Languages, Phone, Video, PhoneMissed, Smile, Camera, Copy, Palette, Sticker, Star, Compass, Forward, MoreHorizontal, MoreVertical, ChevronDown, Pin, PinOff, BarChart3, PlusCircle, CheckCircle2 } from "lucide-react";
+import { Search, MessageCircle, Send, ArrowRight, Loader2, Users, Reply, Pencil, Trash2, Check, CheckCheck, X, UserPlus, LogOut, Crown, Paperclip, Mic, FileText, Download, Play, Pause, MapPin, Radio, Image as ImageIcon, Languages, Phone, Video, PhoneMissed, Smile, Camera, Copy, Palette, Sticker, Star, Compass, Forward, MoreHorizontal, MoreVertical, ChevronDown, Pin, PinOff, BarChart3, PlusCircle, CheckCircle2, BellOff, Bell, Ban } from "lucide-react";
 import AppShell from "@/components/layout/AppShell";
 import { messagesApi, stickersApi, getApiErrorMessage} from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
@@ -47,6 +47,7 @@ interface Room {
   last_message: string | null; last_message_at: string | null;
   unread_count: number; member_count?: number; is_admin?: boolean;
   partner_online?: boolean; partner_last_seen?: string | null;
+  is_muted?: boolean; is_blocked?: boolean;
   created_at: string;
 }
 
@@ -332,6 +333,8 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
   const [emojiTab, setEmojiTab] = useState<"emoji" | "sticker">("emoji");
   const [showCallMenu, setShowCallMenu] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
+  const [isMuted, setIsMuted] = useState(!!room.is_muted);
+  const [isBlocked, setIsBlocked] = useState(!!room.is_blocked);
   const [showPollCreate, setShowPollCreate] = useState(false);
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
@@ -462,6 +465,43 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
       URL.revokeObjectURL(url);
     } catch {
       toast.error("صادر کردنِ گفتگو ناموفق بود");
+    }
+  };
+
+  // ── بی‌صدا / مسدود / پاک‌کردنِ گفتگو ───────────────────────
+  const toggleMute = async (durationMinutes?: number | null) => {
+    setShowOptions(false);
+    const next = !isMuted;
+    try {
+      const r = await messagesApi.muteRoom(room.id, next, durationMinutes ?? null);
+      setIsMuted(!!r.data.muted);
+      toast.success(r.data.muted ? "اعلانِ این گفتگو بی‌صدا شد" : "اعلانِ این گفتگو روشن شد");
+    } catch {
+      toast.error("تغییرِ وضعیتِ اعلان ناموفق بود");
+    }
+  };
+
+  const toggleBlock = async () => {
+    setShowOptions(false);
+    if (!room.partner_earth_id) return;
+    try {
+      const r = await messagesApi.blockUser(room.partner_earth_id);
+      setIsBlocked(!!r.data.blocked);
+      toast.success(r.data.blocked ? "مخاطب مسدود شد" : "مسدودی برداشته شد");
+    } catch {
+      toast.error("تغییرِ وضعیتِ مسدودی ناموفق بود");
+    }
+  };
+
+  const doClearChat = async () => {
+    setShowOptions(false);
+    if (!confirm("گفتگو برایِ شما پاک شود؟ (برای مخاطب دست‌نخورده می‌ماند)")) return;
+    try {
+      await messagesApi.clearChat(room.id);
+      setMessages([]);
+      toast.success("گفتگو پاک شد");
+    } catch {
+      toast.error("پاک کردنِ گفتگو ناموفق بود");
     }
   };
 
@@ -1777,6 +1817,29 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
             >
               <Download size={17} className="text-amber-400 shrink-0" /> صادر کردنِ گفتگو
             </button>
+            <button
+              onClick={() => toggleMute()}
+              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 text-white text-[13px] text-right"
+            >
+              {isMuted
+                ? <><Bell size={17} className="text-white/70 shrink-0" /> روشن کردنِ اعلان</>
+                : <><BellOff size={17} className="text-white/70 shrink-0" /> بی‌صدا کردنِ اعلان</>}
+            </button>
+            <div className="my-1 border-t border-white/8" />
+            <button
+              onClick={doClearChat}
+              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 text-white text-[13px] text-right"
+            >
+              <Trash2 size={17} className="text-white/70 shrink-0" /> پاک کردنِ گفتگو
+            </button>
+            {!isGroup && room.partner_earth_id && (
+              <button
+                onClick={toggleBlock}
+                className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 text-[13px] text-right text-rose-400"
+              >
+                <Ban size={17} className="shrink-0" /> {isBlocked ? "رفعِ مسدودی" : "مسدود کردنِ مخاطب"}
+              </button>
+            )}
           </div>
         </>
       )}

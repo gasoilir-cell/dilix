@@ -35,6 +35,8 @@ class RoomMember(Base):
     user_id      = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
     joined_at    = Column(DateTime(timezone=True), nullable=False, default=_now)
     last_read_at = Column(DateTime(timezone=True), nullable=True)   # read-receipt cursor
+    muted_until  = Column(DateTime(timezone=True), nullable=True)   # بی‌صداییِ اعلان تا این زمان (null = فعال)
+    cleared_at   = Column(DateTime(timezone=True), nullable=True)   # پاک‌سازیِ گفتگو: پیام‌های قبل از این برایِ من پنهان
 
     __table_args__ = (
         Index("uq_room_member", "room_id", "user_id", unique=True),
@@ -127,4 +129,18 @@ class PollVote(Base):
 
     __table_args__ = (
         Index("uq_poll_vote", "poll_id", "user_id", "option_index", unique=True),
+    )
+
+
+class UserBlock(Base):
+    """مسدودسازیِ کاربر: blocker کاربرِ blocked را مسدود کرده (یک‌طرفه، یکتا)."""
+    __tablename__ = "user_blocks"
+
+    id         = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    blocker_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    blocked_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_now)
+
+    __table_args__ = (
+        Index("uq_user_block", "blocker_id", "blocked_id", unique=True),
     )

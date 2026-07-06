@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   X, Send, Type as TypeIcon, Square, Crop, Smile, Loader2, Pencil,
   Eraser, Move, Trash2, Languages, Undo2, ImagePlus, Frame as FrameIcon,
-  Sun, Contrast, Droplet, Thermometer, Aperture, RotateCcw,
+  Sun, Contrast, Droplet, Thermometer, Aperture, RotateCcw, Check,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { messagesApi } from "@/lib/api";
@@ -128,8 +128,21 @@ const VID_PRESETS = [
   { id: "360", label: "۳۶۰p", maxDim: 360, bitrate: 600_000 },
 ];
 
+// نسبت‌های آمادهٔ برشِ دستی (ratio = عرض÷ارتفاعِ خروجی؛ null = آزاد)
+const CROP_RATIOS: { id: string; label: string; ratio: number | null }[] = [
+  { id: "free", label: "آزاد", ratio: null },
+  { id: "1", label: "۱:۱", ratio: 1 },
+  { id: "45", label: "۴:۵", ratio: 4 / 5 },
+  { id: "34", label: "۳:۴", ratio: 3 / 4 },
+  { id: "43", label: "۴:۳", ratio: 4 / 3 },
+  { id: "169", label: "۱۶:۹", ratio: 16 / 9 },
+  { id: "916", label: "۹:۱۶", ratio: 9 / 16 },
+];
+
 // ── types ────────────────────────────────────────────────────
 type EffectId = "stroke" | "shadow" | "neon" | "label" | "plain";
+// کادرِ برشِ دستی — مختصاتِ نرمال (۰..۱) نسبت به تصویرِ اصلی
+interface CropRect { x: number; y: number; w: number; h: number }
 interface Overlay {
   id: string; kind: "text" | "emoji" | "image"; value: string;
   nx: number; ny: number; size: number; // size = fraction of width
@@ -142,7 +155,7 @@ interface Overlay {
 }
 interface Pt { nx: number; ny: number }
 interface Stroke { points: Pt[]; color: string; width: number; erase: boolean }
-interface SceneOpts { square: boolean; filterCss: string; blocks: number; overlays: Overlay[]; strokes: Stroke[]; frame: string }
+interface SceneOpts { square: boolean; filterCss: string; blocks: number; overlays: Overlay[]; strokes: Stroke[]; frame: string; manual?: CropRect | null }
 
 // ── utils ────────────────────────────────────────────────────
 function fmtBytes(n: number): string {
@@ -153,9 +166,22 @@ function fmtBytes(n: number): string {
 function toPersianDigits(s: string): string { return s.replace(/[0-9]/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[+d]); }
 const uid = () => Math.random().toString(36).slice(2, 9);
 
-function baseCrop(sw: number, sh: number, square: boolean) {
+function baseCrop(sw: number, sh: number, square: boolean, manual?: CropRect | null) {
+  if (manual) {
+    return { sx: manual.x * sw, sy: manual.y * sh, sw: Math.max(1, manual.w * sw), sh: Math.max(1, manual.h * sh) };
+  }
   if (square) { const m = Math.min(sw, sh); return { sx: (sw - m) / 2, sy: (sh - m) / 2, sw: m, sh: m }; }
   return { sx: 0, sy: 0, sw, sh };
+}
+const clamp01 = (v: number, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, v));
+// کادرِ برشِ مرکزیِ متناسب با نسبتِ داده‌شده، درونِ تصویرِ natW×natH
+function centeredRect(natW: number, natH: number, ratio: number | null): CropRect {
+  if (!ratio || natW <= 0 || natH <= 0) return { x: 0.06, y: 0.06, w: 0.88, h: 0.88 };
+  const imgRatio = natW / natH;
+  let w: number, h: number;
+  if (ratio >= imgRatio) { w = 0.9; h = clamp01((w * natW) / (ratio * natH)); }
+  else { h = 0.9; w = clamp01((ratio * natH * h) / natW); }
+  return { x: (1 - w) / 2, y: (1 - h) / 2, w, h };
 }
 function outDims(cw: number, ch: number, maxDim: number) {
   if (maxDim > 0) { const s = Math.min(1, maxDim / Math.max(cw, ch)); return { W: Math.round(cw * s), H: Math.round(ch * s) }; }
@@ -321,7 +347,7 @@ function paintFrame(ctx: CanvasRenderingContext2D, id: string, W: number, H: num
   ctx.restore();
 }
 function drawScene(ctx: CanvasRenderingContext2D, cache: Cache, src: CanvasImageSource, natW: number, natH: number, W: number, H: number, o: SceneOpts) {
-  const crop = baseCrop(natW, natH, o.square);
+  const crop = baseCrop(natW, natH, o.square, o.manual);
   blit(ctx, cache, src, crop, W, H, o.filterCss, o.blocks);
   paintStrokes(ctx, cache, o.strokes, W, H);
   paintOverlays(ctx, o.overlays, W, H);
@@ -333,7 +359,7 @@ function transcodeVideo(file: File, o: SceneOpts & { maxDim: number; bitrate: nu
     const v = document.createElement("video");
     v.src = URL.createObjectURL(file); v.muted = false; v.playsInline = true;
     v.onloadedmetadata = () => {
-      const crop = baseCrop(v.videoWidth, v.videoHeight, o.square);
+      const crop = baseCrop(v.videoWidth, v.videoHeight, o.square, o.manual);
       const { W, H } = outDims(crop.sw, crop.sh, o.maxDim);
       const canvas = document.createElement("canvas"); canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext("2d"); if (!ctx) return reject(new Error("no ctx"));
@@ -373,6 +399,10 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
   const [box, setBox] = useState<{ w: number; h: number }>({ w: 320, h: 320 });
 
   const [square, setSquare] = useState(false);
+  const [manualCrop, setManualCrop] = useState<CropRect | null>(null);
+  const [cropEditing, setCropEditing] = useState(false);
+  const [cropRect, setCropRect] = useState<CropRect>({ x: 0.08, y: 0.08, w: 0.84, h: 0.84 });
+  const [cropRatioId, setCropRatioId] = useState("free");
   const [filter, setFilter] = useState(FILTERS[0]);
   const [pixel, setPixel] = useState(PIXEL_LEVELS[0]);
   const [adjust, setAdjust] = useState<Adjust>(ADJUST_DEFAULT);
@@ -432,11 +462,17 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
   const fitBox = useCallback((w: number, h: number) => {
     const maxW = Math.min(window.innerWidth * 0.92, 440);
     const maxH = window.innerHeight * 0.46;
-    const aspect = square ? 1 : w / h;
+    // در حالتِ ویرایشِ برش، همیشه تصویرِ کاملِ اصلی نمایش داده می‌شود
+    let aw = w, ah = h;
+    if (!cropEditing) {
+      if (manualCrop) { aw = manualCrop.w * w; ah = manualCrop.h * h; }
+      else if (square) { aw = Math.min(w, h); ah = aw; }
+    }
+    const aspect = aw / ah;
     let dw = maxW, dh = dw / aspect;
     if (dh > maxH) { dh = maxH; dw = dh * aspect; }
     setBox({ w: Math.round(dw), h: Math.round(dh) });
-  }, [square]);
+  }, [square, manualCrop, cropEditing]);
 
   // load source
   useEffect(() => {
@@ -456,7 +492,11 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
 
   useEffect(() => { if (ready) fitBox(natRef.current.w, natRef.current.h); }, [square, ready, fitBox]);
 
-  const sceneOpts = useCallback((): SceneOpts => ({ square, filterCss: baseFilterCss, blocks: pixel.blocks, overlays, strokes, frame: frame.id }), [square, baseFilterCss, pixel, overlays, strokes, frame]);
+  const sceneOpts = useCallback((): SceneOpts => ({
+    square: cropEditing ? false : square,
+    filterCss: baseFilterCss, blocks: pixel.blocks, overlays, strokes, frame: frame.id,
+    manual: cropEditing ? null : manualCrop,
+  }), [square, baseFilterCss, pixel, overlays, strokes, frame, manualCrop, cropEditing]);
 
   // paint preview
   const paint = useCallback(() => {
@@ -494,7 +534,7 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
     paint();
   }, [ready, kind, paint, box]);
 
-  const hasEdits = square || filter.id !== "none" || pixel.blocks > 0 || overlays.length > 0 || strokes.length > 0 || frame.id !== "none" || adjusted;
+  const hasEdits = square || !!manualCrop || filter.id !== "none" || pixel.blocks > 0 || overlays.length > 0 || strokes.length > 0 || frame.id !== "none" || adjusted;
 
   // live image size
   useEffect(() => {
@@ -505,19 +545,19 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
     }, 300);
     return () => { cancelled = true; clearTimeout(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kind, ready, square, filter, pixel, overlays, strokes, preset, frame, adjust]);
+  }, [kind, ready, square, manualCrop, filter, pixel, overlays, strokes, preset, frame, adjust]);
 
   const renderImageOutput = useCallback((): Promise<Blob> => {
     return new Promise((resolve, reject) => {
       const src = srcElRef.current as HTMLImageElement; if (!src) return reject(new Error("no img"));
-      const crop = baseCrop(natRef.current.w, natRef.current.h, square);
+      const crop = baseCrop(natRef.current.w, natRef.current.h, square, manualCrop);
       const { W, H } = outDims(crop.sw, crop.sh, preset.maxDim);
       const c = document.createElement("canvas"); c.width = W; c.height = H;
       const ctx = c.getContext("2d"); if (!ctx) return reject(new Error("no ctx"));
-      drawScene(ctx, {}, src, natRef.current.w, natRef.current.h, W, H, { square, filterCss: baseFilterCss, blocks: pixel.blocks, overlays, strokes, frame: frame.id });
+      drawScene(ctx, {}, src, natRef.current.w, natRef.current.h, W, H, { square, filterCss: baseFilterCss, blocks: pixel.blocks, overlays, strokes, frame: frame.id, manual: manualCrop });
       c.toBlob((b) => b ? resolve(b) : reject(new Error("toBlob")), "image/jpeg", (preset as { q: number }).q);
     });
-  }, [square, preset, baseFilterCss, pixel, overlays, strokes, frame]);
+  }, [square, manualCrop, preset, baseFilterCss, pixel, overlays, strokes, frame]);
 
   // ── pointer interactions ─────────────────────────────────
   const normFromEvent = (e: React.PointerEvent) => {
@@ -559,6 +599,57 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
     setOverlays((prev) => prev.map((o) => o.id === d.id ? { ...o, nx: Math.min(1, Math.max(0, p.nx + d.dx)), ny: Math.min(1, Math.max(0, p.ny + d.dy)) } : o));
   };
   const onUp = () => { dragRef.current = null; drawingRef.current = false; };
+
+  // ── برشِ دستی: کادرِ کشیدنی/تغییرِ اندازه ──────────────────
+  const cropWrapRef = useRef<HTMLDivElement | null>(null);
+  const cropDragRef = useRef<{ mode: string; sx: number; sy: number; rect: CropRect } | null>(null);
+  const cropNorm = (e: React.PointerEvent) => {
+    const r = cropWrapRef.current!.getBoundingClientRect();
+    return { nx: (e.clientX - r.left) / r.width, ny: (e.clientY - r.top) / r.height };
+  };
+  const onCropDown = (mode: string) => (e: React.PointerEvent) => {
+    e.stopPropagation(); (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    const p = cropNorm(e);
+    cropDragRef.current = { mode, sx: p.nx, sy: p.ny, rect: { ...cropRect } };
+  };
+  const onCropMove = (e: React.PointerEvent) => {
+    const d = cropDragRef.current; if (!d) return;
+    const p = cropNorm(e); const dx = p.nx - d.sx, dy = p.ny - d.sy; const MIN = 0.08;
+    let { x, y, w, h } = d.rect;
+    if (d.mode === "move") {
+      x = clamp01(x + dx, 0, 1 - w); y = clamp01(y + dy, 0, 1 - h);
+    } else {
+      let x2 = x + w, y2 = y + h;
+      if (d.mode.includes("n")) y = Math.min(clamp01(y + dy), y2 - MIN);
+      if (d.mode.includes("s")) y2 = Math.max(clamp01(y2 + dy), y + MIN);
+      if (d.mode.includes("w")) x = Math.min(clamp01(x + dx), x2 - MIN);
+      if (d.mode.includes("e")) x2 = Math.max(clamp01(x2 + dx), x + MIN);
+      w = x2 - x; h = y2 - y;
+      if (cropRatioId !== "free") setCropRatioId("free");  // کشیدنِ گوشه → نسبتِ آزاد
+    }
+    setCropRect({ x, y, w, h });
+  };
+  const onCropUp = () => { cropDragRef.current = null; };
+
+  const startCrop = () => {
+    setCropRect(manualCrop ?? { x: 0.08, y: 0.08, w: 0.84, h: 0.84 });
+    setCropRatioId("free");
+    setSelectedId(null); setTool("move"); setCropEditing(true);
+  };
+  const applyCrop = () => {
+    const r = cropRect;
+    const full = r.x <= 0.002 && r.y <= 0.002 && r.w >= 0.998 && r.h >= 0.998;
+    setManualCrop(full ? null : { ...r });
+    if (!full) setSquare(false);
+    setCropEditing(false);
+  };
+  const cancelCrop = () => setCropEditing(false);
+  const clearCrop = () => setManualCrop(null);
+  const pickRatio = (r: typeof CROP_RATIOS[number]) => {
+    setCropRatioId(r.id);
+    if (r.ratio) setCropRect(centeredRect(natRef.current.w, natRef.current.h, r.ratio));
+    else setCropRect({ x: 0.06, y: 0.06, w: 0.88, h: 0.88 });
+  };
 
   // ── overlay editing ──────────────────────────────────────
   const addText = () => {
@@ -620,7 +711,7 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
     } else {
       setWorking(true); setProgress(0);
       try {
-        const blob = await transcodeVideo(file, { square, filterCss: baseFilterCss, blocks: pixel.blocks, overlays, strokes, frame: frame.id, maxDim: preset.maxDim, bitrate: (preset as { bitrate: number }).bitrate }, (p) => setProgress(p));
+        const blob = await transcodeVideo(file, { square, manual: manualCrop, filterCss: baseFilterCss, blocks: pixel.blocks, overlays, strokes, frame: frame.id, maxDim: preset.maxDim, bitrate: (preset as { bitrate: number }).bitrate }, (p) => setProgress(p));
         toast.success(`حجم: ${toPersianDigits(fmtBytes(origSize))} ← ${toPersianDigits(fmtBytes(blob.size))}`);
         onDone(new File([blob], `video-${Date.now()}.webm`, { type: "video/webm" }));
       } catch { toast.error("فشرده‌سازیِ ویدیو ناموفق بود — فایلِ اصلی ارسال شد"); onDone(file); }
@@ -647,12 +738,49 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
 
       {/* preview (canvas) */}
       <div className="flex-1 flex items-center justify-center p-3 overflow-hidden relative">
-        <canvas
-          ref={canvasRef}
-          onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
-          style={{ width: box.w, height: box.h, touchAction: "none" }}
-          className="rounded-2xl bg-white/5"
-        />
+        <div className="relative" style={{ width: box.w, height: box.h }}>
+          <canvas
+            ref={canvasRef}
+            onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
+            style={{ width: box.w, height: box.h, touchAction: "none" }}
+            className="rounded-2xl bg-white/5 block"
+          />
+          {cropEditing && (
+            <div ref={cropWrapRef} className="absolute inset-0 rounded-2xl overflow-hidden" style={{ touchAction: "none" }}>
+              <div
+                className="absolute border-2 border-white/90 cursor-move"
+                style={{
+                  left: `${cropRect.x * 100}%`, top: `${cropRect.y * 100}%`,
+                  width: `${cropRect.w * 100}%`, height: `${cropRect.h * 100}%`,
+                  boxShadow: "0 0 0 9999px rgba(0,0,0,0.55)", touchAction: "none",
+                }}
+                onPointerDown={onCropDown("move")} onPointerMove={onCropMove} onPointerUp={onCropUp} onPointerCancel={onCropUp}
+              >
+                {/* خطوطِ سه‌گانه (قانونِ یک‌سوم) */}
+                <div className="absolute inset-0 pointer-events-none">
+                  <div className="absolute top-0 bottom-0 w-px bg-white/25" style={{ left: "33.333%" }} />
+                  <div className="absolute top-0 bottom-0 w-px bg-white/25" style={{ left: "66.666%" }} />
+                  <div className="absolute left-0 right-0 h-px bg-white/25" style={{ top: "33.333%" }} />
+                  <div className="absolute left-0 right-0 h-px bg-white/25" style={{ top: "66.666%" }} />
+                </div>
+                {/* دستگیره‌های گوشه */}
+                {(["nw", "ne", "sw", "se"] as const).map((cn) => (
+                  <div
+                    key={cn}
+                    onPointerDown={onCropDown(cn)} onPointerMove={onCropMove} onPointerUp={onCropUp} onPointerCancel={onCropUp}
+                    className="absolute w-6 h-6 rounded-full bg-white border-2 border-indigo-500 shadow-md"
+                    style={{
+                      left: cn.includes("w") ? -12 : undefined, right: cn.includes("e") ? -12 : undefined,
+                      top: cn.includes("n") ? -12 : undefined, bottom: cn.includes("s") ? -12 : undefined,
+                      touchAction: "none",
+                      cursor: cn === "nw" || cn === "se" ? "nwse-resize" : "nesw-resize",
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
         {!ready && <div className="absolute inset-0 flex items-center justify-center"><Loader2 size={30} className="text-white/50 animate-spin" /></div>}
         {tool === "move" && overlays.length === 0 && ready && (
           <span className="absolute bottom-4 text-white/40 text-[11px] px-3 py-1 rounded-full bg-black/40 pointer-events-none">متن/ایموجی را اضافه و با انگشت جابه‌جا کن</span>
@@ -667,7 +795,21 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
 
       {/* controls */}
       <div className="px-4 pb-safe pt-2 space-y-2.5 bg-[#0c0c0c] border-t border-white/8 max-h-[46vh] overflow-y-auto">
-        {tool === "draw" ? (
+        {cropEditing ? (
+          <div className="space-y-2.5">
+            <p className="text-white/50 text-[12px] text-center">کادر را جابه‌جا کن و گوشه‌ها را برای تغییرِ اندازه بکش</p>
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+              <span className="text-white/40 text-[11px] self-center shrink-0 ml-1">نسبت</span>
+              {CROP_RATIOS.map((r) => (
+                <button key={r.id} onClick={() => pickRatio(r)} className={chip(cropRatioId === r.id)}>{r.label}</button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={cancelCrop} className="flex-1 py-2.5 rounded-xl bg-white/8 text-white/70 text-sm">لغو</button>
+              <button onClick={applyCrop} className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm flex items-center justify-center gap-1.5"><Check size={16} /> تأیید برش</button>
+            </div>
+          </div>
+        ) : tool === "draw" ? (
           <>
             <div className="flex items-center gap-2">
               <button onClick={() => setEraser((e) => !e)} className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs shrink-0 ${eraser ? "bg-rose-500/20 text-rose-300" : "bg-white/5 text-white/70"}`}>
@@ -811,11 +953,19 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
                   <FrameIcon size={14} className="text-white/40 shrink-0" />
                   {FRAMES.map((f) => (<button key={f.id} onClick={() => setFrame(f)} className={chip(frame.id === f.id)}>{f.label}</button>))}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-white/40 text-[11px] shrink-0 ml-1">برش</span>
-                  <button onClick={() => setSquare((s) => !s)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs shrink-0 border ${square ? "bg-indigo-600/25 border-indigo-400/50 text-white" : "bg-white/5 border-white/10 text-white/70"}`}>
+                  <button onClick={() => { setManualCrop(null); setSquare((s) => !s); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs shrink-0 border ${square && !manualCrop ? "bg-indigo-600/25 border-indigo-400/50 text-white" : "bg-white/5 border-white/10 text-white/70"}`}>
                     {square ? <Square size={14} /> : <Crop size={14} />} {square ? "مربع" : "کامل"}
                   </button>
+                  <button onClick={startCrop} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs shrink-0 border ${manualCrop ? "bg-indigo-600/25 border-indigo-400/50 text-white" : "bg-white/5 border-white/10 text-white/70"}`}>
+                    <Crop size={14} /> برشِ دستی
+                  </button>
+                  {manualCrop && (
+                    <button onClick={clearCrop} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs shrink-0 border bg-rose-500/15 border-rose-400/30 text-rose-300">
+                      <X size={13} /> حذف
+                    </button>
+                  )}
                 </div>
                 <div className="flex gap-1.5 overflow-x-auto pb-0.5">
                   <span className="text-white/40 text-[11px] self-center shrink-0 ml-1">کیفیت</span>
@@ -836,10 +986,12 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
         )}
 
         {/* send */}
-        <button onClick={send} disabled={working || !ready} className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm disabled:opacity-50">
-          {working ? <Loader2 size={18} className="animate-spin" /> : <><Send size={18} /> ارسال</>}
-          {!working && preset.id === "orig" && !hasEdits && <span className="text-white/60 text-xs">(اصل)</span>}
-        </button>
+        {!cropEditing && (
+          <button onClick={send} disabled={working || !ready} className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm disabled:opacity-50">
+            {working ? <Loader2 size={18} className="animate-spin" /> : <><Send size={18} /> ارسال</>}
+            {!working && preset.id === "orig" && !hasEdits && <span className="text-white/60 text-xs">(اصل)</span>}
+          </button>
+        )}
       </div>
     </div>
   );

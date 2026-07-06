@@ -37,7 +37,7 @@ from app.api.deps import get_current_user
 from app.models.user import User
 from app.models.messages import (
     MessageRoom, RoomMember, Message, MessageReaction, MessageTranslation,
-    MessagePoll, PollVote,
+    MessagePoll, PollVote, UserBlock,
 )
 
 router = APIRouter(prefix="/messages", tags=["Messages"])
@@ -220,6 +220,8 @@ class RoomOut(BaseModel):
     is_admin: bool = False
     partner_online: bool = False
     partner_last_seen: Optional[datetime] = None
+    is_muted: bool = False
+    is_blocked: bool = False
     created_at: datetime
 
 
@@ -459,6 +461,37 @@ async def _resolve_reply(db: AsyncSession, rid, reply_to_id: Optional[str]):
     return reply_uuid, preview
 
 
+async def _direct_partner_id(db: AsyncSession, rid, me_id):
+    """شناسهٔ عضوِ دیگرِ یک اتاقِ direct (در گروه/سیستم → None)."""
+    room = await db.get(MessageRoom, rid)
+    if not room or room.type != "direct":
+        return None
+    return (await db.execute(
+        select(RoomMember.user_id).where(
+            and_(RoomMember.room_id == rid, RoomMember.user_id != me_id)
+        )
+    )).scalar_one_or_none()
+
+
+async def _is_pair_blocked(db: AsyncSession, a_id, b_id) -> bool:
+    """آیا بینِ دو کاربر مسدودسازی (در هر جهت) وجود دارد؟"""
+    if not a_id or not b_id:
+        return False
+    return (await db.execute(
+        select(UserBlock.id).where(or_(
+            and_(UserBlock.blocker_id == a_id, UserBlock.blocked_id == b_id),
+            and_(UserBlock.blocker_id == b_id, UserBlock.blocked_id == a_id),
+        )).limit(1)
+    )).scalar_one_or_none() is not None
+
+
+async def _ensure_not_blocked(db: AsyncSession, rid, me_id) -> None:
+    """در اتاقِ direct اگر یکی از طرفین دیگری را مسدود کرده باشد، ارسال ممنوع است."""
+    other = await _direct_partner_id(db, rid, me_id)
+    if other and await _is_pair_blocked(db, me_id, other):
+        raise HTTPException(status_code=403, detail="به دلیلِ مسدودسازی امکانِ ارسالِ پیام نیست")
+
+
 # ── Endpoints ─────────────────────────────────────────────────
 
 @router.get("/rooms", response_model=List[RoomOut])
@@ -475,6 +508,14 @@ async def list_rooms(
 
     room_ids = [m.room_id for m in my_memberships]
     last_read_by_room = {m.room_id: m.last_read_at for m in my_memberships}
+    cleared_by_room = {m.room_id: m.cleared_at for m in my_memberships}
+    muted_by_room = {m.room_id: m.muted_until for m in my_memberships}
+    now_dt = datetime.now(timezone.utc)
+
+    # کاربرانی که من مسدود کرده‌ام (برای نمایشِ وضعیتِ اتاقِ direct)
+    my_blocks = set((await db.execute(
+        select(UserBlock.blocked_id).where(UserBlock.blocker_id == me.id)
+    )).scalars().all())
 
     rooms_q = select(MessageRoom).where(MessageRoom.id.in_(room_ids))
     rooms_r = await db.execute(rooms_q)
@@ -485,6 +526,7 @@ async def list_rooms(
         partner_name = partner_earth_id = partner_role = partner_avatar = None
         partner_online = False
         partner_last_seen = None
+        is_blocked = False
         if room.type == "direct":
             members_q = (
                 select(User)
@@ -500,13 +542,17 @@ async def list_rooms(
                 partner_avatar = partner.avatar_url
                 partner_last_seen = partner.last_seen_at
                 partner_online = _is_online(partner.last_seen_at)
+                is_blocked = partner.id in my_blocks
 
+        my_cleared = cleared_by_room.get(room.id)
         last_msg_q = (
             select(Message)
             .where(and_(Message.room_id == room.id, Message.is_deleted == False))
             .order_by(Message.created_at.desc())
             .limit(1)
         )
+        if my_cleared is not None:
+            last_msg_q = last_msg_q.where(Message.created_at > my_cleared)
         last_r = await db.execute(last_msg_q)
         last_msg = last_r.scalar_one_or_none()
 
@@ -519,6 +565,8 @@ async def list_rooms(
         ]
         if my_read is not None:
             unread_filter.append(Message.created_at > my_read)
+        if my_cleared is not None:
+            unread_filter.append(Message.created_at > my_cleared)
         unread_q = select(func.count(Message.id)).where(and_(*unread_filter))
         unread_r = await db.execute(unread_q)
         unread_count = unread_r.scalar_one_or_none() or 0
@@ -544,6 +592,8 @@ async def list_rooms(
             is_admin=(room.created_by == me.id),
             partner_online=partner_online,
             partner_last_seen=partner_last_seen,
+            is_muted=bool(muted_by_room.get(room.id) and muted_by_room[room.id] > now_dt),
+            is_blocked=is_blocked,
             created_at=room.created_at,
         ))
 
@@ -569,6 +619,12 @@ async def start_or_get_room(
 
     room = await _get_or_create_direct_room(db, me.id, partner.id)
 
+    i_blocked = (await db.execute(
+        select(UserBlock.id).where(and_(
+            UserBlock.blocker_id == me.id, UserBlock.blocked_id == partner.id
+        )).limit(1)
+    )).scalar_one_or_none() is not None
+
     return RoomOut(
         id=str(room.id),
         type=room.type,
@@ -582,6 +638,7 @@ async def start_or_get_room(
         unread_count=0,
         partner_online=_is_online(partner.last_seen_at),
         partner_last_seen=partner.last_seen_at,
+        is_blocked=i_blocked,
         created_at=room.created_at,
     )
 
@@ -669,6 +726,11 @@ async def get_messages(
     rid = _uuid.UUID(room_id)
     await _require_member(db, rid, me.id)
 
+    my_mem = (await db.execute(
+        select(RoomMember).where(and_(RoomMember.room_id == rid, RoomMember.user_id == me.id))
+    )).scalar_one_or_none()
+    cleared = my_mem.cleared_at if my_mem else None
+
     q = (
         select(Message, User.full_name, User.username, User.earth_id)
         .join(User, User.id == Message.sender_id)
@@ -676,6 +738,8 @@ async def get_messages(
         .order_by(Message.created_at.desc())
         .limit(limit)
     )
+    if cleared is not None:
+        q = q.where(Message.created_at > cleared)
     if before:
         pivot = await db.get(Message, _uuid.UUID(before))
         if pivot:
@@ -928,6 +992,7 @@ async def send_message(
     """ارسال پیام (با پاسخ‌دادن اختیاری)"""
     rid = _uuid.UUID(room_id)
     await _require_member(db, rid, me.id)
+    await _ensure_not_blocked(db, rid, me.id)
 
     reply_to_uuid = None
     reply_preview = None
@@ -986,6 +1051,7 @@ async def create_poll(
     """ساختِ نظرسنجی به‌صورتِ یک پیام (media_type='poll'؛ سؤال در content ذخیره می‌شود)."""
     rid = _uuid.UUID(room_id)
     await _require_member(db, rid, me.id)
+    await _ensure_not_blocked(db, rid, me.id)
 
     question = body.question.strip()
     options = [o.strip() for o in body.options if o and o.strip()]
@@ -1111,6 +1177,7 @@ async def send_media_message(
     """ارسالِ عکس / پیامِ صوتی / فایل در چت"""
     rid = _uuid.UUID(room_id)
     await _require_member(db, rid, me.id)
+    await _ensure_not_blocked(db, rid, me.id)
 
     data = await file.read()
     if not data:
@@ -1214,6 +1281,7 @@ async def send_location(
     """ارسالِ موقعیتِ مکانیِ ثابت (نقطهٔ روی نقشه)"""
     rid = _uuid.UUID(room_id)
     await _require_member(db, rid, me.id)
+    await _ensure_not_blocked(db, rid, me.id)
     reply_uuid, reply_preview = await _resolve_reply(db, rid, body.reply_to_id)
 
     msg = Message(
@@ -1239,6 +1307,7 @@ async def start_live_location(
     """شروعِ اشتراکِ موقعیتِ زنده (متحرک) تا مدتِ مشخص"""
     rid = _uuid.UUID(room_id)
     await _require_member(db, rid, me.id)
+    await _ensure_not_blocked(db, rid, me.id)
     reply_uuid, reply_preview = await _resolve_reply(db, rid, body.reply_to_id)
 
     now = datetime.now(timezone.utc)
@@ -1737,6 +1806,7 @@ async def send_sticker_message(
     from app.models.stickers import Sticker
     rid = _uuid.UUID(room_id)
     await _require_member(db, rid, me.id)
+    await _ensure_not_blocked(db, rid, me.id)
     try:
         sid = _uuid.UUID(body.sticker_id)
     except ValueError:
@@ -1783,3 +1853,121 @@ async def send_sticker_message(
         is_read=False, media_url=msg.media_url, media_type=msg.media_type,
         sticker_id=str(msg.sticker_id), created_at=msg.created_at,
     )
+
+
+# ── تنظیماتِ گفتگو: مسدودسازی / بی‌صداکردن / پاک‌کردن ─────────────
+
+class BlockStateOut(BaseModel):
+    blocked: bool
+
+
+class MuteRequest(BaseModel):
+    muted: bool
+    duration_minutes: Optional[int] = Field(None, ge=1, le=525600)  # None + muted=true → همیشه
+
+
+class MuteStateOut(BaseModel):
+    muted: bool
+    muted_until: Optional[datetime] = None
+
+
+class ClearChatOut(BaseModel):
+    ok: bool = True
+    cleared_at: datetime
+
+
+@router.post("/users/{earth_id}/block", response_model=BlockStateOut)
+async def toggle_block(
+    earth_id: str,
+    db: AsyncSession = Depends(get_db),
+    me: User = Depends(get_current_user),
+):
+    """مسدود/رفعِ مسدودیِ یک کاربر (toggle). در اتاقِ direct، مسدودی ارسالِ پیام را از هر دو طرف می‌بندد."""
+    target = (await db.execute(
+        select(User).where(User.earth_id == earth_id)
+    )).scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="کاربر پیدا نشد")
+    if target.id == me.id:
+        raise HTTPException(status_code=400, detail="نمی‌توانید خودتان را مسدود کنید")
+
+    existing = (await db.execute(
+        select(UserBlock).where(and_(
+            UserBlock.blocker_id == me.id, UserBlock.blocked_id == target.id
+        ))
+    )).scalar_one_or_none()
+    if existing:
+        await db.delete(existing)
+        await db.commit()
+        return BlockStateOut(blocked=False)
+    db.add(UserBlock(blocker_id=me.id, blocked_id=target.id))
+    await db.commit()
+    return BlockStateOut(blocked=True)
+
+
+@router.get("/blocks", response_model=List[str])
+async def list_blocks(
+    db: AsyncSession = Depends(get_db),
+    me: User = Depends(get_current_user),
+):
+    """earth_idِ کاربرانی که من مسدود کرده‌ام."""
+    rows = (await db.execute(
+        select(User.earth_id)
+        .join(UserBlock, UserBlock.blocked_id == User.id)
+        .where(UserBlock.blocker_id == me.id)
+    )).all()
+    return [r[0] for r in rows]
+
+
+@router.post("/rooms/{room_id}/mute", response_model=MuteStateOut)
+async def set_mute(
+    room_id: str,
+    body: MuteRequest,
+    db: AsyncSession = Depends(get_db),
+    me: User = Depends(get_current_user),
+):
+    """بی‌صداکردن/فعال‌کردنِ اعلانِ یک اتاق (به‌ازای عضویتِ من)."""
+    try:
+        rid = _uuid.UUID(room_id)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="اتاقِ نامعتبر")
+    mem = (await db.execute(
+        select(RoomMember).where(and_(RoomMember.room_id == rid, RoomMember.user_id == me.id))
+    )).scalar_one_or_none()
+    if not mem:
+        raise HTTPException(status_code=403, detail="دسترسی ندارید")
+
+    now = datetime.now(timezone.utc)
+    if not body.muted:
+        mem.muted_until = None
+    elif body.duration_minutes:
+        mem.muted_until = now + timedelta(minutes=body.duration_minutes)
+    else:
+        mem.muted_until = now + timedelta(days=3650)   # عملاً همیشه
+    await db.commit()
+    active = bool(mem.muted_until and mem.muted_until > now)
+    return MuteStateOut(muted=active, muted_until=mem.muted_until if active else None)
+
+
+@router.post("/rooms/{room_id}/clear", response_model=ClearChatOut)
+async def clear_chat(
+    room_id: str,
+    db: AsyncSession = Depends(get_db),
+    me: User = Depends(get_current_user),
+):
+    """پاک‌کردنِ گفتگو برایِ من: پیام‌های موجود از نمایِ من پنهان می‌شوند (طرف مقابل دست‌نخورده)."""
+    try:
+        rid = _uuid.UUID(room_id)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="اتاقِ نامعتبر")
+    mem = (await db.execute(
+        select(RoomMember).where(and_(RoomMember.room_id == rid, RoomMember.user_id == me.id))
+    )).scalar_one_or_none()
+    if not mem:
+        raise HTTPException(status_code=403, detail="دسترسی ندارید")
+
+    now = datetime.now(timezone.utc)
+    mem.cleared_at = now
+    mem.last_read_at = now
+    await db.commit()
+    return ClearChatOut(ok=True, cleared_at=now)
