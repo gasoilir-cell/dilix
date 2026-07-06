@@ -97,3 +97,34 @@ class MessageTranslation(Base):
     __table_args__ = (
         Index("uq_msg_translation", "message_id", "target_lang", unique=True),
     )
+
+
+class MessagePoll(Base):
+    """نظرسنجی پیوست‌شده به یک پیام (media_type='poll'). گزینه‌ها JSON آرایه‌ای از رشته‌ها."""
+    __tablename__ = "message_polls"
+
+    id          = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    message_id  = Column(UUID(as_uuid=True), ForeignKey("messages.id", ondelete="CASCADE"), nullable=False, index=True)
+    question    = Column(String(300), nullable=False)
+    options     = Column(Text, nullable=False)                 # JSON: ["گزینه ۱", ...]
+    multiple    = Column(Boolean, default=False)               # اجازهٔ چند‌انتخابی
+    created_at  = Column(DateTime(timezone=True), nullable=False, default=_now)
+
+    __table_args__ = (
+        Index("uq_poll_message", "message_id", unique=True),
+    )
+
+
+class PollVote(Base):
+    """رأیِ یک کاربر به یک گزینه از نظرسنجی (یک ردیف به‌ازای poll+user+option)."""
+    __tablename__ = "poll_votes"
+
+    id           = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    poll_id      = Column(UUID(as_uuid=True), ForeignKey("message_polls.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id      = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    option_index = Column(Integer, nullable=False)
+    created_at   = Column(DateTime(timezone=True), nullable=False, default=_now)
+
+    __table_args__ = (
+        Index("uq_poll_vote", "poll_id", "user_id", "option_index", unique=True),
+    )

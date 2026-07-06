@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, Suspense, Fragment } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, MessageCircle, Send, ArrowRight, Loader2, Users, Reply, Pencil, Trash2, Check, CheckCheck, X, UserPlus, LogOut, Crown, Paperclip, Mic, FileText, Download, Play, Pause, MapPin, Radio, Image as ImageIcon, Languages, Phone, Video, PhoneMissed, Smile, Camera, Copy, Palette, Sticker, Star, Compass, Forward, MoreHorizontal, ChevronDown, Pin, PinOff } from "lucide-react";
+import { Search, MessageCircle, Send, ArrowRight, Loader2, Users, Reply, Pencil, Trash2, Check, CheckCheck, X, UserPlus, LogOut, Crown, Paperclip, Mic, FileText, Download, Play, Pause, MapPin, Radio, Image as ImageIcon, Languages, Phone, Video, PhoneMissed, Smile, Camera, Copy, Palette, Sticker, Star, Compass, Forward, MoreHorizontal, MoreVertical, ChevronDown, Pin, PinOff, BarChart3, PlusCircle, CheckCircle2 } from "lucide-react";
 import AppShell from "@/components/layout/AppShell";
 import { messagesApi, stickersApi, getApiErrorMessage} from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
@@ -63,6 +63,11 @@ interface LocationData {
   live: boolean; active: boolean;
   updated_at?: string | null; expires_at?: string | null;
 }
+interface PollOptionData { text: string; votes: number; voted: boolean; }
+interface PollData {
+  id: string; question: string; multiple: boolean;
+  total_votes: number; options: PollOptionData[];
+}
 interface Message {
   id: string; sender_id: string; sender_name: string | null;
   sender_earth_id: string | null; content: string;
@@ -78,6 +83,7 @@ interface Message {
   media_meta?: string | null;
   sticker_id?: string | null;
   location?: LocationData | null;
+  poll?: PollData | null;
   is_forwarded?: boolean;
   forwarded_from?: string | null;
   is_pinned?: boolean;
@@ -323,6 +329,14 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
   const fileInputRef = useRef<HTMLInputElement>(null);
   const camInputRef = useRef<HTMLInputElement>(null);
   const [showEmoji, setShowEmoji] = useState(false);
+  const [emojiTab, setEmojiTab] = useState<"emoji" | "sticker">("emoji");
+  const [showCallMenu, setShowCallMenu] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
+  const [showPollCreate, setShowPollCreate] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState("");
+  const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
+  const [pollMultiple, setPollMultiple] = useState(false);
+  const [pollSending, setPollSending] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [showStudio, setShowStudio] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
@@ -387,6 +401,42 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
       // revert
       setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, is_pinned: !willPin } : m));
       toast.error("عملیات ناموفق بود");
+    }
+  };
+
+  // ── Poll ─────────────────────────────────────────────────
+  const openPollCreate = () => {
+    setPollQuestion("");
+    setPollOptions(["", ""]);
+    setPollMultiple(false);
+    setShowPollCreate(true);
+  };
+
+  const submitPoll = async () => {
+    const question = pollQuestion.trim();
+    const options = pollOptions.map((o) => o.trim()).filter(Boolean);
+    if (!question || options.length < 2) return;
+    setPollSending(true);
+    try {
+      const r = await messagesApi.createPoll(room.id, question, options, pollMultiple);
+      setMessages((prev) => [...prev, r.data]);
+      setShowPollCreate(false);
+      requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
+    } catch {
+      toast.error("ساختِ نظرسنجی ناموفق بود");
+    } finally {
+      setPollSending(false);
+    }
+  };
+
+  const votePoll = async (msg: Message, optionIndex: number) => {
+    if (!msg.poll) return;
+    const pollId = msg.poll.id;
+    try {
+      const r = await messagesApi.votePoll(pollId, optionIndex);
+      setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, poll: r.data } : m));
+    } catch {
+      toast.error("ثبتِ رأی ناموفق بود");
     }
   };
 
@@ -1043,50 +1093,22 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
           </p>
         </button>
         {!isGroup && room.partner_earth_id && (
-          <>
-            <button
-              onClick={() => useCallStore.getState().startCall(room.partner_earth_id!, partnerName, "audio")}
-              className="p-2 rounded-xl hover:bg-white/5 text-white/60"
-              title="تماس صوتی"
-            >
-              <Phone size={20} />
-            </button>
-            <button
-              onClick={() => useCallStore.getState().startCall(room.partner_earth_id!, partnerName, "video")}
-              className="p-2 rounded-xl hover:bg-white/5 text-white/60"
-              title="تماس تصویری"
-            >
-              <Video size={20} />
-            </button>
-          </>
-        )}
-        <button
-          onClick={() => { setShowSearch(true); setSearchQ(""); setSearchResults([]); }}
-          className="p-2 rounded-xl hover:bg-white/5 text-white/60"
-          title="جستجو در گفتگو"
-        >
-          <Search size={20} />
-        </button>
-        <button
-          onClick={() => setShowLangMenu(true)}
-          className={`relative p-2 rounded-xl hover:bg-white/5 ${autoTr ? "text-emerald-400" : "text-white/60"}`}
-          title="ترجمهٔ همزمان"
-        >
-          <Languages size={20} />
-          {autoTr && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-400" />}
-        </button>
-        <button
-          onClick={() => setShowChatSettings(true)}
-          className="p-2 rounded-xl hover:bg-white/5 text-white/60"
-          title="شخصی‌سازیِ چت"
-        >
-          <Palette size={20} />
-        </button>
-        {isGroup && (
-          <button onClick={openMembers} className="p-2 rounded-xl hover:bg-white/5 text-white/60">
-            <Users size={20} />
+          <button
+            onClick={() => setShowCallMenu(true)}
+            className="p-2 rounded-xl hover:bg-white/5 text-white/60"
+            title="تماس"
+          >
+            <Phone size={20} />
           </button>
         )}
+        <button
+          onClick={() => setShowOptions(true)}
+          className={`relative p-2 rounded-xl hover:bg-white/5 ${autoTr ? "text-emerald-400" : "text-white/60"}`}
+          title="گزینه‌های بیشتر"
+        >
+          <MoreVertical size={20} />
+          {autoTr && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-400" />}
+        </button>
       </div>
 
       {/* Pinned banner */}
@@ -1218,7 +1240,44 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
                     onCall={(m) => room.partner_earth_id && useCallStore.getState().startCall(room.partner_earth_id, partnerName, m)}
                   />
                 )}
-                {(msg.is_deleted || (msg.content && msg.media_type !== "call") || (!msg.media_url && !msg.location && msg.media_type !== "call")) && (
+                {!msg.is_deleted && msg.media_type === "poll" && msg.poll && (
+                  <div onClick={(e) => e.stopPropagation()} className="min-w-[13rem]">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <BarChart3 size={14} className={msg.is_mine ? "text-indigo-100" : "text-amber-400"} />
+                      <span className="text-[11px] opacity-70">نظرسنجی{msg.poll.multiple ? " · چندگزینه‌ای" : ""}</span>
+                    </div>
+                    <p className="font-bold text-sm mb-2.5 leading-snug">{msg.poll.question}</p>
+                    <div className="space-y-1.5">
+                      {msg.poll.options.map((opt, i) => {
+                        const total = msg.poll!.total_votes || 0;
+                        const pct = total > 0 ? Math.round((opt.votes / total) * 100) : 0;
+                        return (
+                          <button
+                            key={i}
+                            onClick={() => votePoll(msg, i)}
+                            className={`relative w-full text-right rounded-xl overflow-hidden border transition active:scale-[0.99] ${opt.voted ? (msg.is_mine ? "border-white/60" : "border-amber-400") : "border-white/10"}`}
+                          >
+                            <span
+                              className={`absolute inset-y-0 right-0 ${msg.is_mine ? "bg-white/20" : "bg-amber-400/20"} transition-all`}
+                              style={{ width: `${pct}%` }}
+                            />
+                            <span className="relative flex items-center gap-2 px-3 py-2">
+                              {opt.voted
+                                ? <CheckCircle2 size={16} className={`shrink-0 ${msg.is_mine ? "text-white" : "text-amber-400"}`} />
+                                : <span className="shrink-0 w-4 h-4 rounded-full border border-white/30" />}
+                              <span className="flex-1 min-w-0 truncate text-[13px]">{opt.text}</span>
+                              <span className="shrink-0 text-[11px] opacity-70">{opt.votes}</span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] opacity-50 mt-2">
+                      {msg.poll.total_votes > 0 ? `${msg.poll.total_votes} رأی · برای رأی روی گزینه بزنید` : "هنوز رأیی ثبت نشده · برای رأی روی گزینه بزنید"}
+                    </p>
+                  </div>
+                )}
+                {(msg.is_deleted || (msg.content && msg.media_type !== "call" && msg.media_type !== "poll") || (!msg.media_url && !msg.location && msg.media_type !== "call" && msg.media_type !== "poll")) && (
                   <p>{msg.is_deleted ? "این پیام حذف شد" : msg.content}</p>
                 )}
                 {/* inline translation */}
@@ -1625,55 +1684,189 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
         </div>
       )}
 
+      {/* Call menu (WhatsApp-style: voice/video together) */}
+      {showCallMenu && !isGroup && room.partner_earth_id && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => setShowCallMenu(false)}>
+          <div className="w-full max-w-md bg-[#1C1C1E] rounded-t-3xl p-4 pb-safe animate-[slideUp_0.2s_ease]" onClick={(e) => e.stopPropagation()}>
+            <p className="text-white/40 text-xs mb-2 px-1">تماس با {partnerName}</p>
+            <div className="space-y-1">
+              <button
+                onClick={() => { setShowCallMenu(false); useCallStore.getState().startCall(room.partner_earth_id!, partnerName, "audio"); }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-white text-sm text-right"
+              >
+                <span className="w-9 h-9 rounded-full bg-emerald-500/15 flex items-center justify-center"><Phone size={18} className="text-emerald-400" /></span>
+                تماس صوتی
+              </button>
+              <button
+                onClick={() => { setShowCallMenu(false); useCallStore.getState().startCall(room.partner_earth_id!, partnerName, "video"); }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-white text-sm text-right"
+              >
+                <span className="w-9 h-9 rounded-full bg-indigo-500/15 flex items-center justify-center"><Video size={18} className="text-indigo-400" /></span>
+                تماس تصویری
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Options menu (three-dot, WhatsApp-style) */}
+      {showOptions && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => setShowOptions(false)}>
+          <div className="w-full max-w-md bg-[#1C1C1E] rounded-t-3xl p-4 pb-safe animate-[slideUp_0.2s_ease]" onClick={(e) => e.stopPropagation()}>
+            <p className="text-white/40 text-xs mb-2 px-1">گزینه‌ها</p>
+            <div className="space-y-1">
+              {!isGroup && room.partner_earth_id && (
+                <button
+                  onClick={() => { setShowOptions(false); window.location.href = `/u/${room.partner_earth_id}`; }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-white text-sm text-right"
+                >
+                  <span className="w-9 h-9 rounded-full bg-sky-500/15 flex items-center justify-center"><Users size={18} className="text-sky-400" /></span>
+                  مشاهدهٔ مخاطب
+                </button>
+              )}
+              {isGroup && (
+                <button
+                  onClick={() => { setShowOptions(false); openMembers(); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-white text-sm text-right"
+                >
+                  <span className="w-9 h-9 rounded-full bg-sky-500/15 flex items-center justify-center"><Users size={18} className="text-sky-400" /></span>
+                  اعضای گروه
+                </button>
+              )}
+              <button
+                onClick={() => { setShowOptions(false); setShowSearch(true); setSearchQ(""); setSearchResults([]); }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-white text-sm text-right"
+              >
+                <span className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center"><Search size={18} className="text-white/70" /></span>
+                جستجو در گفتگو
+              </button>
+              <button
+                onClick={() => { setShowOptions(false); setShowLangMenu(true); }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-white text-sm text-right"
+              >
+                <span className="w-9 h-9 rounded-full bg-emerald-500/15 flex items-center justify-center"><Languages size={18} className="text-emerald-400" /></span>
+                ترجمهٔ همزمان
+                {autoTr && <span className="mr-auto text-[11px] text-emerald-400">روشن</span>}
+              </button>
+              <button
+                onClick={() => { setShowOptions(false); setShowChatSettings(true); }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-white text-sm text-right"
+              >
+                <span className="w-9 h-9 rounded-full bg-fuchsia-500/15 flex items-center justify-center"><Palette size={18} className="text-fuchsia-400" /></span>
+                شخصی‌سازیِ چت
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Attach menu */}
       {showAttach && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => setShowAttach(false)}>
           <div className="w-full max-w-md bg-[#1C1C1E] rounded-t-3xl p-4 pb-safe animate-[slideUp_0.2s_ease]" onClick={(e) => e.stopPropagation()}>
-            <p className="text-white/40 text-xs mb-3 px-1">ارسالِ ضمیمه</p>
-            <div className="space-y-1">
+            <div className="grid grid-cols-4 gap-3 justify-items-center">
               <button
                 onClick={() => { setShowAttach(false); setShowCamera(true); }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-white text-sm text-right"
+                title="دوربین"
+                className="w-14 h-14 rounded-full bg-indigo-500/15 flex items-center justify-center active:scale-95 transition"
               >
-                <span className="w-9 h-9 rounded-full bg-indigo-500/15 flex items-center justify-center"><Camera size={18} className="text-indigo-400" /></span>
-                دوربین (جلو/عقب)
-              </button>
-              <button
-                onClick={() => { setShowAttach(false); setShowStudio(true); }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-white text-sm text-right"
-              >
-                <span className="w-9 h-9 rounded-full bg-fuchsia-500/15 flex items-center justify-center"><Sticker size={18} className="text-fuchsia-400" /></span>
-                استیکر / اموجیِ اختصاصی
-              </button>
-              <button
-                onClick={() => { setShowAttach(false); setLibraryPackId(null); setShowLibrary(true); }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-white text-sm text-right"
-              >
-                <span className="w-9 h-9 rounded-full bg-amber-500/15 flex items-center justify-center"><Star size={18} className="text-amber-400" /></span>
-                کتابخانهٔ استیکر و ایموجی
+                <Camera size={24} className="text-indigo-400" />
               </button>
               <button
                 onClick={() => { setShowAttach(false); fileInputRef.current?.click(); }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-white text-sm text-right"
+                title="عکس یا فایل"
+                className="w-14 h-14 rounded-full bg-sky-500/15 flex items-center justify-center active:scale-95 transition"
               >
-                <span className="w-9 h-9 rounded-full bg-sky-500/15 flex items-center justify-center"><ImageIcon size={18} className="text-sky-400" /></span>
-                عکس یا فایل
+                <ImageIcon size={24} className="text-sky-400" />
               </button>
               <button
                 onClick={shareStaticLocation}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-white text-sm text-right"
+                title="موقعیتِ مکانی"
+                className="w-14 h-14 rounded-full bg-red-500/15 flex items-center justify-center active:scale-95 transition"
               >
-                <span className="w-9 h-9 rounded-full bg-red-500/15 flex items-center justify-center"><MapPin size={18} className="text-red-400" /></span>
-                موقعیتِ مکانی
+                <MapPin size={24} className="text-red-400" />
               </button>
               <button
                 onClick={() => { setShowAttach(false); setShowLiveDur(true); }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-white text-sm text-right"
+                title="موقعیتِ زندهٔ لحظه‌ای"
+                className="w-14 h-14 rounded-full bg-emerald-500/15 flex items-center justify-center active:scale-95 transition"
               >
-                <span className="w-9 h-9 rounded-full bg-emerald-500/15 flex items-center justify-center"><Radio size={18} className="text-emerald-400" /></span>
-                موقعیتِ زندهٔ لحظه‌ای
+                <Radio size={24} className="text-emerald-400" />
+              </button>
+              <button
+                onClick={() => { setShowAttach(false); openPollCreate(); }}
+                title="نظرسنجی"
+                className="w-14 h-14 rounded-full bg-amber-500/15 flex items-center justify-center active:scale-95 transition"
+              >
+                <BarChart3 size={24} className="text-amber-400" />
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Poll creation sheet */}
+      {showPollCreate && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => setShowPollCreate(false)}>
+          <div className="w-full max-w-md bg-[#1C1C1E] rounded-t-3xl p-4 pb-safe animate-[slideUp_0.2s_ease] max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-3">
+              <BarChart3 size={20} className="text-amber-400" />
+              <p className="text-white font-bold">نظرسنجیِ جدید</p>
+            </div>
+            <label className="block text-white/40 text-xs mb-1">سؤال</label>
+            <input
+              value={pollQuestion}
+              onChange={(e) => setPollQuestion(e.target.value)}
+              maxLength={300}
+              placeholder="سؤالِ خود را بنویسید…"
+              className="w-full bg-[#0A0A0A] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-amber-500/50 mb-3"
+            />
+            <label className="block text-white/40 text-xs mb-1">گزینه‌ها</label>
+            <div className="space-y-2 mb-3">
+              {pollOptions.map((opt, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input
+                    value={opt}
+                    onChange={(e) => setPollOptions((prev) => prev.map((o, j) => j === i ? e.target.value : o))}
+                    maxLength={100}
+                    placeholder={`گزینهٔ ${i + 1}`}
+                    className="flex-1 min-w-0 bg-[#0A0A0A] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-amber-500/50"
+                  />
+                  {pollOptions.length > 2 && (
+                    <button
+                      onClick={() => setPollOptions((prev) => prev.filter((_, j) => j !== i))}
+                      className="p-2 rounded-lg text-white/40 hover:text-red-400 hover:bg-white/5 shrink-0"
+                    >
+                      <X size={18} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            {pollOptions.length < 12 && (
+              <button
+                onClick={() => setPollOptions((prev) => [...prev, ""])}
+                className="flex items-center gap-2 text-amber-400 text-sm mb-4 px-1"
+              >
+                <PlusCircle size={18} /> افزودنِ گزینه
+              </button>
+            )}
+            <button
+              onClick={() => setPollMultiple((v) => !v)}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-[#0A0A0A] mb-4"
+            >
+              <span className="text-white text-sm">اجازهٔ انتخابِ چند گزینه</span>
+              <span className={`w-10 h-6 rounded-full flex items-center transition ${pollMultiple ? "bg-amber-500 justify-end" : "bg-white/15 justify-start"} p-0.5`}>
+                <span className="w-5 h-5 rounded-full bg-white" />
+              </span>
+            </button>
+            <button
+              onClick={submitPoll}
+              disabled={pollSending || !pollQuestion.trim() || pollOptions.filter((o) => o.trim()).length < 2}
+              className="w-full py-3 rounded-xl bg-amber-500 text-black font-bold text-sm disabled:opacity-40 active:scale-[0.99] transition"
+            >
+              {pollSending ? "در حال ارسال…" : "ایجادِ نظرسنجی"}
+            </button>
           </div>
         </div>
       )}
@@ -1802,20 +1995,52 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-2 px-1">
-              <span className="text-white/40 text-xs">اموجی</span>
+              <div className="flex gap-1 bg-white/5 rounded-xl p-0.5 text-xs">
+                <button
+                  onClick={() => setEmojiTab("emoji")}
+                  className={`px-3 py-1 rounded-lg transition ${emojiTab === "emoji" ? "bg-indigo-600 text-white" : "text-white/60"}`}
+                >
+                  ایموجی
+                </button>
+                <button
+                  onClick={() => setEmojiTab("sticker")}
+                  className={`px-3 py-1 rounded-lg transition ${emojiTab === "sticker" ? "bg-indigo-600 text-white" : "text-white/60"}`}
+                >
+                  استیکر
+                </button>
+              </div>
               <button onClick={() => setShowEmoji(false)} className="p-1 rounded-lg text-white/50 hover:bg-white/5"><X size={16} /></button>
             </div>
-            <div className="grid grid-cols-8 gap-1 max-h-56 overflow-y-auto">
-              {COMPOSE_EMOJIS.map((emo, i) => (
+            {emojiTab === "emoji" ? (
+              <div className="grid grid-cols-8 gap-1 max-h-56 overflow-y-auto">
+                {COMPOSE_EMOJIS.map((emo, i) => (
+                  <button
+                    key={`${emo}-${i}`}
+                    onClick={() => insertEmoji(emo)}
+                    className="h-9 rounded-lg text-xl hover:bg-white/5 flex items-center justify-center"
+                  >
+                    {emo}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="max-h-56 overflow-y-auto space-y-2 py-1">
                 <button
-                  key={`${emo}-${i}`}
-                  onClick={() => insertEmoji(emo)}
-                  className="h-9 rounded-lg text-xl hover:bg-white/5 flex items-center justify-center"
+                  onClick={() => { setShowEmoji(false); setLibraryPackId(null); setShowLibrary(true); }}
+                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white text-sm text-right"
                 >
-                  {emo}
+                  <span className="w-9 h-9 rounded-full bg-amber-500/15 flex items-center justify-center"><Star size={18} className="text-amber-400" /></span>
+                  <span className="flex-1">کتابخانهٔ استیکر و ایموجی</span>
                 </button>
-              ))}
-            </div>
+                <button
+                  onClick={() => { setShowEmoji(false); setShowStudio(true); }}
+                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white text-sm text-right"
+                >
+                  <span className="w-9 h-9 rounded-full bg-fuchsia-500/15 flex items-center justify-center"><Sticker size={18} className="text-fuchsia-400" /></span>
+                  <span className="flex-1">ساختِ استیکر / ایموجیِ اختصاصی</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1873,7 +2098,7 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
               onChange={(e) => { setText(e.target.value); signalTyping(); }}
               onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), send())}
               placeholder={editing ? "ویرایش پیام..." : "پیام..."}
-              className="flex-1 bg-[#1C1C1E] border border-white/8 rounded-2xl px-4 py-3 text-white text-sm placeholder-white/30 focus:outline-none focus:border-indigo-500/50 resize-none"
+              className="flex-1 min-w-0 bg-[#1C1C1E] border border-white/8 rounded-2xl px-4 py-3 text-white text-sm placeholder-white/30 focus:outline-none focus:border-indigo-500/50 resize-none"
             />
             {text.trim() && (
               <button

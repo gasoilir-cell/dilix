@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   X, Send, Type as TypeIcon, Square, Crop, Smile, Loader2, Pencil,
   Eraser, Move, Trash2, Languages, Undo2, ImagePlus, Frame as FrameIcon,
+  Sun, Contrast, Droplet, Thermometer, Aperture, RotateCcw,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { messagesApi } from "@/lib/api";
@@ -13,6 +14,24 @@ interface Props {
   kind: "image" | "video";
   onCancel: () => void;
   onDone: (file: File) => void;
+}
+
+// ── دستیِ تنظیمِ نور/رنگ (روی کلِ تصویر، bake روی خروجی) ──────
+type Adjust = { brightness: number; contrast: number; saturate: number; warmth: number; blur: number };
+const ADJUST_DEFAULT: Adjust = { brightness: 1, contrast: 1, saturate: 1, warmth: 0, blur: 0 };
+function adjustToCss(a: Adjust): string {
+  const p: string[] = [];
+  if (a.brightness !== 1) p.push(`brightness(${a.brightness})`);
+  if (a.contrast !== 1) p.push(`contrast(${a.contrast})`);
+  if (a.saturate !== 1) p.push(`saturate(${a.saturate})`);
+  if (a.warmth > 0) p.push(`sepia(${(a.warmth / 100 * 0.55).toFixed(3)})`);
+  else if (a.warmth < 0) p.push(`hue-rotate(${Math.round(a.warmth / 100 * 22)}deg) saturate(${(1 + (-a.warmth) / 100 * 0.15).toFixed(2)})`);
+  if (a.blur > 0) p.push(`blur(${a.blur}px)`);
+  return p.join(" ");
+}
+function combineFilter(base: string, adj: string): string {
+  const parts = [base !== "none" ? base : "", adj].filter(Boolean);
+  return parts.length ? parts.join(" ") : "none";
 }
 
 // ── palettes / presets ───────────────────────────────────────
@@ -345,6 +364,7 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
   const [square, setSquare] = useState(false);
   const [filter, setFilter] = useState(FILTERS[0]);
   const [pixel, setPixel] = useState(PIXEL_LEVELS[0]);
+  const [adjust, setAdjust] = useState<Adjust>(ADJUST_DEFAULT);
   const [frame, setFrame] = useState(FRAMES[0]);
   const [overlays, setOverlays] = useState<Overlay[]>([]);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
@@ -352,7 +372,7 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
   const [preset, setPreset] = useState(kind === "image" ? IMG_PRESETS[1] : VID_PRESETS[1]);
 
   const [tool, setTool] = useState<"move" | "draw">("move");
-  const [mtab, setMtab] = useState<"layer" | "filter" | "adjust">("layer");
+  const [mtab, setMtab] = useState<"layer" | "filter" | "tune" | "adjust">("layer");
   const [draft, setDraft] = useState("");
   const [textColor, setTextColor] = useState(COLORS[0]);
   const [textFontId, setTextFontId] = useState(FONTS[0].id);
@@ -386,6 +406,17 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
     else setPixel(pl);
   };
 
+  // فیلترِ پایه = فیلترِ آماده + تنظیمِ دستیِ نور/رنگ (روی کلِ تصویر)
+  const baseFilterCss = useMemo(() => combineFilter(filter.css, adjustToCss(adjust)), [filter, adjust]);
+  const adjusted = adjust.brightness !== 1 || adjust.contrast !== 1 || adjust.saturate !== 1 || adjust.warmth !== 0 || adjust.blur !== 0;
+  const TUNE_SLIDERS = [
+    { key: "brightness" as const, label: "روشنایی", Icon: Sun,         min: 0.5, max: 1.5, step: 0.02, fmt: (v: number) => `${Math.round((v - 1) * 100)}` },
+    { key: "contrast"   as const, label: "کنتراست", Icon: Contrast,    min: 0.5, max: 1.5, step: 0.02, fmt: (v: number) => `${Math.round((v - 1) * 100)}` },
+    { key: "saturate"   as const, label: "اشباع",   Icon: Droplet,     min: 0,   max: 2,   step: 0.02, fmt: (v: number) => `${Math.round((v - 1) * 100)}` },
+    { key: "warmth"     as const, label: "گرما",    Icon: Thermometer, min: -100, max: 100, step: 2,   fmt: (v: number) => `${Math.round(v)}` },
+    { key: "blur"       as const, label: "محو",     Icon: Aperture,    min: 0,   max: 5,   step: 0.2,  fmt: (v: number) => v.toFixed(1) },
+  ];
+
   // fit box from natural aspect
   const fitBox = useCallback((w: number, h: number) => {
     const maxW = Math.min(window.innerWidth * 0.92, 440);
@@ -414,7 +445,7 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
 
   useEffect(() => { if (ready) fitBox(natRef.current.w, natRef.current.h); }, [square, ready, fitBox]);
 
-  const sceneOpts = useCallback((): SceneOpts => ({ square, filterCss: filter.css, blocks: pixel.blocks, overlays, strokes, frame: frame.id }), [square, filter, pixel, overlays, strokes, frame]);
+  const sceneOpts = useCallback((): SceneOpts => ({ square, filterCss: baseFilterCss, blocks: pixel.blocks, overlays, strokes, frame: frame.id }), [square, baseFilterCss, pixel, overlays, strokes, frame]);
 
   // paint preview
   const paint = useCallback(() => {
@@ -452,7 +483,7 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
     paint();
   }, [ready, kind, paint, box]);
 
-  const hasEdits = square || filter.id !== "none" || pixel.blocks > 0 || overlays.length > 0 || strokes.length > 0 || frame.id !== "none";
+  const hasEdits = square || filter.id !== "none" || pixel.blocks > 0 || overlays.length > 0 || strokes.length > 0 || frame.id !== "none" || adjusted;
 
   // live image size
   useEffect(() => {
@@ -463,7 +494,7 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
     }, 300);
     return () => { cancelled = true; clearTimeout(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kind, ready, square, filter, pixel, overlays, strokes, preset, frame]);
+  }, [kind, ready, square, filter, pixel, overlays, strokes, preset, frame, adjust]);
 
   const renderImageOutput = useCallback((): Promise<Blob> => {
     return new Promise((resolve, reject) => {
@@ -472,10 +503,10 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
       const { W, H } = outDims(crop.sw, crop.sh, preset.maxDim);
       const c = document.createElement("canvas"); c.width = W; c.height = H;
       const ctx = c.getContext("2d"); if (!ctx) return reject(new Error("no ctx"));
-      drawScene(ctx, {}, src, natRef.current.w, natRef.current.h, W, H, { square, filterCss: filter.css, blocks: pixel.blocks, overlays, strokes, frame: frame.id });
+      drawScene(ctx, {}, src, natRef.current.w, natRef.current.h, W, H, { square, filterCss: baseFilterCss, blocks: pixel.blocks, overlays, strokes, frame: frame.id });
       c.toBlob((b) => b ? resolve(b) : reject(new Error("toBlob")), "image/jpeg", (preset as { q: number }).q);
     });
-  }, [square, preset, filter, pixel, overlays, strokes, frame]);
+  }, [square, preset, baseFilterCss, pixel, overlays, strokes, frame]);
 
   // ── pointer interactions ─────────────────────────────────
   const normFromEvent = (e: React.PointerEvent) => {
@@ -578,7 +609,7 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
     } else {
       setWorking(true); setProgress(0);
       try {
-        const blob = await transcodeVideo(file, { square, filterCss: filter.css, blocks: pixel.blocks, overlays, strokes, frame: frame.id, maxDim: preset.maxDim, bitrate: (preset as { bitrate: number }).bitrate }, (p) => setProgress(p));
+        const blob = await transcodeVideo(file, { square, filterCss: baseFilterCss, blocks: pixel.blocks, overlays, strokes, frame: frame.id, maxDim: preset.maxDim, bitrate: (preset as { bitrate: number }).bitrate }, (p) => setProgress(p));
         toast.success(`حجم: ${toPersianDigits(fmtBytes(origSize))} ← ${toPersianDigits(fmtBytes(blob.size))}`);
         onDone(new File([blob], `video-${Date.now()}.webm`, { type: "video/webm" }));
       } catch { toast.error("فشرده‌سازیِ ویدیو ناموفق بود — فایلِ اصلی ارسال شد"); onDone(file); }
@@ -652,7 +683,7 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
           <>
             {/* دسته‌بندیِ تنظیمات */}
             <div className="flex gap-1 bg-white/5 rounded-xl p-0.5 text-xs">
-              {([["layer", "نوشته و لایه"], ["filter", "فیلتر و افکت"], ["adjust", "برش و کیفیت"]] as const).map(([id, label]) => (
+              {([["layer", "نوشته"], ["filter", "فیلتر"], ["tune", "تنظیم"], ["adjust", "برش"]] as const).map(([id, label]) => (
                 <button key={id} onClick={() => setMtab(id)} className={`flex-1 py-1.5 rounded-lg transition ${mtab === id ? "bg-indigo-600 text-white" : "text-white/60"}`}>{label}</button>
               ))}
             </div>
@@ -735,6 +766,30 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
                   {PIXEL_LEVELS.map((p) => (<button key={p.id} onClick={() => applyPixel(p)} className={chip(activeBlocks === p.blocks)}>{p.label}</button>))}
                 </div>
               </>
+            )}
+
+            {/* ── تبِ تنظیمِ نور و رنگ ── */}
+            {mtab === "tune" && (
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-white/40 text-[11px]">نور و رنگِ کلِ تصویر</span>
+                  <button onClick={() => setAdjust(ADJUST_DEFAULT)} disabled={!adjusted} className="flex items-center gap-1 text-[11px] text-white/50 hover:text-white/80 disabled:opacity-30">
+                    <RotateCcw size={12} /> بازنشانی
+                  </button>
+                </div>
+                {TUNE_SLIDERS.map((s) => (
+                  <div key={s.key} className="flex items-center gap-2.5">
+                    <s.Icon size={15} className="text-white/50 shrink-0" />
+                    <span className="text-white/60 text-xs w-12 shrink-0">{s.label}</span>
+                    <input
+                      type="range" min={s.min} max={s.max} step={s.step} value={adjust[s.key]}
+                      onChange={(e) => { const v = parseFloat(e.target.value); setAdjust((a) => ({ ...a, [s.key]: v })); }}
+                      className="flex-1 accent-indigo-500 h-1"
+                    />
+                    <span className="text-white/40 text-[10px] w-8 text-left tabular-nums">{s.fmt(adjust[s.key])}</span>
+                  </div>
+                ))}
+              </div>
             )}
 
             {/* ── تبِ برش و کیفیت ── */}

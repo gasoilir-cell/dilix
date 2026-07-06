@@ -37,6 +37,7 @@ from app.api.deps import get_current_user
 from app.models.user import User
 from app.models.messages import (
     MessageRoom, RoomMember, Message, MessageReaction, MessageTranslation,
+    MessagePoll, PollVote,
 )
 
 router = APIRouter(prefix="/messages", tags=["Messages"])
@@ -78,7 +79,7 @@ def _human_size(n: int) -> str:
 _MEDIA_LABEL = {
     "image": "🖼 عکس", "voice": "🎤 پیام صوتی", "file": "📎 فایل",
     "video": "🎬 ویدیو", "location": "📍 موقعیت مکانی", "live_location": "📡 موقعیت زنده",
-    "call": "📞 تماس",
+    "call": "📞 تماس", "poll": "📊 نظرسنجی",
 }
 
 
@@ -109,6 +110,52 @@ def _build_location(msg) -> Optional["LocationInfo"]:
         updated_at=msg.live_updated_at,
         expires_at=msg.live_expires_at,
     )
+
+
+async def _build_polls(db: AsyncSession, msg_ids, me_id) -> Dict[str, "PollInfo"]:
+    """PollInfo برای پیام‌های نظرسنجی (batch): شمارشِ رأیِ هر گزینه + رأیِ من + رأی‌دهندگانِ یکتا."""
+    if not msg_ids:
+        return {}
+    polls = (await db.execute(
+        select(MessagePoll).where(MessagePoll.message_id.in_(msg_ids))
+    )).scalars().all()
+    if not polls:
+        return {}
+    poll_by_id = {p.id: p for p in polls}
+    votes = (await db.execute(
+        select(PollVote).where(PollVote.poll_id.in_(list(poll_by_id.keys())))
+    )).scalars().all()
+
+    counts: Dict[str, Dict[int, int]] = {}       # poll_id -> {option_index: count}
+    voters: Dict[str, set] = {}                   # poll_id -> set(user_id)
+    mine: Dict[str, set] = {}                     # poll_id -> set(option_index) که من رأی داده‌ام
+    for v in votes:
+        pid = str(v.poll_id)
+        counts.setdefault(pid, {})[v.option_index] = counts.setdefault(pid, {}).get(v.option_index, 0) + 1
+        voters.setdefault(pid, set()).add(v.user_id)
+        if v.user_id == me_id:
+            mine.setdefault(pid, set()).add(v.option_index)
+
+    result: Dict[str, PollInfo] = {}
+    for p in polls:
+        pid = str(p.id)
+        try:
+            opts = json.loads(p.options)
+        except (ValueError, TypeError):
+            opts = []
+        c = counts.get(pid, {})
+        my = mine.get(pid, set())
+        result[str(p.message_id)] = PollInfo(
+            id=pid,
+            question=p.question,
+            multiple=bool(p.multiple),
+            total_votes=len(voters.get(pid, set())),
+            options=[
+                PollOption(text=str(t), votes=c.get(i, 0), voted=(i in my))
+                for i, t in enumerate(opts)
+            ],
+        )
+    return result
 
 
 # ── Translation (Google free endpoint; reachable, no key, auto-detect) ──
@@ -193,6 +240,20 @@ class LocationInfo(BaseModel):
     expires_at: Optional[datetime] = None
 
 
+class PollOption(BaseModel):
+    text: str
+    votes: int = 0
+    voted: bool = False            # آیا من به این گزینه رأی داده‌ام
+
+
+class PollInfo(BaseModel):
+    id: str
+    question: str
+    multiple: bool = False
+    total_votes: int = 0           # تعدادِ رأی‌دهندگانِ یکتا
+    options: List[PollOption]
+
+
 class MessageOut(BaseModel):
     id: str
     sender_id: str
@@ -207,11 +268,12 @@ class MessageOut(BaseModel):
     my_reaction: Optional[str]     # my emoji on this message
     is_read: bool                  # (mine only) seen by partner
     media_url: Optional[str] = None
-    media_type: Optional[str] = None   # image | voice | file | location | live_location
+    media_type: Optional[str] = None   # image | voice | file | location | live_location | poll
     media_name: Optional[str] = None
     media_meta: Optional[str] = None
     sticker_id: Optional[str] = None
     location: Optional[LocationInfo] = None
+    poll: Optional[PollInfo] = None
     is_forwarded: bool = False
     forwarded_from: Optional[str] = None
     is_pinned: bool = False
@@ -238,6 +300,17 @@ class ReactRequest(BaseModel):
 class ForwardRequest(BaseModel):
     room_id: str = Field(..., description="اتاقِ مقصدِ بازارسال")
     anonymous: bool = Field(False, description="بی‌نام (بدونِ نامِ فرستندهٔ اصلی)")
+
+
+class CreatePollRequest(BaseModel):
+    question: str = Field(..., min_length=1, max_length=300)
+    options: List[str] = Field(..., min_items=2, max_items=12)
+    multiple: bool = Field(False, description="اجازهٔ انتخابِ چند گزینه")
+    reply_to_id: Optional[str] = None
+
+
+class VoteRequest(BaseModel):
+    option_index: int = Field(..., ge=0, le=11)
 
 
 class LocationRequest(BaseModel):
@@ -646,6 +719,7 @@ async def get_messages(
             )
 
     partner_read_at = await _partner_last_read(db, rid, me.id)
+    poll_map = await _build_polls(db, msg_ids, me.id)
 
     msgs = []
     for msg, full_name, username, earth_id in rows:
@@ -673,6 +747,7 @@ async def get_messages(
             media_meta=None if msg.is_deleted else msg.media_meta,
             sticker_id=(str(msg.sticker_id) if msg.sticker_id else None),
             location=None if msg.is_deleted else _build_location(msg),
+            poll=None if msg.is_deleted else poll_map.get(mid),
             is_forwarded=bool(getattr(msg, "is_forwarded", False)) and not msg.is_deleted,
             forwarded_from=None if msg.is_deleted else getattr(msg, "forwarded_from", None),
             is_pinned=bool(getattr(msg, "pinned_at", None)) and not msg.is_deleted,
@@ -899,6 +974,129 @@ async def send_message(
         is_read=False,
         created_at=msg.created_at,
     )
+
+
+@router.post("/rooms/{room_id}/poll", response_model=MessageOut, status_code=status.HTTP_201_CREATED)
+async def create_poll(
+    room_id: str,
+    body: CreatePollRequest,
+    db: AsyncSession = Depends(get_db),
+    me: User = Depends(get_current_user),
+):
+    """ساختِ نظرسنجی به‌صورتِ یک پیام (media_type='poll'؛ سؤال در content ذخیره می‌شود)."""
+    rid = _uuid.UUID(room_id)
+    await _require_member(db, rid, me.id)
+
+    question = body.question.strip()
+    options = [o.strip() for o in body.options if o and o.strip()]
+    if not question:
+        raise HTTPException(status_code=400, detail="سؤالِ نظرسنجی خالی است")
+    if len(options) < 2:
+        raise HTTPException(status_code=400, detail="حداقل ۲ گزینهٔ معتبر لازم است")
+
+    reply_to_uuid = None
+    if body.reply_to_id:
+        try:
+            ruid = _uuid.UUID(body.reply_to_id)
+            parent = await db.get(Message, ruid)
+            if parent and parent.room_id == rid:
+                reply_to_uuid = ruid
+        except ValueError:
+            pass
+
+    msg = Message(
+        room_id=rid,
+        sender_id=me.id,
+        content=question,
+        media_type="poll",
+        reply_to_id=reply_to_uuid,
+    )
+    db.add(msg)
+    await db.flush()
+
+    poll = MessagePoll(
+        message_id=msg.id,
+        question=question,
+        options=json.dumps(options, ensure_ascii=False),
+        multiple=bool(body.multiple),
+    )
+    db.add(poll)
+    await db.commit()
+    await db.refresh(msg)
+    await db.refresh(poll)
+
+    return MessageOut(
+        id=str(msg.id),
+        sender_id=str(msg.sender_id),
+        sender_name=me.full_name or me.username or me.earth_id,
+        sender_earth_id=me.earth_id,
+        content=msg.content,
+        is_mine=True,
+        is_deleted=False,
+        edited=False,
+        reply_to=None,
+        reactions={},
+        my_reaction=None,
+        is_read=False,
+        media_type="poll",
+        poll=PollInfo(
+            id=str(poll.id),
+            question=poll.question,
+            multiple=bool(poll.multiple),
+            total_votes=0,
+            options=[PollOption(text=o, votes=0, voted=False) for o in options],
+        ),
+        created_at=msg.created_at,
+    )
+
+
+@router.post("/polls/{poll_id}/vote", response_model=PollInfo)
+async def vote_poll(
+    poll_id: str,
+    body: VoteRequest,
+    db: AsyncSession = Depends(get_db),
+    me: User = Depends(get_current_user),
+):
+    """رأی‌دادن/برداشتنِ رأی از یک گزینه (toggle). در حالتِ تک‌گزینه‌ای رأیِ قبلی جایگزین می‌شود."""
+    try:
+        pid = _uuid.UUID(poll_id)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="نظرسنجیِ نامعتبر")
+
+    poll = await db.get(MessagePoll, pid)
+    if not poll:
+        raise HTTPException(status_code=404, detail="نظرسنجی پیدا نشد")
+
+    msg = await db.get(Message, poll.message_id)
+    if not msg or msg.is_deleted:
+        raise HTTPException(status_code=404, detail="نظرسنجی پیدا نشد")
+    await _require_member(db, msg.room_id, me.id)
+
+    try:
+        opts = json.loads(poll.options)
+    except (ValueError, TypeError):
+        opts = []
+    if body.option_index >= len(opts):
+        raise HTTPException(status_code=400, detail="گزینهٔ نامعتبر")
+
+    existing = (await db.execute(
+        select(PollVote).where(and_(PollVote.poll_id == pid, PollVote.user_id == me.id))
+    )).scalars().all()
+    same = next((v for v in existing if v.option_index == body.option_index), None)
+
+    if same:
+        # تپِ دوباره روی همان گزینه = برداشتنِ رأی
+        await db.delete(same)
+    else:
+        if not poll.multiple:
+            # تک‌گزینه‌ای: رأی‌های قبلی حذف می‌شوند
+            for v in existing:
+                await db.delete(v)
+        db.add(PollVote(poll_id=pid, user_id=me.id, option_index=body.option_index))
+    await db.commit()
+
+    result = await _build_polls(db, [poll.message_id], me.id)
+    return result[str(poll.message_id)]
 
 
 @router.post("/rooms/{room_id}/media", response_model=MessageOut, status_code=status.HTTP_201_CREATED)

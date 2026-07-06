@@ -219,6 +219,13 @@ export const messagesApi = {
   setTyping: (roomId: string) => api.post(`/messages/rooms/${roomId}/typing`),
   pin: (messageId: string) => api.post(`/messages/messages/${messageId}/pin`),
   pins: (roomId: string) => api.get(`/messages/rooms/${roomId}/pins`),
+  createPoll: (roomId: string, question: string, options: string[], multiple: boolean, replyToId?: string | null) =>
+    api.post(`/messages/rooms/${roomId}/poll`, {
+      question, options, multiple,
+      ...(replyToId ? { reply_to_id: replyToId } : {}),
+    }),
+  votePoll: (pollId: string, optionIndex: number) =>
+    api.post(`/messages/polls/${pollId}/vote`, { option_index: optionIndex }),
   createGroup: (name: string, memberEarthIds: string[]) =>
     api.post("/messages/groups", { name, member_earth_ids: memberEarthIds }),
   members: (roomId: string) => api.get(`/messages/rooms/${roomId}/members`),
