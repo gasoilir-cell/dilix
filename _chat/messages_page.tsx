@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, Suspense, Fragment } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, MessageCircle, Send, ArrowRight, Loader2, Users, Reply, Pencil, Trash2, Check, CheckCheck, X, UserPlus, LogOut, Crown, Paperclip, Mic, FileText, Download, Play, Pause, MapPin, Radio, Image as ImageIcon, Languages, Phone, Video, PhoneMissed, Smile, Camera, Copy, Palette, Sticker, Star, Compass, Forward, MoreHorizontal, MoreVertical, ChevronDown, Pin, PinOff, BarChart3, PlusCircle, CheckCircle2, BellOff, Bell, Ban } from "lucide-react";
+import { Search, MessageCircle, Send, ArrowRight, Loader2, Users, Reply, Pencil, Trash2, Check, CheckCheck, X, UserPlus, LogOut, Crown, Paperclip, Mic, FileText, Download, Play, Pause, MapPin, Radio, Image as ImageIcon, Languages, Phone, Video, PhoneMissed, Smile, Camera, Copy, Palette, Sticker, Star, Compass, Forward, MoreHorizontal, MoreVertical, ChevronDown, Pin, PinOff, BarChart3, PlusCircle, CheckCircle2, BellOff, Bell, Ban, Share2, ListChecks } from "lucide-react";
 import AppShell from "@/components/layout/AppShell";
 import { messagesApi, stickersApi, getApiErrorMessage} from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
@@ -325,6 +325,12 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
   const [forwardRooms, setForwardRooms] = useState<Room[]>([]);
   const [forwardAnon, setForwardAnon] = useState(false);
   const [forwardBusy, setForwardBusy] = useState(false);
+  const [forwardBulk, setForwardBulk] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [swipe, setSwipe] = useState<{ id: string; dx: number } | null>(null);
+  const gestureRef = useRef<{ id: string; x0: number; y0: number; dx: number; moved: boolean; swiping: boolean; longFired: boolean; long: number } | null>(null);
+  const suppressClickRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1030,7 +1036,27 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
   };
 
   const doForward = async (target: Room) => {
-    if (!forwardMsg || forwardBusy) return;
+    if (forwardBusy) return;
+    // حالتِ گروهی: همهٔ پیام‌های انتخاب‌شده به ترتیب بازارسال می‌شوند
+    if (forwardBulk) {
+      const list = messages.filter((m) => selectedIds.has(m.id) && !m.is_deleted && !m.id.startsWith("tmp-"));
+      if (list.length === 0) { setForwardMsg(null); setForwardBulk(false); return; }
+      setForwardBusy(true);
+      try {
+        for (const m of list) {
+          const res = await messagesApi.forward(m.id, target.id, forwardAnon);
+          if (target.id === room.id) setMessages((prev) => [...prev, res.data as Message]);
+        }
+        toast.success(target.id === room.id ? "بازارسال شد" : "به مکالمهٔ انتخابی بازارسال شد");
+        setForwardMsg(null); setForwardBulk(false); exitSelect();
+      } catch {
+        toast.error("بازارسال ناموفق بود");
+      } finally {
+        setForwardBusy(false);
+      }
+      return;
+    }
+    if (!forwardMsg) return;
     setForwardBusy(true);
     try {
       const res = await messagesApi.forward(forwardMsg.id, target.id, forwardAnon);
@@ -1043,6 +1069,124 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
     } finally {
       setForwardBusy(false);
     }
+  };
+
+  // بازارسالِ بی‌نام (بدونِ مشخصاتِ فرستنده) — همان پیکرِ بازارسال با حالتِ بی‌نام
+  const startForwardAnon = async (msg: Message) => {
+    setSheetMsg(null);
+    setForwardBulk(false);
+    setForwardAnon(true);
+    setForwardMsg(msg);
+    try { const res = await messagesApi.listRooms(); setForwardRooms(res.data as Room[]); }
+    catch { setForwardRooms([]); }
+  };
+
+  // اشتراک‌گذاری با Web Share API (fallback: کپی در کلیپ‌بورد)
+  const absUrl = (u: string) => (u.startsWith("http") || typeof window === "undefined") ? u : window.location.origin + u;
+  const shareMsg = async (msg: Message) => {
+    setSheetMsg(null);
+    const text = msg.content?.trim() || "";
+    const url = msg.media_url ? absUrl(msg.media_url) : "";
+    if (!text && !url) { toast("چیزی برای اشتراک‌گذاری نیست"); return; }
+    const data: { title: string; text?: string; url?: string } = { title: "دیلیکس" };
+    if (text) data.text = text;
+    if (url) data.url = url;
+    try {
+      if (navigator.share) await navigator.share(data);
+      else { await navigator.clipboard.writeText([text, url].filter(Boolean).join("\n")); toast.success("در کلیپ‌بورد کپی شد"); }
+    } catch { /* کاربر لغو کرد */ }
+  };
+
+  // ── انتخابِ چندتایی ──────────────────────────────────────
+  const enterSelect = (msg: Message) => {
+    setSheetMsg(null);
+    setSelectMode(true);
+    setSelectedIds(new Set([msg.id]));
+  };
+  const exitSelect = () => { setSelectMode(false); setSelectedIds(new Set()); };
+  const toggleSelect = (id: string) => setSelectedIds((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const selectedMsgs = () => messages.filter((m) => selectedIds.has(m.id));
+  const bulkCopy = async () => {
+    const t = selectedMsgs().map((m) => m.content?.trim()).filter(Boolean).join("\n");
+    if (!t) { toast("متنی برای کپی نیست"); return; }
+    try { await navigator.clipboard.writeText(t); toast.success("کپی شد"); } catch { toast.error("کپی ناموفق بود"); }
+    exitSelect();
+  };
+  const bulkShare = async () => {
+    const parts = selectedMsgs().map((m) => m.content?.trim() || (m.media_url ? absUrl(m.media_url) : "")).filter(Boolean);
+    const text = parts.join("\n");
+    if (!text) { toast("چیزی برای اشتراک‌گذاری نیست"); return; }
+    try {
+      if (navigator.share) await navigator.share({ title: "دیلیکس", text });
+      else { await navigator.clipboard.writeText(text); toast.success("در کلیپ‌بورد کپی شد"); }
+    } catch { /* لغو */ }
+    exitSelect();
+  };
+  const bulkDelete = async () => {
+    const mine = selectedMsgs().filter((m) => m.is_mine && !m.is_deleted && !m.id.startsWith("tmp-"));
+    if (mine.length === 0) { toast("فقط پیام‌های خودت حذف می‌شوند"); return; }
+    if (!window.confirm(`«${mine.length}» پیام برای همه حذف شود؟`)) return;
+    const ids = new Set(mine.map((m) => m.id));
+    setMessages((prev) => prev.map((m) => ids.has(m.id) ? { ...m, is_deleted: true, content: "" } : m));
+    exitSelect();
+    await Promise.allSettled(mine.map((m) => messagesApi.remove(m.id)));
+  };
+  const startForwardBulk = async () => {
+    if (selectedIds.size === 0) return;
+    setForwardBulk(true);
+    setForwardAnon(false);
+    setForwardMsg({ id: "__bulk__" } as Message);
+    try { const res = await messagesApi.listRooms(); setForwardRooms(res.data as Room[]); }
+    catch { setForwardRooms([]); }
+  };
+
+  // ── حرکات لمسی روی حباب: فشارِ طولانی = منو، کشیدن = پاسخ/اشتراک ──
+  const onMsgDown = (e: React.PointerEvent, msg: Message) => {
+    if (msg.is_deleted || msg.id.startsWith("tmp-") || selectMode) return;
+    if ((e.target as HTMLElement).closest("video")) return; // با کنترل‌های ویدیو تداخل نکن
+    try { (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId); } catch { /* ignore */ }
+    const long = window.setTimeout(() => {
+      if (!gestureRef.current) return;
+      gestureRef.current.longFired = true;
+      suppressClickRef.current = true;
+      navigator.vibrate?.(15);
+      setSwipe(null);
+      setSheetMsg(msg);
+    }, 450);
+    gestureRef.current = { id: msg.id, x0: e.clientX, y0: e.clientY, dx: 0, moved: false, swiping: false, longFired: false, long };
+  };
+  const onMsgMove = (e: React.PointerEvent) => {
+    const g = gestureRef.current; if (!g || g.longFired) return;
+    const dx = e.clientX - g.x0, dy = e.clientY - g.y0;
+    if (!g.moved && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) { g.moved = true; clearTimeout(g.long); }
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 6) {
+      g.swiping = true;
+      g.dx = Math.max(-90, Math.min(90, dx));
+      setSwipe({ id: g.id, dx: g.dx });
+    }
+  };
+  const onMsgUp = (_e: React.PointerEvent, msg: Message) => {
+    const g = gestureRef.current; if (!g) return;
+    clearTimeout(g.long);
+    const { dx, swiping, longFired } = g;
+    gestureRef.current = null;
+    setSwipe(null);
+    if (longFired) return;
+    if (swiping) {
+      suppressClickRef.current = true;
+      if (Math.abs(dx) >= 60) { if (dx > 0) startReply(msg); else shareMsg(msg); }
+    }
+  };
+  const onMsgCancel = () => { const g = gestureRef.current; if (g) clearTimeout(g.long); gestureRef.current = null; setSwipe(null); };
+  const onMsgClick = (msg: Message) => {
+    if (suppressClickRef.current) { suppressClickRef.current = false; return; }
+    if (msg.is_deleted || msg.id.startsWith("tmp-")) return;
+    if (selectMode) { toggleSelect(msg.id); return; }
+    setSheetMsg(msg);
   };
 
   const openMembers = async () => {
@@ -1222,12 +1366,37 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
             )}
             <div
               ref={(el) => { msgRefs.current[msg.id] = el; }}
-              className={`flex flex-col ${msg.is_mine ? "items-end" : "items-start"} ${highlightId === msg.id ? "rounded-2xl ring-2 ring-yellow-400/70 transition" : ""}`}
+              className={`flex flex-col ${msg.is_mine ? "items-end" : "items-start"} rounded-2xl transition ${highlightId === msg.id ? "ring-2 ring-yellow-400/70" : ""} ${selectMode && selectedIds.has(msg.id) ? "bg-indigo-500/10" : ""}`}
             >
+              <div className="relative max-w-[78%]">
+              {/* راهنمای کشیدن: راست=پاسخ، چپ=اشتراک */}
+              {swipe?.id === msg.id && swipe.dx > 8 && (
+                <div className="absolute inset-y-0 left-0 flex items-center pointer-events-none">
+                  <span className="w-8 h-8 rounded-full bg-indigo-500 text-white flex items-center justify-center" style={{ opacity: Math.min(1, swipe.dx / 60) }}><Reply size={16} /></span>
+                </div>
+              )}
+              {swipe?.id === msg.id && swipe.dx < -8 && (
+                <div className="absolute inset-y-0 right-0 flex items-center pointer-events-none">
+                  <span className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center" style={{ opacity: Math.min(1, -swipe.dx / 60) }}><Share2 size={16} /></span>
+                </div>
+              )}
+              {/* نشانهٔ انتخاب */}
+              {selectMode && selectedIds.has(msg.id) && (
+                <CheckCircle2 size={20} className="absolute -top-1 -right-1 z-10 text-indigo-400 bg-[#1C1C1E] rounded-full" />
+              )}
               <button
-                onClick={() => !msg.is_deleted && !msg.id.startsWith("tmp-") && setSheetMsg(msg)}
-                style={msg.is_mine && !msg.is_deleted ? { backgroundColor: chatTheme.accent } : undefined}
-                className={`max-w-[78%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed text-right ${
+                onPointerDown={(e) => onMsgDown(e, msg)}
+                onPointerMove={onMsgMove}
+                onPointerUp={(e) => onMsgUp(e, msg)}
+                onPointerCancel={onMsgCancel}
+                onClick={() => onMsgClick(msg)}
+                style={{
+                  ...(msg.is_mine && !msg.is_deleted ? { backgroundColor: chatTheme.accent } : {}),
+                  transform: swipe?.id === msg.id ? `translateX(${swipe.dx}px)` : undefined,
+                  transition: swipe?.id === msg.id ? "none" : "transform 0.18s ease",
+                  touchAction: "pan-y",
+                }}
+                className={`w-full px-4 py-2.5 rounded-2xl text-sm leading-relaxed text-right ${
                   msg.is_deleted
                     ? "bg-white/5 text-white/30 italic"
                     : msg.is_mine
@@ -1259,7 +1428,7 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
                 )}
                 {/* media */}
                 {!msg.is_deleted && msg.media_url && msg.media_type === "image" && (
-                  <a href={msg.media_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="block">
+                  <a href={msg.media_url} target="_blank" rel="noreferrer" onClick={(e) => { e.stopPropagation(); if (suppressClickRef.current) { e.preventDefault(); suppressClickRef.current = false; } else if (selectMode) { e.preventDefault(); toggleSelect(msg.id); } }} className="block">
                     <img src={msg.media_url} alt="" className="rounded-xl max-h-72 w-auto object-cover mb-1" />
                   </a>
                 )}
@@ -1280,7 +1449,7 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
                 {!msg.is_deleted && msg.media_url && msg.media_type === "file" && (
                   <a
                     href={msg.media_url} target="_blank" rel="noreferrer" download={msg.media_name ?? true}
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={(e) => { e.stopPropagation(); if (suppressClickRef.current) { e.preventDefault(); suppressClickRef.current = false; } else if (selectMode) { e.preventDefault(); toggleSelect(msg.id); } }}
                     className={`flex items-center gap-2 mb-1 px-2 py-2 rounded-xl ${msg.is_mine ? "bg-white/10" : "bg-white/5"}`}
                   >
                     <FileText size={22} className="shrink-0 text-white/80" />
@@ -1383,6 +1552,7 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
                   )}
                 </div>
               </button>
+              </div>
               {/* action handle — reply/react/edit/forward on every message (incl. media) */}
               {!msg.is_deleted && !msg.id.startsWith("tmp-") && (
                 <button
@@ -1431,6 +1601,20 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
         </button>
       )}
 
+      {/* Select-mode action bar */}
+      {selectMode && (
+        <div className="fixed top-0 inset-x-0 z-[60] bg-[#1C1C1E] border-b border-white/10 px-3 py-2.5 flex items-center gap-1">
+          <button onClick={exitSelect} className="p-2 rounded-lg hover:bg-white/5 text-white/80" aria-label="بستن">
+            <X size={20} />
+          </button>
+          <span className="text-white text-sm font-semibold flex-1 px-1">{toPersianNum(selectedIds.size)} انتخاب‌شده</span>
+          <button onClick={startForwardBulk} disabled={selectedIds.size === 0} className="p-2 rounded-lg hover:bg-white/5 text-white/80 disabled:opacity-30" aria-label="بازارسال"><Forward size={19} /></button>
+          <button onClick={bulkShare} disabled={selectedIds.size === 0} className="p-2 rounded-lg hover:bg-white/5 text-white/80 disabled:opacity-30" aria-label="اشتراک‌گذاری"><Share2 size={19} /></button>
+          <button onClick={bulkCopy} disabled={selectedIds.size === 0} className="p-2 rounded-lg hover:bg-white/5 text-white/80 disabled:opacity-30" aria-label="کپی"><Copy size={19} /></button>
+          <button onClick={bulkDelete} disabled={selectedIds.size === 0} className="p-2 rounded-lg hover:bg-white/5 text-rose-400 disabled:opacity-30" aria-label="حذف"><Trash2 size={19} /></button>
+        </div>
+      )}
+
       {/* Action sheet (react / reply / edit / delete) */}
       {sheetMsg && (
         <div
@@ -1467,6 +1651,24 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-white text-sm text-right"
               >
                 <Forward size={18} className="text-white/60" /> بازارسال
+              </button>
+              <button
+                onClick={() => startForwardAnon(sheetMsg)}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-white text-sm text-right"
+              >
+                <Forward size={18} className="text-white/40" /> بازارسال بدون مشخصات
+              </button>
+              <button
+                onClick={() => shareMsg(sheetMsg)}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-white text-sm text-right"
+              >
+                <Share2 size={18} className="text-white/60" /> اشتراک‌گذاری
+              </button>
+              <button
+                onClick={() => enterSelect(sheetMsg)}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-white text-sm text-right"
+              >
+                <ListChecks size={18} className="text-white/60" /> انتخاب
               </button>
               {!sheetMsg.is_deleted && (
                 <button
@@ -1561,7 +1763,7 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
       {forwardMsg && (
         <div
           className="fixed inset-0 z-[55] flex items-end justify-center bg-black/50"
-          onClick={() => !forwardBusy && setForwardMsg(null)}
+          onClick={() => { if (!forwardBusy) { setForwardMsg(null); setForwardBulk(false); } }}
         >
           <div
             className="w-full max-w-md bg-[#1C1C1E] rounded-t-3xl p-4 pb-safe max-h-[80vh] overflow-y-auto animate-[slideUp_0.2s_ease]"
@@ -1569,9 +1771,9 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
           >
             <div className="flex items-center justify-between mb-3">
               <p className="text-white font-bold flex items-center gap-2">
-                <Forward size={18} className="text-indigo-400" /> بازارسال به…
+                <Forward size={18} className="text-indigo-400" /> {forwardBulk ? `بازارسالِ ${toPersianNum(selectedIds.size)} پیام به…` : "بازارسال به…"}
               </p>
-              <button onClick={() => !forwardBusy && setForwardMsg(null)} className="p-1.5 rounded-lg hover:bg-white/5 text-white/50">
+              <button onClick={() => { if (!forwardBusy) { setForwardMsg(null); setForwardBulk(false); } }} className="p-1.5 rounded-lg hover:bg-white/5 text-white/50">
                 <X size={18} />
               </button>
             </div>
