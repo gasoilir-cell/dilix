@@ -1366,7 +1366,9 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
             )}
             <div
               ref={(el) => { msgRefs.current[msg.id] = el; }}
-              className={`flex flex-col ${msg.is_mine ? "items-end" : "items-start"} rounded-2xl transition ${highlightId === msg.id ? "ring-2 ring-yellow-400/70" : ""} ${selectMode && selectedIds.has(msg.id) ? "bg-indigo-500/10" : ""}`}
+              onContextMenu={(e) => e.preventDefault()}
+              style={{ WebkitTouchCallout: "none" }}
+              className={`flex flex-col select-none ${msg.is_mine ? "items-end" : "items-start"} rounded-2xl transition ${highlightId === msg.id ? "ring-2 ring-yellow-400/70" : ""} ${selectMode && selectedIds.has(msg.id) ? "bg-indigo-500/10" : ""}`}
             >
               <div className="relative max-w-[78%]">
               {/* راهنمای کشیدن: راست=پاسخ، چپ=اشتراک */}
@@ -1428,8 +1430,8 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
                 )}
                 {/* media */}
                 {!msg.is_deleted && msg.media_url && msg.media_type === "image" && (
-                  <a href={msg.media_url} target="_blank" rel="noreferrer" onClick={(e) => { e.stopPropagation(); if (suppressClickRef.current) { e.preventDefault(); suppressClickRef.current = false; } else if (selectMode) { e.preventDefault(); toggleSelect(msg.id); } }} className="block">
-                    <img src={msg.media_url} alt="" className="rounded-xl max-h-72 w-auto object-cover mb-1" />
+                  <a href={msg.media_url} target="_blank" rel="noreferrer" draggable={false} onContextMenu={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); if (suppressClickRef.current) { e.preventDefault(); suppressClickRef.current = false; } else if (selectMode) { e.preventDefault(); toggleSelect(msg.id); } }} className="block">
+                    <img src={msg.media_url} alt="" draggable={false} className="rounded-xl max-h-72 w-auto object-cover mb-1" style={{ WebkitTouchCallout: "none" }} />
                   </a>
                 )}
                 {!msg.is_deleted && msg.media_url && msg.media_type === "video" && (
@@ -1449,6 +1451,7 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
                 {!msg.is_deleted && msg.media_url && msg.media_type === "file" && (
                   <a
                     href={msg.media_url} target="_blank" rel="noreferrer" download={msg.media_name ?? true}
+                    draggable={false} onContextMenu={(e) => e.preventDefault()}
                     onClick={(e) => { e.stopPropagation(); if (suppressClickRef.current) { e.preventDefault(); suppressClickRef.current = false; } else if (selectMode) { e.preventDefault(); toggleSelect(msg.id); } }}
                     className={`flex items-center gap-2 mb-1 px-2 py-2 rounded-xl ${msg.is_mine ? "bg-white/10" : "bg-white/5"}`}
                   >
