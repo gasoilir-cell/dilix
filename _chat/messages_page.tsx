@@ -440,6 +440,31 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
     }
   };
 
+  // ── Export chat (client-side .txt) ───────────────────────
+  const exportChat = () => {
+    setShowOptions(false);
+    try {
+      const lines = messages.map((m) => {
+        const who = m.is_mine ? "من" : (m.sender_name || "مخاطب");
+        let time = "";
+        try { time = new Date(m.created_at).toLocaleString("fa-IR"); } catch { time = m.created_at; }
+        let body = m.is_deleted ? "(پیام حذف‌شده)" : (m.content || "");
+        if (!body && m.media_type) body = `[${m.media_type}]`;
+        return `[${time}] ${who}: ${body}`;
+      });
+      const header = `گفتگو با ${partnerName}\n${"=".repeat(32)}\n`;
+      const blob = new Blob([header + lines.join("\n")], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `dilix-chat-${partnerName}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("صادر کردنِ گفتگو ناموفق بود");
+    }
+  };
+
   // ── Translation ──────────────────────────────────────────
   const [trans, setTrans] = useState<Record<string, TransState>>({});
   const [trLang, setTrLang] = useState("fa");
@@ -519,7 +544,7 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
   const closeTranslation = (id: string) =>
     setTrans((p) => (p[id] ? { ...p, [id]: { ...p[id], open: false } } : p));
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (silent = false) => {
     try {
       const res = await messagesApi.getMessages(room.id, 50);
       const data: Message[] = res.data;
@@ -535,7 +560,8 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
         stopWatching();
       }
     } catch {
-      toast.error("خطا در بارگذاری پیام‌ها");
+      // فقط بارگذاریِ اولیه خطا نشان می‌دهد؛ رفرشِ پس‌زمینه (هر ۵ث) بی‌صدا است
+      if (!silent) toast.error("خطا در بارگذاری پیام‌ها");
     } finally {
       setLoading(false);
     }
@@ -548,9 +574,9 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // poll every 5s for new messages
+  // poll every 5s for new messages (silent: no error toast on transient failures)
   useEffect(() => {
-    const t = setInterval(load, 5000);
+    const t = setInterval(() => load(true), 5000);
     return () => clearInterval(t);
   }, [load]);
 
@@ -1684,80 +1710,75 @@ function ChatView({ room, onBack, onLeave }: { room: Room; onBack: () => void; o
         </div>
       )}
 
-      {/* Call menu (WhatsApp-style: voice/video together) */}
+      {/* Call menu — dropdown anchored under the header call button (WhatsApp-style) */}
       {showCallMenu && !isGroup && room.partner_earth_id && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => setShowCallMenu(false)}>
-          <div className="w-full max-w-md bg-[#1C1C1E] rounded-t-3xl p-4 pb-safe animate-[slideUp_0.2s_ease]" onClick={(e) => e.stopPropagation()}>
-            <p className="text-white/40 text-xs mb-2 px-1">تماس با {partnerName}</p>
-            <div className="space-y-1">
-              <button
-                onClick={() => { setShowCallMenu(false); useCallStore.getState().startCall(room.partner_earth_id!, partnerName, "audio"); }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-white text-sm text-right"
-              >
-                <span className="w-9 h-9 rounded-full bg-emerald-500/15 flex items-center justify-center"><Phone size={18} className="text-emerald-400" /></span>
-                تماس صوتی
-              </button>
-              <button
-                onClick={() => { setShowCallMenu(false); useCallStore.getState().startCall(room.partner_earth_id!, partnerName, "video"); }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-white text-sm text-right"
-              >
-                <span className="w-9 h-9 rounded-full bg-indigo-500/15 flex items-center justify-center"><Video size={18} className="text-indigo-400" /></span>
-                تماس تصویری
-              </button>
-            </div>
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setShowCallMenu(false)} />
+          <div className="fixed top-14 left-2 z-50 w-52 bg-[#2A2A2E] rounded-2xl shadow-2xl ring-1 ring-white/10 py-1.5 animate-[slideUp_0.14s_ease] overflow-hidden">
+            <button
+              onClick={() => { setShowCallMenu(false); useCallStore.getState().startCall(room.partner_earth_id!, partnerName, "audio"); }}
+              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 text-white text-[13px] text-right"
+            >
+              <Phone size={17} className="text-emerald-400 shrink-0" /> تماس صوتی
+            </button>
+            <button
+              onClick={() => { setShowCallMenu(false); useCallStore.getState().startCall(room.partner_earth_id!, partnerName, "video"); }}
+              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 text-white text-[13px] text-right"
+            >
+              <Video size={17} className="text-indigo-400 shrink-0" /> تماس تصویری
+            </button>
           </div>
-        </div>
+        </>
       )}
 
-      {/* Options menu (three-dot, WhatsApp-style) */}
+      {/* Options menu — dropdown anchored under the three-dot button (WhatsApp-style) */}
       {showOptions && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => setShowOptions(false)}>
-          <div className="w-full max-w-md bg-[#1C1C1E] rounded-t-3xl p-4 pb-safe animate-[slideUp_0.2s_ease]" onClick={(e) => e.stopPropagation()}>
-            <p className="text-white/40 text-xs mb-2 px-1">گزینه‌ها</p>
-            <div className="space-y-1">
-              {!isGroup && room.partner_earth_id && (
-                <button
-                  onClick={() => { setShowOptions(false); window.location.href = `/u/${room.partner_earth_id}`; }}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-white text-sm text-right"
-                >
-                  <span className="w-9 h-9 rounded-full bg-sky-500/15 flex items-center justify-center"><Users size={18} className="text-sky-400" /></span>
-                  مشاهدهٔ مخاطب
-                </button>
-              )}
-              {isGroup && (
-                <button
-                  onClick={() => { setShowOptions(false); openMembers(); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-white text-sm text-right"
-                >
-                  <span className="w-9 h-9 rounded-full bg-sky-500/15 flex items-center justify-center"><Users size={18} className="text-sky-400" /></span>
-                  اعضای گروه
-                </button>
-              )}
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setShowOptions(false)} />
+          <div className="fixed top-14 left-2 z-50 w-56 bg-[#2A2A2E] rounded-2xl shadow-2xl ring-1 ring-white/10 py-1.5 animate-[slideUp_0.14s_ease] overflow-hidden max-h-[80vh] overflow-y-auto">
+            {!isGroup && room.partner_earth_id && (
               <button
-                onClick={() => { setShowOptions(false); setShowSearch(true); setSearchQ(""); setSearchResults([]); }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-white text-sm text-right"
+                onClick={() => { setShowOptions(false); window.location.href = `/u/${room.partner_earth_id}`; }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 text-white text-[13px] text-right"
               >
-                <span className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center"><Search size={18} className="text-white/70" /></span>
-                جستجو در گفتگو
+                <Users size={17} className="text-sky-400 shrink-0" /> مشاهدهٔ مخاطب
               </button>
+            )}
+            {isGroup && (
               <button
-                onClick={() => { setShowOptions(false); setShowLangMenu(true); }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-white text-sm text-right"
+                onClick={() => { setShowOptions(false); openMembers(); }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 text-white text-[13px] text-right"
               >
-                <span className="w-9 h-9 rounded-full bg-emerald-500/15 flex items-center justify-center"><Languages size={18} className="text-emerald-400" /></span>
-                ترجمهٔ همزمان
-                {autoTr && <span className="mr-auto text-[11px] text-emerald-400">روشن</span>}
+                <Users size={17} className="text-sky-400 shrink-0" /> اعضای گروه
               </button>
-              <button
-                onClick={() => { setShowOptions(false); setShowChatSettings(true); }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-white text-sm text-right"
-              >
-                <span className="w-9 h-9 rounded-full bg-fuchsia-500/15 flex items-center justify-center"><Palette size={18} className="text-fuchsia-400" /></span>
-                شخصی‌سازیِ چت
-              </button>
-            </div>
+            )}
+            <button
+              onClick={() => { setShowOptions(false); setShowSearch(true); setSearchQ(""); setSearchResults([]); }}
+              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 text-white text-[13px] text-right"
+            >
+              <Search size={17} className="text-white/70 shrink-0" /> جستجو در گفتگو
+            </button>
+            <button
+              onClick={() => { setShowOptions(false); setShowLangMenu(true); }}
+              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 text-white text-[13px] text-right"
+            >
+              <Languages size={17} className="text-emerald-400 shrink-0" /> ترجمهٔ همزمان
+              {autoTr && <span className="mr-auto text-[10px] text-emerald-400">روشن</span>}
+            </button>
+            <button
+              onClick={() => { setShowOptions(false); setShowChatSettings(true); }}
+              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 text-white text-[13px] text-right"
+            >
+              <Palette size={17} className="text-fuchsia-400 shrink-0" /> شخصی‌سازیِ چت
+            </button>
+            <button
+              onClick={exportChat}
+              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 text-white text-[13px] text-right"
+            >
+              <Download size={17} className="text-amber-400 shrink-0" /> صادر کردنِ گفتگو
+            </button>
           </div>
-        </div>
+        </>
       )}
 
       {/* Attach menu */}

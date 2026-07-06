@@ -53,7 +53,18 @@ const PIXEL_LEVELS: { id: string; label: string; blocks: number }[] = [
 ];
 
 const COLORS = ["#FFFFFF", "#000000", "#F87171", "#34D399", "#38BDF8", "#EC4899", "#FACC15", "#A855F7", "#FB923C"];
-const QUICK_EMOJIS = ["😀", "😂", "😍", "🥳", "😎", "👍", "🔥", "❤️", "🎉", "✨", "🙏", "💯", "😭", "🤯", "👀", "🌟"];
+const QUICK_EMOJIS = [
+  "😀","😁","😂","🤣","😊","😇","🙂","😉","😍","🥰","😘","😗","😋","😛","😜","🤪",
+  "🤨","🧐","😎","🥳","🤩","😏","😒","😞","😔","😟","😕","🙁","😣","😖","😫","😩",
+  "🥺","😢","😭","😤","😠","😡","🤬","🤯","😳","🥵","🥶","😱","😨","😰","😥","🤗",
+  "🤔","🤭","🤫","🤥","😶","😐","😑","😬","🙄","😯","😮","😲","🥱","😴","🤤","😪",
+  "😵","🤐","🥴","🤢","🤮","🤧","😷","🤒","🤕","🤑","🤠","😈","👿","👻","💀","👽",
+  "🤖","🎃","😺","😸","😹","😻","😼","🙀","😿","😾","👍","👎","👌","✌️","🤞","🤟",
+  "🤙","👋","🙏","💪","👏","🙌","🤝","☝️","✊","👊","🫰","🫶","❤️","🧡","💛","💚",
+  "💙","💜","🖤","🤍","🤎","💔","❣️","💕","💞","💓","💗","💖","💘","💝","💯","🔥",
+  "✨","⭐","🌟","💫","⚡","🎉","🎊","🎁","🎈","👑","💎","🌈","☀️","🌙","⭐","❄️",
+  "🌸","🌹","🌺","🌻","🌼","🍀","🌵","🎯","🏆","🥇","⚽","🏀","🎵","🎶","💐","🍕",
+];
 
 const FONTS: { id: string; label: string; css: string }[] = [
   { id: "sans", label: "معمولی", css: "Tahoma, sans-serif" },
@@ -710,8 +721,8 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
                   </div>
                 )}
                 {showEmoji && (
-                  <div className="flex gap-1 flex-wrap">
-                    {QUICK_EMOJIS.map((e) => (<button key={e} onClick={() => addEmoji(e)} className="w-8 h-8 rounded-lg hover:bg-white/10 text-lg flex items-center justify-center">{e}</button>))}
+                  <div className="flex gap-1 flex-wrap max-h-40 overflow-y-auto">
+                    {QUICK_EMOJIS.map((e, i) => (<button key={`${e}-${i}`} onClick={() => addEmoji(e)} className="w-8 h-8 rounded-lg hover:bg-white/10 text-lg flex items-center justify-center shrink-0">{e}</button>))}
                   </div>
                 )}
                 {selected ? (
