@@ -53,6 +53,61 @@ const PIXEL_LEVELS: { id: string; label: string; blocks: number }[] = [
 ];
 
 const COLORS = ["#FFFFFF", "#000000", "#F87171", "#34D399", "#38BDF8", "#EC4899", "#FACC15", "#A855F7", "#FB923C"];
+
+// ── نوارِ رنگِ کشیدنی (اسپکترومِ کامل: مشکی › رنگین‌کمان › سفید) ──────
+const SPECTRUM_BG = (() => {
+  const mid: string[] = [];
+  for (let i = 0; i <= 12; i++) mid.push(`hsl(${Math.round((i / 12) * 360)},85%,55%) ${(5 + (i / 12) * 90).toFixed(1)}%`);
+  return `linear-gradient(to right, #000 0%, #000 5%, ${mid.join(",")}, #fff 95%, #fff 100%)`;
+})();
+function spectrumColor(t: number): string {
+  const x = Math.min(1, Math.max(0, t));
+  if (x <= 0.05) return "#000000";
+  if (x >= 0.95) return "#FFFFFF";
+  return `hsl(${Math.round(((x - 0.05) / 0.9) * 360)}, 85%, 55%)`;
+}
+function hexHue(hex: string): number {
+  let h = hex.replace("#", ""); if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  const r = parseInt(h.slice(0, 2), 16) / 255, g = parseInt(h.slice(2, 4), 16) / 255, b = parseInt(h.slice(4, 6), 16) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (d === 0) return -1;
+  let hue = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  hue *= 60; if (hue < 0) hue += 360; return hue;
+}
+function colorToT(c: string): number {
+  const s = (c || "").toLowerCase().trim();
+  if (s === "#000000" || s === "#000" || s === "black") return 0;
+  if (s === "#ffffff" || s === "#fff" || s === "white") return 1;
+  const m = s.match(/hsl\(\s*(\d+)/);
+  let hue = m ? parseInt(m[1]) : s[0] === "#" ? hexHue(s) : -1;
+  if (hue < 0) return 0.5;
+  return 0.05 + (hue / 360) * 0.9;
+}
+function SpectrumPicker({ value, onPick }: { value: string; onPick: (c: string) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
+  const t = colorToT(value);
+  const pick = (clientX: number) => {
+    const el = ref.current; if (!el) return;
+    const r = el.getBoundingClientRect();
+    onPick(spectrumColor((clientX - r.left) / r.width));
+  };
+  return (
+    <div
+      ref={ref}
+      onPointerDown={(e) => { dragging.current = true; (e.target as HTMLElement).setPointerCapture?.(e.pointerId); pick(e.clientX); }}
+      onPointerMove={(e) => { if (dragging.current) pick(e.clientX); }}
+      onPointerUp={() => { dragging.current = false; }}
+      onPointerCancel={() => { dragging.current = false; }}
+      className="relative h-7 rounded-full cursor-pointer touch-none select-none"
+      style={{ background: SPECTRUM_BG }}
+    >
+      <div
+        className="absolute top-1/2 w-5 h-5 rounded-full border-2 border-white shadow -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+        style={{ left: `${(t * 100).toFixed(1)}%`, backgroundColor: value }}
+      />
+    </div>
+  );
+}
 const QUICK_EMOJIS = [
   "😀","😁","😂","🤣","😊","😇","🙂","😉","😍","🥰","😘","😗","😋","😛","😜","🤪",
   "🤨","🧐","😎","🥳","🤩","😏","😒","😞","😔","😟","😕","🙁","😣","😖","😫","😩",
@@ -66,13 +121,15 @@ const QUICK_EMOJIS = [
   "🌸","🌹","🌺","🌻","🌼","🍀","🌵","🎯","🏆","🥇","⚽","🏀","🎵","🎶","💐","🍕",
 ];
 
+// فونت‌های فارسیِ ویرایشگر (وب‌فونتِ لوکال در public/me-fonts؛ @font-face در globals.css)
 const FONTS: { id: string; label: string; css: string }[] = [
-  { id: "sans", label: "معمولی", css: "Tahoma, sans-serif" },
-  { id: "serif", label: "کلاسیک", css: "Georgia, 'Times New Roman', serif" },
-  { id: "mono", label: "تک‌عرض", css: "'Courier New', monospace" },
-  { id: "hand", label: "دست‌نویس", css: "'Comic Sans MS', 'Segoe Script', cursive" },
-  { id: "impact", label: "ضخیم", css: "Impact, 'Arial Black', fantasy" },
+  { id: "sans", label: "معمولی", css: '"MEVazir", Tahoma, sans-serif' },
+  { id: "kufi", label: "کوفی", css: '"MEKufi", Tahoma, sans-serif' },
+  { id: "classic", label: "کلاسیک", css: '"MEMarkazi", Georgia, serif' },
+  { id: "naskh", label: "نسخ", css: '"MEAmiri", Georgia, serif' },
+  { id: "hand", label: "خوش‌نویسی", css: '"MEGulzar", cursive' },
 ];
+const ME_FONT_FAMS = ["MEVazir", "MEKufi", "MEMarkazi", "MEAmiri", "MEGulzar"];
 
 const TEXT_EFFECTS: { id: EffectId; label: string }[] = [
   { id: "stroke", label: "دورخط" },
@@ -417,6 +474,7 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
   const [draft, setDraft] = useState("");
   const [textColor, setTextColor] = useState(COLORS[0]);
   const [textFontId, setTextFontId] = useState(FONTS[0].id);
+  const [fontsReady, setFontsReady] = useState(false);
   const [textEffect, setTextEffect] = useState<EffectId>("stroke");
   const [showEmoji, setShowEmoji] = useState(false);
   const [showTr, setShowTr] = useState(false);
@@ -492,6 +550,14 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
 
   useEffect(() => { if (ready) fitBox(natRef.current.w, natRef.current.h); }, [square, ready, fitBox]);
 
+  // پیش‌بارگذاریِ فونت‌های فارسی تا رویِ canvas قابلِ استفاده باشند (وگرنه fallback بی‌صدا)
+  useEffect(() => {
+    const fs = (document as unknown as { fonts?: { load: (s: string) => Promise<unknown> } }).fonts;
+    if (!fs) { setFontsReady(true); return; }
+    const specs = ME_FONT_FAMS.flatMap((f) => [`40px "${f}"`, `bold 40px "${f}"`]);
+    Promise.all(specs.map((s) => fs.load(s).catch(() => {}))).finally(() => setFontsReady(true));
+  }, []);
+
   const sceneOpts = useCallback((): SceneOpts => ({
     square: cropEditing ? false : square,
     filterCss: baseFilterCss, blocks: pixel.blocks, overlays, strokes, frame: frame.id,
@@ -532,7 +598,7 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
       return () => cancelAnimationFrame(rafRef.current);
     }
     paint();
-  }, [ready, kind, paint, box]);
+  }, [ready, kind, paint, box, fontsReady]);
 
   const hasEdits = square || !!manualCrop || filter.id !== "none" || pixel.blocks > 0 || overlays.length > 0 || strokes.length > 0 || frame.id !== "none" || adjusted;
 
@@ -826,9 +892,7 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
             {!eraser && (
               <div className="flex items-center gap-2">
                 <span className="text-white/40 text-[11px] w-12 shrink-0">رنگِ قلم</span>
-                <div className="flex gap-1.5 overflow-x-auto">
-                  {COLORS.map((c) => (<button key={c} onClick={() => setBrushColor(c)} className={`w-6 h-6 rounded-full border-2 shrink-0 ${brushColor === c ? "border-white" : "border-white/20"}`} style={{ backgroundColor: c }} />))}
-                </div>
+                <div className="flex-1"><SpectrumPicker value={brushColor} onPick={setBrushColor} /></div>
               </div>
             )}
           </>
@@ -885,9 +949,7 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
                         <div className="flex gap-1.5 overflow-x-auto">
                           {TEXT_EFFECTS.map((e) => (<button key={e.id} onClick={() => setEffect(e.id)} className={chip(textEffect === e.id)}>{e.label}</button>))}
                         </div>
-                        <div className="flex gap-1.5 overflow-x-auto">
-                          {COLORS.map((c) => (<button key={c} onClick={() => setColor(c)} className={`w-6 h-6 rounded-full border-2 shrink-0 ${textColor === c ? "border-white" : "border-white/20"}`} style={{ backgroundColor: c }} />))}
-                        </div>
+                        <SpectrumPicker value={textColor} onPick={setColor} />
                       </>
                     )}
                     <div className="flex items-center gap-1.5 overflow-x-auto">
