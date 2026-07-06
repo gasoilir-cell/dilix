@@ -613,6 +613,16 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
         const b = overlayBox(ctx, ov, W, H);
         ctx.save(); ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.lineWidth = Math.max(1, W * 0.004); ctx.setLineDash([W * 0.02, W * 0.02]);
         roundRect(ctx, b.cx - b.w / 2, b.cy - b.h / 2, b.w, b.h, W * 0.02); ctx.stroke(); ctx.restore();
+        // دستگیره‌های گوشه برای تغییرِ اندازه با کشیدن
+        const hr = Math.max(6, W * 0.02);
+        const corners = [[b.cx - b.w / 2, b.cy - b.h / 2], [b.cx + b.w / 2, b.cy - b.h / 2], [b.cx - b.w / 2, b.cy + b.h / 2], [b.cx + b.w / 2, b.cy + b.h / 2]];
+        ctx.save();
+        for (const [hx, hy] of corners) {
+          ctx.beginPath(); ctx.arc(hx, hy, hr, 0, Math.PI * 2);
+          ctx.fillStyle = "#fff"; ctx.shadowColor = "rgba(0,0,0,0.4)"; ctx.shadowBlur = hr * 0.6; ctx.fill();
+          ctx.shadowBlur = 0; ctx.lineWidth = Math.max(1.5, W * 0.005); ctx.strokeStyle = "#6366f1"; ctx.stroke();
+        }
+        ctx.restore();
       }
     }
   }, [sceneOpts, selectedId, overlays]);
@@ -666,6 +676,7 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
     return { nx: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), ny: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)) };
   };
   const dragRef = useRef<{ id: string; dx: number; dy: number } | null>(null);
+  const resizeRef = useRef<{ id: string; cx: number; cy: number; startDist: number; startSize: number } | null>(null);
   const drawingRef = useRef(false);
   // انگشت‌های فعال + وضعیتِ pinch برای تغییرِ سایزِ لایهٔ انتخاب‌شده با دو انگشت
   const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
@@ -690,6 +701,24 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
       const ov = overlays.find((o) => o.id === selectedId);
       if (ov) { pinchRef.current = { startDist: pinchDist() || 1, startSize: ov.size, id: ov.id }; dragRef.current = null; }
       return;
+    }
+    // دستگیرهٔ گوشهٔ لایهٔ انتخاب‌شده → تغییرِ اندازه با یک انگشت/موس
+    if (selectedId && pointersRef.current.size === 1) {
+      const canvas = canvasRef.current!; const ctx = canvas.getContext("2d")!; const W = canvas.width, H = canvas.height;
+      const ov = overlays.find((o) => o.id === selectedId);
+      if (ov) {
+        const b = overlayBox(ctx, ov, W, H);
+        const px = p.nx * W, py = p.ny * H;
+        const hit = Math.max(6, W * 0.02) * 2.4;
+        const corners = [[b.cx - b.w / 2, b.cy - b.h / 2], [b.cx + b.w / 2, b.cy - b.h / 2], [b.cx - b.w / 2, b.cy + b.h / 2], [b.cx + b.w / 2, b.cy + b.h / 2]];
+        for (const [hx, hy] of corners) {
+          if (Math.hypot(px - hx, py - hy) <= hit) {
+            resizeRef.current = { id: ov.id, cx: b.cx, cy: b.cy, startDist: Math.hypot(px - b.cx, py - b.cy) || 1, startSize: ov.size };
+            dragRef.current = null;
+            return;
+          }
+        }
+      }
     }
     // move: hit test topmost
     const canvas = canvasRef.current!; const ctx = canvas.getContext("2d")!; const W = canvas.width, H = canvas.height;
@@ -716,6 +745,15 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
       return;
     }
     const p = normFromEvent(e);
+    // کشیدنِ دستگیرهٔ گوشه → تغییرِ اندازه (نسبتِ فاصله تا مرکز)
+    if (resizeRef.current) {
+      const canvas = canvasRef.current!; const W = canvas.width, H = canvas.height;
+      const dist = Math.hypot(p.nx * W - resizeRef.current.cx, p.ny * H - resizeRef.current.cy);
+      const ns = Math.min(0.95, Math.max(0.03, resizeRef.current.startSize * (dist / resizeRef.current.startDist)));
+      const id = resizeRef.current.id;
+      setOverlays((prev) => prev.map((o) => o.id === id ? { ...o, size: ns } : o));
+      return;
+    }
     if (tool === "draw" && drawingRef.current) {
       setStrokes((prev) => { if (!prev.length) return prev; const last = prev[prev.length - 1]; const np = { ...last, points: [...last.points, p] }; return [...prev.slice(0, -1), np]; });
       return;
@@ -726,7 +764,7 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
   const onUp = (e?: React.PointerEvent) => {
     if (e) pointersRef.current.delete(e.pointerId);
     if (pointersRef.current.size < 2) pinchRef.current = null;
-    dragRef.current = null; drawingRef.current = false;
+    dragRef.current = null; drawingRef.current = false; resizeRef.current = null;
   };
 
   // ── برشِ دستی: کادرِ کشیدنی/تغییرِ اندازه ──────────────────
@@ -796,6 +834,7 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
   const setFont = (id: string) => { setTextFontId(id); patchSelectedText({ fontCss: FONTS.find((f) => f.id === id)!.css }); };
   const setEffect = (id: EffectId) => { setTextEffect(id); patchSelectedText({ effect: id }); };
   const resizeSelected = (delta: number) => setOverlays((p) => p.map((o) => o.id === selectedId ? { ...o, size: Math.min(0.85, Math.max(0.04, o.size + delta)) } : o));
+  const setSelectedSize = (v: number) => setOverlays((p) => p.map((o) => o.id === selectedId ? { ...o, size: Math.min(0.95, Math.max(0.03, v)) } : o));
   const deleteSelected = () => { if (!selectedId) return; setOverlays((p) => p.filter((o) => o.id !== selectedId)); setSelectedId(null); setDraft(""); };
   const setBorder = (color: string | null) => { if (!selectedId) return; setOverlays((p) => p.map((o) => o.id === selectedId ? { ...o, border: color } : o)); };
 
@@ -1004,6 +1043,14 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
                         <button onClick={deleteSelected} className="w-7 h-7 rounded-lg bg-rose-500/15 text-rose-300 flex items-center justify-center"><Trash2 size={14} /></button>
                       </div>
                     </div>
+                    {/* نوارِ تنظیمِ اندازه — برای متن، ایموجی و تصویر */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-white/40 text-[11px] shrink-0 ml-1">{selected.kind === "text" ? "سایزِ فونت" : "اندازه"}</span>
+                      <input type="range" min={0.04} max={0.85} step={0.005} value={Math.min(0.85, selected.size)}
+                        onChange={(e) => setSelectedSize(parseFloat(e.target.value))}
+                        className="flex-1 accent-indigo-500 h-1" />
+                      <span className="text-white/40 text-[10px] w-8 text-left tabular-nums">{toPersianDigits(String(Math.round(selected.size * 100)))}</span>
+                    </div>
                     {selectedText && (
                       <>
                         <div className="flex gap-1.5 overflow-x-auto">
@@ -1021,7 +1068,7 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
                         <button key={b.id} onClick={() => setBorder(b.color)} className={chip((selected.border ?? null) === b.color)}>{b.label}</button>
                       ))}
                     </div>
-                    <p className="text-white/35 text-[10px] leading-relaxed">فیلتر و شطرنجیِ این لایه را از تبِ «فیلتر و افکت» تنظیم کن؛ با دو انگشت هم می‌توانی اندازه‌اش را تغییر دهی.</p>
+                    <p className="text-white/35 text-[10px] leading-relaxed">برای تغییرِ اندازه، گوشه‌های لایه را بکش یا از نوارِ بالا/دو انگشت استفاده کن؛ فیلتر و شطرنجی را از تبِ «فیلتر» تنظیم کن.</p>
                   </div>
                 ) : (
                   <p className="text-white/35 text-[11px] text-center py-1">برای ویرایش، لایه‌ای را روی تصویر لمس کن.</p>
