@@ -6,9 +6,10 @@ import {
   User, Star, Shield, MapPin, Eye, EyeOff, LogOut,
   ChevronLeft, Edit2, Copy, Check, Camera, Loader2,
   Gift, Users, Link2, ChevronRight, X, Phone, Mail,
+  Globe, Briefcase, Home, Heart, Trash2, UserPlus,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
-import { authApi } from "@/lib/api";
+import { authApi, storiesApi } from "@/lib/api";
 import api from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import AppShell from "@/components/layout/AppShell";
@@ -41,6 +42,25 @@ interface ReferralStats {
   reward_per_referral: number;
 }
 
+type Aud = "public" | "followers" | "colleagues" | "family" | "friends";
+type Circle = "colleagues" | "family" | "friends";
+
+const AUDIENCE_OPTS: { key: Aud; label: string; desc: string; Icon: typeof Globe }[] = [
+  { key: "public",     label: "عمومی",         desc: "همه می‌توانند ببینند",                 Icon: Globe },
+  { key: "followers",  label: "دنبال‌کنندگان", desc: "فقط کسانی که شما را دنبال می‌کنند",   Icon: Users },
+  { key: "colleagues", label: "همکاران",       desc: "فقط حلقهٔ همکاران",                    Icon: Briefcase },
+  { key: "family",     label: "خانواده",       desc: "فقط حلقهٔ خانواده",                    Icon: Home },
+  { key: "friends",    label: "دوستان",        desc: "فقط حلقهٔ دوستان",                     Icon: Heart },
+];
+
+const CIRCLES: { key: Circle; label: string; Icon: typeof Globe }[] = [
+  { key: "colleagues", label: "همکاران",  Icon: Briefcase },
+  { key: "family",     label: "خانواده", Icon: Home },
+  { key: "friends",    label: "دوستان",  Icon: Heart },
+];
+
+interface CircleMember { earth_id: string; name: string; avatar_url?: string | null; }
+
 export default function ProfilePage() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
@@ -55,10 +75,19 @@ export default function ProfilePage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // پنجره‌های پروفایل: اطلاعات شخصی / ارتقای سطح تأیید / امنیت
-  const [modal, setModal] = useState<null | "info" | "kyc" | "security">(null);
+  // پنجره‌های پروفایل: اطلاعات شخصی / ارتقای سطح تأیید / امنیت / مخاطبِ داستان
+  const [modal, setModal] = useState<null | "info" | "kyc" | "security" | "story">(null);
   const [infoForm, setInfoForm] = useState({ full_name: "", username: "", bio: "" });
   const [savingInfo, setSavingInfo] = useState(false);
+
+  // تنظیماتِ مخاطبِ داستان
+  const [storyAud, setStoryAud] = useState<Aud>("public");
+  const [storyLoading, setStoryLoading] = useState(false);
+  const [savingAud, setSavingAud] = useState<Aud | null>(null);
+  const [circleMembers, setCircleMembers] = useState<Record<Circle, CircleMember[]>>({ colleagues: [], family: [], friends: [] });
+  const [addCircle, setAddCircle] = useState<Circle | null>(null);
+  const [addEarthId, setAddEarthId] = useState("");
+  const [addingMember, setAddingMember] = useState(false);
 
   const loadReferral = useCallback(async () => {
     try {
@@ -160,6 +189,69 @@ export default function ProfilePage() {
       toast.error(msg || "خطا در ذخیرهٔ اطلاعات");
     } finally {
       setSavingInfo(false);
+    }
+  };
+
+  const openStory = async () => {
+    setModal("story");
+    setStoryLoading(true);
+    try {
+      const [s, c] = await Promise.all([storiesApi.settings(), storiesApi.circles()]);
+      setStoryAud((s.data?.default_audience as Aud) || "public");
+      setCircleMembers({
+        colleagues: c.data?.colleagues || [],
+        family: c.data?.family || [],
+        friends: c.data?.friends || [],
+      });
+    } catch {
+      /* silent */
+    } finally {
+      setStoryLoading(false);
+    }
+  };
+
+  const saveStoryAud = async (aud: Aud) => {
+    setSavingAud(aud);
+    try {
+      await storiesApi.saveSettings(aud);
+      setStoryAud(aud);
+      toast.success("مخاطبِ پیش‌فرض ذخیره شد ✅");
+    } catch {
+      toast.error("خطا در ذخیرهٔ تنظیمات");
+    } finally {
+      setSavingAud(null);
+    }
+  };
+
+  const addMember = async () => {
+    if (!addCircle) return;
+    const eid = addEarthId.trim();
+    if (!eid) { toast.error("شناسهٔ کاربر را وارد کن"); return; }
+    setAddingMember(true);
+    try {
+      const res = await storiesApi.addToCircle(addCircle, eid);
+      const circle = addCircle;
+      setCircleMembers((prev) => ({
+        ...prev,
+        [circle]: [res.data as CircleMember, ...prev[circle].filter((m) => m.earth_id !== res.data.earth_id)],
+      }));
+      setAddEarthId("");
+      setAddCircle(null);
+      toast.success("به حلقه اضافه شد ✅");
+    } catch (err) {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast.error(msg || "افزودن ناموفق بود");
+    } finally {
+      setAddingMember(false);
+    }
+  };
+
+  const removeMember = async (circle: Circle, earthId: string) => {
+    try {
+      await storiesApi.removeFromCircle(circle, earthId);
+      setCircleMembers((prev) => ({ ...prev, [circle]: prev[circle].filter((m) => m.earth_id !== earthId) }));
+    } catch {
+      toast.error("حذف ناموفق بود");
     }
   };
 
@@ -378,6 +470,17 @@ export default function ProfilePage() {
             <ChevronRight size={18} className="text-surface-500" />
           </button>
 
+          <button onClick={openStory} className="w-full flex items-center justify-between p-4 hover:bg-surface-800/30 transition-colors text-right">
+            <div className="flex items-center gap-3">
+              <Globe size={20} className="text-surface-400" />
+              <div>
+                <p className="text-sm font-semibold text-white">مخاطبِ داستان</p>
+                <p className="text-xs text-surface-400">تعیینِ مخاطبِ پیش‌فرض و حلقه‌ها</p>
+              </div>
+            </div>
+            <ChevronRight size={18} className="text-surface-500" />
+          </button>
+
           <button onClick={() => setModal("security")} className="w-full flex items-center justify-between p-4 hover:bg-surface-800/30 transition-colors text-right">
             <div className="flex items-center gap-3">
               <Shield size={20} className="text-surface-400" />
@@ -412,7 +515,7 @@ export default function ProfilePage() {
             >
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-white font-bold text-base">
-                  {modal === "info" ? "اطلاعات شخصی" : modal === "kyc" ? "ارتقای سطح تأیید" : "امنیت"}
+                  {modal === "info" ? "اطلاعات شخصی" : modal === "kyc" ? "ارتقای سطح تأیید" : modal === "story" ? "مخاطبِ داستان" : "امنیت"}
                 </h2>
                 <button onClick={() => { if (!savingInfo) setModal(null); }} className="p-2 rounded-lg bg-surface-800 text-surface-300 hover:bg-surface-700">
                   <X size={18} />
@@ -528,6 +631,110 @@ export default function ProfilePage() {
                   </div>
                   <Button variant="outline" size="md" fullWidth onClick={() => { setModal(null); router.push("/support"); }}>تماس با پشتیبانی</Button>
                   <Button variant="danger" size="md" fullWidth onClick={handleLogout} leftIcon={<LogOut size={16} />}>خروج از حساب</Button>
+                </div>
+              )}
+
+              {/* مخاطبِ داستان */}
+              {modal === "story" && (
+                <div className="space-y-4">
+                  {storyLoading ? (
+                    <div className="flex justify-center py-8">
+                      <Loader2 size={22} className="text-primary-400 animate-spin" />
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <p className="text-xs text-surface-400 mb-2 leading-6">
+                          مخاطبِ پیش‌فرضِ داستان‌های شما. هنگامِ انتشار هم می‌توانید آن را تغییر دهید.
+                        </p>
+                        <div className="space-y-1.5">
+                          {AUDIENCE_OPTS.map(({ key, label, desc, Icon }) => {
+                            const active = storyAud === key;
+                            return (
+                              <button
+                                key={key}
+                                onClick={() => saveStoryAud(key)}
+                                disabled={savingAud !== null}
+                                className={`w-full flex items-center gap-3 rounded-2xl px-3.5 py-3 text-right transition ${
+                                  active ? "bg-primary-500/15 ring-1 ring-primary-500" : "bg-surface-800/50 hover:bg-surface-800"
+                                }`}
+                              >
+                                <span className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center ${active ? "bg-primary-500 text-white" : "bg-surface-700 text-surface-300"}`}>
+                                  <Icon size={17} />
+                                </span>
+                                <span className="flex-1 min-w-0">
+                                  <span className="block text-sm text-white">{label}</span>
+                                  <span className="block text-[11px] text-surface-400 truncate">{desc}</span>
+                                </span>
+                                {savingAud === key ? (
+                                  <Loader2 size={16} className="text-primary-400 animate-spin shrink-0" />
+                                ) : active ? (
+                                  <Check size={18} className="text-primary-400 shrink-0" />
+                                ) : null}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* حلقه‌های مخاطب */}
+                      <div className="space-y-3 pt-1">
+                        <p className="text-xs text-surface-400 leading-6">
+                          حلقه‌های خصوصی: کاربران را با شناسهٔ کره‌زمین (Earth ID) به هر حلقه اضافه کنید تا داستان‌های مخصوصِ آن حلقه را ببینند.
+                        </p>
+                        {CIRCLES.map(({ key, label, Icon }) => (
+                          <div key={key} className="rounded-2xl bg-surface-800/40 border border-surface-800 overflow-hidden">
+                            <div className="flex items-center justify-between px-3.5 py-2.5">
+                              <div className="flex items-center gap-2.5">
+                                <Icon size={16} className="text-primary-400" />
+                                <p className="text-sm text-white">{label}</p>
+                                <span className="text-[11px] text-surface-500">({toPersianNum(circleMembers[key].length)})</span>
+                              </div>
+                              <button
+                                onClick={() => { setAddCircle(addCircle === key ? null : key); setAddEarthId(""); }}
+                                className="p-1.5 rounded-lg bg-surface-700/60 text-primary-300 hover:bg-surface-700"
+                              >
+                                <UserPlus size={15} />
+                              </button>
+                            </div>
+
+                            {addCircle === key && (
+                              <div className="flex items-center gap-2 px-3.5 pb-3">
+                                <input
+                                  value={addEarthId}
+                                  onChange={(e) => setAddEarthId(e.target.value)}
+                                  placeholder="شناسهٔ کاربر (Earth ID)"
+                                  className="flex-1 bg-surface-900 border border-surface-700 rounded-xl px-3 py-2 text-white text-sm placeholder-surface-500 focus:outline-none focus:border-primary-500 ltr text-left"
+                                />
+                                <Button variant="primary" size="sm" onClick={addMember} disabled={addingMember}>
+                                  {addingMember ? <Loader2 size={15} className="animate-spin" /> : "افزودن"}
+                                </Button>
+                              </div>
+                            )}
+
+                            {circleMembers[key].length > 0 && (
+                              <div className="divide-y divide-surface-800/70">
+                                {circleMembers[key].map((m) => (
+                                  <div key={m.earth_id} className="flex items-center gap-2.5 px-3.5 py-2">
+                                    <div className="w-8 h-8 rounded-full bg-surface-700 overflow-hidden flex items-center justify-center text-xs text-surface-300 shrink-0">
+                                      {m.avatar_url ? <img src={m.avatar_url} alt="" className="w-full h-full object-cover" /> : (m.name?.[0] ?? "👤")}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm text-white truncate">{m.name}</p>
+                                      <p className="text-[10px] text-surface-500 font-mono truncate ltr text-left">{m.earth_id}</p>
+                                    </div>
+                                    <button onClick={() => removeMember(key, m.earth_id)} className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-500/10">
+                                      <Trash2 size={15} />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>

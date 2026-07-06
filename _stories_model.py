@@ -32,12 +32,42 @@ class Story(Base):
     media_url   = Column(Text, nullable=False)
     media_type  = Column(String(12), nullable=False, default="image")  # image | video
     caption     = Column(Text, nullable=True)
+    # مخاطبِ داستان: public | followers | colleagues | family | friends
+    audience    = Column(String(16), nullable=False, default="public")
     view_count  = Column(Integer, default=0)
     created_at  = Column(DateTime(timezone=True), nullable=False, default=_now, index=True)
     expires_at  = Column(DateTime(timezone=True), nullable=False, default=_expiry, index=True)
 
     __table_args__ = (
         Index("ix_story_author_exp", "author_id", "expires_at"),
+    )
+
+
+class ContactCircle(Base):
+    """عضویتِ یک مخاطب در یکی از حلقه‌های صاحبِ حساب (همکار/خانواده/دوست).
+
+    برای فیلترِ مخاطبِ داستان: اگر داستانی audience=family داشته باشد،
+    فقط کسانی که مالک آن‌ها را در حلقهٔ family گذاشته می‌بینند.
+    """
+    __tablename__ = "contact_circles"
+
+    id         = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    owner_id   = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    member_id  = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    circle     = Column(String(16), nullable=False)  # colleagues | family | friends
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_now)
+
+    __table_args__ = (
+        Index("uq_contact_circle", "owner_id", "member_id", "circle", unique=True),
+        Index("ix_contact_circle_member", "member_id", "circle"),
     )
 
 
