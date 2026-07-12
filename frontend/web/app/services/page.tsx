@@ -1,11 +1,13 @@
 import Link from "next/link";
 
-// هابِ verticalها (سند ۷ §۲ آیتم ۴): Freight / Insurance / Telecom / Marketplace.
+// هابِ verticalها (سند ۷ §۲ آیتم ۴): همهٔ زیرسرویس‌های موجود در frontend/web.
 const services = [
   { href: "/services/freight", icon: "🚚", title: "حمل‌ونقل", desc: "اسنپِ بار: ثبت بار، تطبیق راننده، بارنامه و ردیابی" },
   { href: "/services/insurance", icon: "🛡️", title: "بیمه", desc: "استعلام، مقایسه و صدور بیمه‌نامه" },
   { href: "/services/telecom", icon: "📶", title: "ارتباطات", desc: "بسته‌های اینترنت و eSIM" },
   { href: "/services/marketplace", icon: "🛍️", title: "بازارگاه", desc: "خدمات و فریلنسری" },
+  { href: "/services/discovery", icon: "🧭", title: "کشف", desc: "یافتنِ افراد و کسب‌وکارهای نزدیک" },
+  { href: "/services/growth", icon: "🌱", title: "رشد", desc: "دعوت، پاداش و سهمِ درآمد" },
 ];
 
 export default function ServicesHub() {

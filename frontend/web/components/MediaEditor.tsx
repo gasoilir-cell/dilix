@@ -5,9 +5,8 @@ import {
   X, Send, Type as TypeIcon, Square, Crop, Smile, Loader2, Pencil,
   Eraser, Move, Trash2, Languages, Undo2, ImagePlus, Frame as FrameIcon,
   Sun, Contrast, Droplet, Thermometer, Aperture, RotateCcw, Check,
-} from "lucide-react";
-import toast from "react-hot-toast";
-import { messagesApi } from "@/lib/api";
+} from "@/lib/icons";
+import toast from "@/lib/toast";
 
 interface Props {
   file: File;
@@ -850,15 +849,11 @@ export default function MediaEditor({ file, kind, onCancel, onDone }: Props) {
     im.src = url;
   };
 
-  const translate = async (lang: string) => {
+  const translate = async (_lang: string) => {
+    // ترجمهٔ داخلِ متن در این نسخه از سرویسِ پیام‌رسانی در دسترس نیست.
     const text = (selectedText?.value ?? draft).trim(); if (!text) { setShowTr(false); return; }
-    setTranslating(true);
-    try {
-      const res = await messagesApi.translateText(text, lang);
-      const out = res.data.translated_text as string;
-      setDraft(out); if (selectedText) patchSelectedText({ value: out }); else addTextValue(out);
-      setShowTr(false);
-    } catch { toast.error("ترجمه ناموفق بود"); } finally { setTranslating(false); }
+    toast.error("ترجمه در این نسخه در دسترس نیست");
+    setShowTr(false);
   };
   const addTextValue = (val: string) => {
     const ov: Overlay = { id: uid(), kind: "text", value: val, nx: 0.5, ny: 0.5, size: 0.09, color: textColor, fontCss: FONTS.find((f) => f.id === textFontId)!.css, effect: textEffect };

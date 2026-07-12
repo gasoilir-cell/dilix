@@ -1,25 +1,36 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Plus, Loader2, Check, Globe, Users, Briefcase, Home, Heart } from "lucide-react";
-import toast from "react-hot-toast";
-import { storiesApi } from "@/lib/api";
-import { useAuthStore } from "@/store/auth";
+import { Plus, Loader2, Check, Globe, Briefcase, Home, Heart } from "@/lib/icons";
+import toast from "@/lib/toast";
+import { api, type StoryRingOut } from "@/lib/api";
 import MediaEditor from "./MediaEditor";
-import StoryViewer, { Ring } from "./StoryViewer";
+import StoryViewer, { type Ring } from "./StoryViewer";
 
-type Aud = "public" | "followers" | "colleagues" | "family" | "friends";
+// مخاطبِ استوری — بک‌اند فقط عمومی + حلقه‌ها (همکاران/خانواده/دوستان) را می‌شناسد.
+type Aud = "public" | "colleagues" | "family" | "friends";
 
 const AUDIENCE_OPTS: { key: Aud; label: string; desc: string; Icon: typeof Globe }[] = [
   { key: "public", label: "عمومی", desc: "همه می‌توانند ببینند", Icon: Globe },
-  { key: "followers", label: "دنبال‌کنندگان", desc: "فقط کسانی که شما را دنبال می‌کنند", Icon: Users },
   { key: "colleagues", label: "همکاران", desc: "فقط حلقهٔ همکاران", Icon: Briefcase },
   { key: "family", label: "خانواده", desc: "فقط حلقهٔ خانواده", Icon: Home },
   { key: "friends", label: "دوستان", desc: "فقط حلقهٔ دوستان", Icon: Heart },
 ];
 
+function shortId(id: string): string { return `${id.slice(0, 6)}…`; }
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(file);
+  });
+}
+
 export default function StoryBar() {
-  const me = useAuthStore((s) => s.user);
+  const [meAvatar, setMeAvatar] = useState<string | null>(null);
+  const [meName, setMeName] = useState<string | null>(null);
   const [rings, setRings] = useState<Ring[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewer, setViewer] = useState<number | null>(null);
@@ -30,19 +41,25 @@ export default function StoryBar() {
   // انتخابِ مخاطبِ استوری پیش از انتشار
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [chosenAud, setChosenAud] = useState<Aud>("public");
-  const [defaultSet, setDefaultSet] = useState(true); // آیا کاربر قبلاً مخاطبِ پیش‌فرض تعیین کرده؟
+
+  useEffect(() => {
+    api.identity.me().then((me) => {
+      setMeAvatar(me.profile?.avatar_url ?? null);
+      setMeName(me.profile?.display_name ?? null);
+    }).catch(() => {});
+  }, []);
 
   const load = useCallback(async () => {
     try {
-      const r = await storiesApi.feed();
-      const arr: Ring[] = (r.data || []).map((x: any) => ({
-        earth_id: x.earth_id,
-        name: x.is_me ? "داستانِ شما" : x.name,
-        avatar_url: x.avatar_url,
+      const arr = await api.stories.feed();
+      const rows: Ring[] = (arr || []).map((x: StoryRingOut) => ({
+        earth_id: x.author_earth_id,
+        name: x.is_me ? "داستانِ شما" : shortId(x.author_earth_id),
+        avatar_url: null,
         is_me: x.is_me,
         has_unseen: x.has_unseen,
       }));
-      setRings(arr);
+      setRings(rows);
     } catch {
       /* silent */
     } finally {
@@ -67,20 +84,10 @@ export default function StoryBar() {
     setEditorFile(f);
   };
 
-  // پس از اتمامِ ویرایش، مخاطب را می‌پرسیم (با پیش‌فرضِ ذخیره‌شده)
-  const onEditorDone = async (file: File) => {
+  // پس از اتمامِ ویرایش، مخاطب را می‌پرسیم (پیش‌فرض: عمومی)
+  const onEditorDone = (file: File) => {
     setEditorFile(null);
-    let def: Aud = "public";
-    let isSet = true;
-    try {
-      const r = await storiesApi.settings();
-      def = (r.data?.default_audience as Aud) || "public";
-      isSet = !!r.data?.is_set;
-    } catch {
-      /* از پیش‌فرض استفاده کن */
-    }
-    setChosenAud(def);
-    setDefaultSet(isSet);
+    setChosenAud("public");
     setPendingFile(file);
   };
 
@@ -88,15 +95,12 @@ export default function StoryBar() {
     if (!pendingFile) return;
     const file = pendingFile;
     const aud = chosenAud;
-    const firstTime = !defaultSet;
     setPendingFile(null);
     setUploading(true);
     try {
-      await storiesApi.create(file, undefined, file.name, aud);
-      // اولین استوری: انتخاب را به‌عنوان مخاطبِ پیش‌فرض ذخیره کن
-      if (firstTime) {
-        try { await storiesApi.saveSettings(aud); } catch { /* silent */ }
-      }
+      const dataUrl = await fileToDataUrl(file);
+      const mediaType = file.type.startsWith("video/") ? "video" : "image";
+      await api.stories.create({ media_url: dataUrl, media_type: mediaType, audience: aud });
       toast.success("داستانِ شما منتشر شد");
       await load();
     } catch {
@@ -133,10 +137,10 @@ export default function StoryBar() {
             >
               <div className="w-full h-full rounded-full bg-[#141414] p-[2px]">
                 <div className="w-full h-full rounded-full bg-white/10 overflow-hidden flex items-center justify-center text-lg">
-                  {me?.avatar_url ? (
-                    <img src={me.avatar_url} alt="" className="w-full h-full object-cover" />
+                  {meAvatar ? (
+                    <img src={meAvatar} alt="" className="w-full h-full object-cover" />
                   ) : (
-                    (me?.full_name?.[0] ?? "👤")
+                    (meName?.[0] ?? "👤")
                   )}
                 </div>
               </div>
@@ -148,7 +152,7 @@ export default function StoryBar() {
           <span className="text-[11px] text-white/70 truncate max-w-[64px]">داستانِ شما</span>
         </button>
 
-        {/* رینگ‌های دیگران (و رینگِ خودم اگر جدا لازم بود — اینجا داخلِ همان دکمهٔ بالا لمس می‌شود) */}
+        {/* رینگ‌های دیگران */}
         {loading ? (
           <div className="flex items-center px-3">
             <Loader2 size={18} className="text-white/40 animate-spin" />
@@ -208,11 +212,6 @@ export default function StoryBar() {
           <div className="w-full max-w-md bg-[#1b1b1b] rounded-t-3xl p-5 pb-8 animate-[slideup_.2s_ease]">
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/20" />
             <h3 className="text-white font-semibold text-center mb-1">این داستان را چه کسانی ببینند؟</h3>
-            {!defaultSet && (
-              <p className="text-[11px] text-amber-300/80 text-center mb-3">
-                این انتخاب به‌عنوان مخاطبِ پیش‌فرضِ شما ذخیره می‌شود (بعداً از تنظیماتِ پروفایل قابل تغییر است).
-              </p>
-            )}
             <div className="mt-2 space-y-1.5">
               {AUDIENCE_OPTS.map(({ key, label, desc, Icon }) => {
                 const active = chosenAud === key;

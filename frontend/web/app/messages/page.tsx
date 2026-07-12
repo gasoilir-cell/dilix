@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { api, type MessageOut, type RoomOut, isAuthenticated } from "@/lib/api";
+import StoryBar from "@/components/StoryBar";
+import StickerLibrary from "@/components/StickerLibrary";
 
 // لیست/چتِ پیام‌رسان. پیام‌ها در محصولِ نهایی E2EE هستند (نشانِ قفل).
 export default function Messenger() {
@@ -9,7 +11,18 @@ export default function Messenger() {
   const [messages, setMessages] = useState<MessageOut[]>([]);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [showStickers, setShowStickers] = useState(false);
   const authed = typeof window !== "undefined" && isAuthenticated();
+
+  async function sendSticker(stickerId: string) {
+    if (!room) return;
+    try {
+      const m = await api.messaging.send(room.id, `[sticker:${stickerId}]`);
+      setMessages((prev) => [...prev, m]);
+    } catch {
+      setError("ارسال استیکر ناموفق بود.");
+    }
+  }
 
   async function startRoom() {
     setError(null);
@@ -41,6 +54,8 @@ export default function Messenger() {
         گفتگوهای رمزنگاری‌شده‌ی سرتاسری <span aria-hidden>🔒</span>
       </p>
 
+      {authed && <StoryBar />}
+
       {!authed && <div className="card muted">برای استفاده از پیام‌رسان ابتدا از بخش «من» وارد شوید.</div>}
       {error && <div className="card danger">{error}</div>}
 
@@ -70,6 +85,9 @@ export default function Messenger() {
           </div>
 
           <div className="assistant-input">
+            <button className="btn secondary" onClick={() => setShowStickers(true)} aria-label="استیکرها">
+              <span aria-hidden>🙂</span>
+            </button>
             <input
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
@@ -82,6 +100,13 @@ export default function Messenger() {
             </button>
           </div>
         </>
+      )}
+
+      {showStickers && (
+        <StickerLibrary
+          onClose={() => setShowStickers(false)}
+          onSendSticker={sendSticker}
+        />
       )}
     </main>
   );

@@ -3,39 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   X, Search, Plus, Star, Download, Check, Trash2, Loader2, ArrowRight,
-  Globe, FolderPlus, Image as ImageIcon, Play, Volume2, Sticker as StickerIcon,
-} from "lucide-react";
-import toast from "react-hot-toast";
-import { stickersApi } from "@/lib/api";
+  Globe, FolderPlus, Play, Volume2, Sticker as StickerIcon,
+} from "@/lib/icons";
+import toast from "@/lib/toast";
+import { api, type StickerOut, type StickerPackOut, type StickerPackDetailOut } from "@/lib/api";
 
-// ── Types (mirror backend) ───────────────────────────────────
-export interface StickerItem {
-  id: string;
-  pack_id: string;
-  media_url: string;
-  media_type: "image" | "video" | "voice";
-  emoji_tag?: string | null;
-  title?: string | null;
-  is_starred: boolean;
-  created_at: string;
-}
-export interface StickerPack {
-  id: string;
-  title: string;
-  description?: string | null;
-  cover_url?: string | null;
-  is_public: boolean;
-  is_animated: boolean;
-  is_mine: boolean;
-  is_installed: boolean;
-  install_count: number;
-  sticker_count: number;
-  owner_name?: string | null;
-  created_at: string;
-}
-interface PackDetail extends StickerPack {
-  stickers: StickerItem[];
-}
+type Sticker = StickerOut;
+type Pack = StickerPackOut;
+type PackDetail = StickerPackDetailOut;
 
 type Tab = "starred" | "mine" | "installed" | "explore";
 
@@ -45,8 +20,23 @@ interface Props {
   initialPackId?: string | null;
 }
 
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(file);
+  });
+}
+
+function mediaTypeOf(file: File): "image" | "video" | "voice" {
+  if (file.type.startsWith("video/")) return "video";
+  if (file.type.startsWith("audio/")) return "voice";
+  return "image";
+}
+
 // ── Media thumbnail ──────────────────────────────────────────
-function StickerThumb({ s }: { s: StickerItem }) {
+function StickerThumb({ s }: { s: Sticker }) {
   if (s.media_type === "video") {
     return (
       <div className="relative w-full h-full">
@@ -72,10 +62,10 @@ export default function StickerLibrary({ onClose, onSendSticker, initialPackId }
   const [tab, setTab] = useState<Tab>("starred");
   const [loading, setLoading] = useState(false);
 
-  const [starred, setStarred] = useState<StickerItem[]>([]);
-  const [minePacks, setMinePacks] = useState<StickerPack[]>([]);
-  const [installed, setInstalled] = useState<StickerPack[]>([]);
-  const [publicPacks, setPublicPacks] = useState<StickerPack[]>([]);
+  const [starred, setStarred] = useState<Sticker[]>([]);
+  const [minePacks, setMinePacks] = useState<Pack[]>([]);
+  const [installed, setInstalled] = useState<Pack[]>([]);
+  const [publicPacks, setPublicPacks] = useState<Pack[]>([]);
   const [query, setQuery] = useState("");
 
   const [detail, setDetail] = useState<PackDetail | null>(null);
@@ -90,28 +80,28 @@ export default function StickerLibrary({ onClose, onSendSticker, initialPackId }
   // ── loaders ────────────────────────────────────────────────
   const loadStarred = useCallback(async () => {
     setLoading(true);
-    try { setStarred((await stickersApi.starred()).data); }
+    try { setStarred(await api.stickers.starred()); }
     catch { /* ignore */ } finally { setLoading(false); }
   }, []);
   const loadMine = useCallback(async () => {
     setLoading(true);
-    try { setMinePacks((await stickersApi.myPacks()).data); }
+    try { setMinePacks(await api.stickers.myPacks()); }
     catch { /* ignore */ } finally { setLoading(false); }
   }, []);
   const loadInstalled = useCallback(async () => {
     setLoading(true);
-    try { setInstalled((await stickersApi.installedPacks()).data); }
+    try { setInstalled(await api.stickers.installedPacks()); }
     catch { /* ignore */ } finally { setLoading(false); }
   }, []);
   const loadPublic = useCallback(async (q?: string) => {
     setLoading(true);
-    try { setPublicPacks((await stickersApi.publicPacks(q)).data); }
+    try { setPublicPacks(await api.stickers.publicPacks(q)); }
     catch { /* ignore */ } finally { setLoading(false); }
   }, []);
 
   const openDetail = useCallback(async (packId: string) => {
     setDetailLoading(true);
-    try { setDetail((await stickersApi.packDetail(packId)).data); }
+    try { setDetail(await api.stickers.packDetail(packId)); }
     catch { toast.error("بارگذاریِ بسته ناموفق بود"); }
     finally { setDetailLoading(false); }
   }, []);
@@ -141,38 +131,38 @@ export default function StickerLibrary({ onClose, onSendSticker, initialPackId }
   }, [query]);
 
   // ── actions ────────────────────────────────────────────────
-  const send = (s: StickerItem) => { onSendSticker(s.id); onClose(); };
+  const send = (s: Sticker) => { onSendSticker(s.id); onClose(); };
 
-  const toggleStar = async (s: StickerItem) => {
+  const toggleStar = async (s: Sticker) => {
     const next = !s.is_starred;
     // optimistic in detail + starred list
     setDetail(d => d ? { ...d, stickers: d.stickers.map(x => x.id === s.id ? { ...x, is_starred: next } : x) } : d);
     setStarred(prev => next ? prev : prev.filter(x => x.id !== s.id));
     try {
-      if (next) { await stickersApi.star(s.id); if (tab === "starred" && !detail) loadStarred(); }
-      else await stickersApi.unstar(s.id);
+      if (next) { await api.stickers.star(s.id); if (tab === "starred" && !detail) loadStarred(); }
+      else await api.stickers.unstar(s.id);
     } catch { toast.error("عملیات ناموفق بود"); }
   };
 
-  const installToggle = async (p: StickerPack) => {
+  const installToggle = async (p: Pack) => {
     const next = !p.is_installed;
-    const patch = (arr: StickerPack[]) => arr.map(x => x.id === p.id ? { ...x, is_installed: next, install_count: x.install_count + (next ? 1 : -1) } : x);
+    const patch = (arr: Pack[]) => arr.map(x => x.id === p.id ? { ...x, is_installed: next, install_count: x.install_count + (next ? 1 : -1) } : x);
     setPublicPacks(patch);
     setDetail(d => d && d.id === p.id ? { ...d, is_installed: next } : d);
     try {
-      if (next) { await stickersApi.install(p.id); toast.success("به کتابخانه‌ی شما افزوده شد"); }
-      else await stickersApi.uninstall(p.id);
+      if (next) { await api.stickers.install(p.id); toast.success("به کتابخانه‌ی شما افزوده شد"); }
+      else await api.stickers.uninstall(p.id);
     } catch { toast.error("عملیات ناموفق بود"); }
   };
 
   const createPack = async () => {
     if (!newTitle.trim()) return;
     try {
-      const res = await stickersApi.createPack(newTitle.trim(), undefined, newPublic);
+      const res = await api.stickers.createPack({ title: newTitle.trim(), is_public: newPublic });
       setCreating(false); setNewTitle(""); setNewPublic(false);
       toast.success("بسته ساخته شد");
       await loadMine();
-      openDetail(res.data.id);
+      openDetail(res.id);
     } catch { toast.error("ساختِ بسته ناموفق بود"); }
   };
 
@@ -187,29 +177,31 @@ export default function StickerLibrary({ onClose, onSendSticker, initialPackId }
     if (!f || !packId) return;
     const tid = toast.loading("در حالِ افزودن...");
     try {
-      await stickersApi.addSticker(packId, f, { filename: f.name });
-      toast.success("افزوده شد", { id: tid });
+      const dataUrl = await fileToDataUrl(f);
+      await api.stickers.addSticker(packId, { media_url: dataUrl, media_type: mediaTypeOf(f), title: f.name });
+      toast.dismiss(tid);
+      toast.success("افزوده شد");
       openDetail(packId);
       loadMine();
-    } catch { toast.error("افزودن ناموفق بود", { id: tid }); }
+    } catch { toast.dismiss(tid); toast.error("افزودن ناموفق بود"); }
   };
 
-  const deleteSticker = async (s: StickerItem) => {
+  const deleteSticker = async (s: Sticker) => {
     setDetail(d => d ? { ...d, stickers: d.stickers.filter(x => x.id !== s.id) } : d);
-    try { await stickersApi.deleteSticker(s.id); } catch { toast.error("حذف ناموفق بود"); }
+    try { await api.stickers.deleteSticker(s.id); } catch { toast.error("حذف ناموفق بود"); }
   };
 
   const deletePack = async (p: PackDetail) => {
     if (!confirm(`بسته‌ی «${p.title}» حذف شود؟`)) return;
     try {
-      await stickersApi.deletePack(p.id);
+      await api.stickers.deletePack(p.id);
       setDetail(null); loadMine();
       toast.success("بسته حذف شد");
     } catch { toast.error("حذف ناموفق بود"); }
   };
 
   // ── UI pieces ──────────────────────────────────────────────
-  const Grid = ({ items, editable }: { items: StickerItem[]; editable?: boolean }) => (
+  const Grid = ({ items, editable }: { items: Sticker[]; editable?: boolean }) => (
     <div className="grid grid-cols-4 gap-2">
       {items.map((s) => (
         <div key={s.id} className="relative aspect-square group">
@@ -238,7 +230,7 @@ export default function StickerLibrary({ onClose, onSendSticker, initialPackId }
     </div>
   );
 
-  const PackCard = ({ p }: { p: StickerPack }) => (
+  const PackCard = ({ p }: { p: Pack }) => (
     <button
       onClick={() => openDetail(p.id)}
       className="w-full flex items-center gap-3 p-2.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] text-right"
@@ -249,7 +241,7 @@ export default function StickerLibrary({ onClose, onSendSticker, initialPackId }
       <span className="flex-1 min-w-0">
         <span className="block text-white text-sm font-semibold truncate">{p.title}</span>
         <span className="block text-white/40 text-xs truncate">
-          {p.sticker_count} استیکر{p.owner_name ? ` · ${p.owner_name}` : ""}{p.is_animated ? " · متحرک" : ""}
+          {p.sticker_count} استیکر{p.is_animated ? " · متحرک" : ""}
         </span>
       </span>
       {p.is_public && !p.is_mine && (
@@ -276,7 +268,7 @@ export default function StickerLibrary({ onClose, onSendSticker, initialPackId }
               <p className="text-white font-bold truncate">{detail?.title ?? "..."}</p>
               {detail && (
                 <p className="text-white/40 text-xs truncate">
-                  {detail.sticker_count} استیکر{detail.owner_name ? ` · ${detail.owner_name}` : ""}
+                  {detail.sticker_count} استیکر
                   {detail.install_count > 0 ? ` · ${detail.install_count} نصب` : ""}
                 </p>
               )}

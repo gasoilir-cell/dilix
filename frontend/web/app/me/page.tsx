@@ -178,6 +178,18 @@ export default function MePage() {
         </button>
       </div>
 
+      <a className="card service-tile" href="/dashboard">
+        <span className="ico-lg" aria-hidden>📊</span>
+        <strong>داشبورد</strong>
+        <span className="muted">میان‌برهای نقش‌محور، کیف پول و خدمات</span>
+      </a>
+
+      <a className="card service-tile" href="/onboarding">
+        <span className="ico-lg" aria-hidden>🚀</span>
+        <strong>راه‌اندازی حساب</strong>
+        <span className="muted">انتخابِ نقش، تکمیلِ پروفایل و حریمِ خصوصی</span>
+      </a>
+
       <a className="card service-tile" href="/provider">
         <span className="ico-lg" aria-hidden>🏢</span>
         <strong>{tr.provider_portal}</strong>

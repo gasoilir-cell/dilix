@@ -322,6 +322,74 @@ export interface NotificationOut {
   created_at: string;
 }
 
+// داستان‌ها (stories) — قرارداد: media_url (بدونِ آپلودِ فایل؛ data-URL هم می‌پذیرد).
+export interface StoryRingOut {
+  author_earth_id: string;
+  story_count: number;
+  has_unseen: boolean;
+  is_me: boolean;
+  latest_at: string;
+}
+
+export interface StoryOut {
+  id: string;
+  author_earth_id: string;
+  media_url: string;
+  media_type: string;
+  caption: string | null;
+  audience: string;
+  view_count: number;
+  viewed_by_me: boolean;
+  is_mine: boolean;
+  created_at: string;
+}
+
+export interface StoryViewerOut {
+  viewer_earth_id: string;
+  viewed_at: string;
+}
+
+export interface CircleMember {
+  earth_id: string;
+}
+
+export interface CirclesOut {
+  colleagues: CircleMember[];
+  family: CircleMember[];
+  friends: CircleMember[];
+}
+
+// استیکرها (stickers)
+export interface StickerOut {
+  id: string;
+  pack_id: string;
+  media_url: string;
+  media_type: string;
+  emoji_tag: string | null;
+  title: string | null;
+  is_starred: boolean;
+  created_at: string;
+}
+
+export interface StickerPackOut {
+  id: string;
+  owner_earth_id: string;
+  title: string;
+  description: string | null;
+  cover_url: string | null;
+  is_public: boolean;
+  is_animated: boolean;
+  is_mine: boolean;
+  is_installed: boolean;
+  install_count: number;
+  sticker_count: number;
+  created_at: string;
+}
+
+export interface StickerPackDetailOut extends StickerPackOut {
+  stickers: StickerOut[];
+}
+
 // ─────────────────────── API surface ──────────────────────────
 
 export const api = {
@@ -481,6 +549,53 @@ export const api = {
     referralLink: () => request<ReferralLink>("/v1/growth/referrals/link"),
     rewards: () => request<RewardWallet>("/v1/growth/rewards"),
     revenueShare: () => request<RevenueShare>("/v1/growth/revenue-share"),
+  },
+
+  stories: {
+    feed: () => request<StoryRingOut[]>("/v1/stories/feed"),
+    userStories: (earthId: string) => request<StoryOut[]>(`/v1/stories/user/${earthId}`),
+    create: (body: { media_url: string; media_type?: string; caption?: string; audience?: string }) =>
+      request<StoryOut>("/v1/stories", { method: "POST", body: JSON.stringify(body) }),
+    view: (storyId: string) => request<void>(`/v1/stories/${storyId}/view`, { method: "POST" }),
+    viewers: (storyId: string) => request<StoryViewerOut[]>(`/v1/stories/${storyId}/viewers`),
+    remove: (storyId: string) => request<void>(`/v1/stories/${storyId}`, { method: "DELETE" }),
+    circles: () => request<CirclesOut>("/v1/stories/circles"),
+    addToCircle: (circle: string, earthId: string) =>
+      request<CircleMember>(`/v1/stories/circles/${circle}`, {
+        method: "POST",
+        body: JSON.stringify({ earth_id: earthId }),
+      }),
+    removeFromCircle: (circle: string, earthId: string) =>
+      request<void>(`/v1/stories/circles/${circle}/${earthId}`, { method: "DELETE" }),
+  },
+
+  stickers: {
+    starred: () => request<StickerOut[]>("/v1/stickers/starred"),
+    myPacks: () => request<StickerPackOut[]>("/v1/stickers/packs/mine"),
+    installedPacks: () => request<StickerPackOut[]>("/v1/stickers/packs/installed"),
+    publicPacks: (q?: string) => {
+      const qs = q && q.trim() ? `?q=${encodeURIComponent(q.trim())}` : "";
+      return request<StickerPackOut[]>(`/v1/stickers/packs/public${qs}`);
+    },
+    packDetail: (packId: string) => request<StickerPackDetailOut>(`/v1/stickers/packs/${packId}`),
+    createPack: (body: { title: string; description?: string; is_public?: boolean }) =>
+      request<StickerPackOut>("/v1/stickers/packs", { method: "POST", body: JSON.stringify(body) }),
+    updatePack: (packId: string, body: { title?: string; description?: string; is_public?: boolean }) =>
+      request<StickerPackOut>(`/v1/stickers/packs/${packId}`, { method: "PATCH", body: JSON.stringify(body) }),
+    deletePack: (packId: string) => request<void>(`/v1/stickers/packs/${packId}`, { method: "DELETE" }),
+    install: (packId: string) => request<void>(`/v1/stickers/packs/${packId}/install`, { method: "POST" }),
+    uninstall: (packId: string) => request<void>(`/v1/stickers/packs/${packId}/install`, { method: "DELETE" }),
+    addSticker: (
+      packId: string,
+      body: { media_url: string; media_type?: string; emoji_tag?: string; title?: string },
+    ) =>
+      request<StickerOut>(`/v1/stickers/packs/${packId}/stickers`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    deleteSticker: (stickerId: string) => request<void>(`/v1/stickers/${stickerId}`, { method: "DELETE" }),
+    star: (stickerId: string) => request<void>(`/v1/stickers/${stickerId}/star`, { method: "POST" }),
+    unstar: (stickerId: string) => request<void>(`/v1/stickers/${stickerId}/star`, { method: "DELETE" }),
   },
 
   payments: {

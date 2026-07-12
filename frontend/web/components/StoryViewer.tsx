@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { X, Trash2, Eye, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
-import toast from "react-hot-toast";
-import { storiesApi } from "@/lib/api";
+import { X, Trash2, Eye, Loader2, ChevronLeft, ChevronRight } from "@/lib/icons";
+import toast from "@/lib/toast";
+import { api, type StoryOut } from "@/lib/api";
 
 export interface Ring {
   earth_id: string;
@@ -12,21 +12,10 @@ export interface Ring {
   is_me?: boolean;
   has_unseen?: boolean;
 }
-interface Story {
-  id: string;
-  author_earth_id: string;
-  author_name: string;
-  author_avatar?: string | null;
-  media_url: string;
-  media_type: string; // image | video
-  caption?: string | null;
-  view_count: number;
-  viewed_by_me: boolean;
-  is_mine: boolean;
-  created_at: string;
-}
+type Story = StoryOut;
 interface Viewer {
-  earth_id: string; name: string; avatar_url?: string | null; viewed_at: string;
+  viewer_earth_id: string;
+  viewed_at: string;
 }
 
 const IMAGE_MS = 5000;
@@ -41,6 +30,7 @@ function timeAgo(iso: string): string {
   return `${toFa(h)} ساعت پیش`;
 }
 function toFa(n: number | string): string { return String(n).replace(/[0-9]/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[+d]); }
+function shortId(id: string): string { return `${id.slice(0, 6)}…`; }
 
 export default function StoryViewer({
   rings, startIndex, onClose, onViewed,
@@ -79,9 +69,8 @@ export default function StoryViewer({
   useEffect(() => {
     let cancelled = false;
     setLoading(true); setStories([]); setSi(0); setViewers(null);
-    storiesApi.userStories(ring.earth_id).then((r) => {
+    api.stories.userStories(ring.earth_id).then((arr) => {
       if (cancelled) return;
-      const arr: Story[] = r.data || [];
       if (!arr.length) { gotoUser(1); return; }
       setStories(arr); setLoading(false);
     }).catch(() => { if (!cancelled) gotoUser(1); });
@@ -104,7 +93,7 @@ export default function StoryViewer({
     if (!story) return;
     elapsedRef.current = 0; lastTsRef.current = null; setProgress(0);
     durRef.current = story.media_type === "video" ? 15000 : IMAGE_MS;
-    if (!story.is_mine && !story.viewed_by_me) storiesApi.view(story.id).catch(() => {});
+    if (!story.is_mine && !story.viewed_by_me) api.stories.view(story.id).catch(() => {});
     onViewed?.(ring.earth_id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [story?.id]);
@@ -150,7 +139,7 @@ export default function StoryViewer({
   const deleteStory = async () => {
     if (!story) return;
     try {
-      await storiesApi.remove(story.id);
+      await api.stories.remove(story.id);
       toast.success("داستان حذف شد");
       setStories((prevArr) => {
         const arr = prevArr.filter((s) => s.id !== story.id);
@@ -164,7 +153,7 @@ export default function StoryViewer({
   const openViewers = async () => {
     if (!story) return;
     setPaused(true);
-    try { const r = await storiesApi.viewers(story.id); setViewers(r.data || []); }
+    try { setViewers(await api.stories.viewers(story.id)); }
     catch { toast.error("خطا در دریافتِ بازدیدکنندگان"); }
   };
 
@@ -239,12 +228,12 @@ export default function StoryViewer({
             ) : (
               <div className="space-y-1.5">
                 {viewers.map((v) => (
-                  <div key={v.earth_id} className="flex items-center gap-3 p-2 rounded-xl">
+                  <div key={v.viewer_earth_id} className="flex items-center gap-3 p-2 rounded-xl">
                     <div className="w-9 h-9 rounded-full bg-white/10 overflow-hidden flex items-center justify-center text-sm">
-                      {v.avatar_url ? <img src={v.avatar_url} alt="" className="w-full h-full object-cover" /> : (v.name?.[0] ?? "👤")}
+                      👤
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-white text-sm truncate">{v.name}</p>
+                      <p className="text-white text-sm truncate">{shortId(v.viewer_earth_id)}</p>
                       <p className="text-white/40 text-[11px]">{timeAgo(v.viewed_at)}</p>
                     </div>
                   </div>

@@ -217,3 +217,62 @@
   stories، view (idempotent) + viewers، ۴۰۳ برای غیرِنویسنده، مخفی‌بودنِ داستانِ حلقه‌ای
   و نمایانی پس از افزودن به حلقه، circles list/add، ردِ افزودنِ خود.
 - **اعتبارسنجی نهایی:** کلِ سوئیت بدونِ env دستی → **130 passed** (بدون هشدارِ event-loop).
+
+---
+
+# مهاجرت فایل‌های سرگردانِ روت به ساختار canonical
+
+تاریخ: 2026-07-12
+
+## صفحاتِ UNIQUE فرانت → `frontend/web/app/` ✅ انجام‌شده
+بازنویسیِ کامل مطابقِ قراردادهای `frontend/web` (CSS ساده، کلاینتِ `api`،
+بدونِ `lucide-react`/`react-hot-toast`/`zustand`/`@/components/ui/*`):
+- `join_page.tsx` → `app/join/page.tsx` (ثبتِ کدِ دعوت در localStorage + ریدایرکت به `/login`).
+- `onboarding_v2.tsx` → `app/onboarding/page.tsx` (ویزاردِ ۴مرحله‌ای: نقش/پروفایل/حریمِ خصوصی؛
+  با `api.identity.roles/updateProfile/changeRole/setVisibility`).
+- `dashboard_v2.tsx` → `app/dashboard/page.tsx` (داشبوردِ نقش‌محور با `api.identity.me`،
+  `api.growth.rewards`، `panelsForRole`).
+- `_global-error.tsx` → `app/global-error.tsx` (مرزِ خطای فریم‌ورک؛ بازیابیِ خودکار در chunk-load
+  error — تنها وابستگی: `useEffect`، سازگار با canonical).
+- فایل‌های روت پس از مهاجرت حذف شدند.
+
+## پاک‌سازیِ فایل‌های مرده (git-tracked، برگشت‌پذیر) ✅ انجام‌شده
+اینها به استکِ قدیمیِ مونولیت وابسته بودند (lucide/toast/zustand/`@/lib/utils`/
+`@/components/ui/*`/`app.models.user`) و در `frontend/web`ِ canonical معادل یا مصرف‌کننده نداشتند:
+- `AppShell_dark.tsx`, `AppShell_updated.tsx` — canonical از `layout.tsx` + `BottomNav` استفاده می‌کند.
+- `ai_real.tsx` — صفحهٔ AIِ استکِ قدیم؛ بدونِ معادلِ canonical.
+- `messages_id_redirect.tsx` — با `app/messages/page.tsx` (پارامترِ `?to=`) جایگزین شده.
+- `tile-route.ts` — پراکسیِ کاشیِ گوگل؛ صفحهٔ `earth` canonical کاشیِ واقعی رِندر نمی‌کند (placeholder).
+- `_onboarding.tsx` — نسخهٔ تکراریِ onboarding.
+- `_e2e_sticker_msg.py`, `_e2e_stickers.py`, `_stories_e2e.py` — اسکریپت‌های standalone با
+  importهای مونولیتِ قدیم (`app.models.user`، `AsyncSessionLocal`) و نیازمندِ سرورِ زنده؛
+  با تست‌های integrationِ Core جایگزین شده‌اند.
+
+## ثبتِ مسیرهای جدید در ناوبری ✅ انجام‌شده
+- `app/me/page.tsx`: دو تایلِ جدید → `/dashboard` و `/onboarding`.
+
+## کامپوننت‌های استوری/استیکر/مدیا → `frontend/web/components/` ✅ انجام‌شده
+پورتِ کاملِ ۴ کامپوننت با تطبیقِ وابستگی‌های خارجی به قراردادهای canonical:
+- **شیم‌های بدونِ وابستگی** (جایگزینِ استکِ حذف‌شده):
+  - `lib/icons.tsx` — ~۴۰ آیکونِ ایموجی‌محور جایگزینِ `lucide-react`.
+  - `lib/toast.ts` — توستِ DOM-محور جایگزینِ `react-hot-toast` (امضای سازگار: `toast`, `.success/.error/.loading/.dismiss`).
+- **لایهٔ کلاینتِ API** در `lib/api.ts`: بخش‌های `api.stories` و `api.stickers` + تایپ‌ها
+  (`StoryRingOut`, `StoryOut`, `StoryViewerOut`, `CirclesOut`, `StickerOut`, `StickerPackOut`, `StickerPackDetailOut`)
+  — منطبق بر روترهای mount‌شدهٔ `stories`/`stickers`.
+- `_StoryViewer.tsx` → `components/StoryViewer.tsx` (نمایشِ رینگ‌ها، rAF progress، ثبتِ بازدید،
+  حذف، شیتِ بازدیدکنندگان با `earth_id`).
+- `_StoryBar.tsx` → `components/StoryBar.tsx` (`useAuthStore`→`api.identity.me`، `storiesApi.feed`→
+  `api.stories.feed`، انتشار با data-URL به‌جای آپلودِ فایل؛ `settings/saveSettings` حذف شد چون
+  بک‌اند endpoint ندارد).
+- `_StickerLibrary.tsx` → `components/StickerLibrary.tsx` (`stickersApi`→`api.stickers` با حذفِ `.data`،
+  امضاهای جدید؛ `addSticker`/`createPack` با data-URL؛ `owner_name` حذف چون در قراردادِ جدید نیست).
+- `_MediaEditor.tsx` → `components/MediaEditor.tsx` (ادیتورِ canvas بدونِ تغییرِ منطق؛ فقط
+  `messagesApi.translateText` → degrade مؤدبانه، چون `api.messaging` endpointِ ترجمه ندارد).
+- کلاسِ‌های Tailwind به‌عنوانِ رشتهٔ بی‌اثر حفظ شدند (Tailwind نصب نیست).
+- فایل‌های روت پس از مهاجرت با `git rm` حذف شدند.
+
+## اعتبارسنجی
+- تغییراتِ این مرحله فقط فرانت + اسکریپت‌های روت را لمس کرد؛ سوئیتِ `backend/services/core/tests/`
+  دست‌نخورده و سبز (baseline: **130 passed**). در این کانتینر `pytest` نصب نیست
+  (`No module named pytest`)، اجرای واقعی روی سرورِ SSH.
+- همهٔ حذف‌ها git-tracked و برگشت‌پذیرند.
