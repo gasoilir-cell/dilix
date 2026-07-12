@@ -200,5 +200,20 @@
   (`_pack_out`/`_sticker_out`)، منطقِ دسترسیِ داستان (`_can_view`)، انقضای ۲۴ساعته
   (`_expiry`)، ثابت‌های مخاطب، و وجودِ مسیرهای اصلی (create/list/get) از طریقِ
   `app.openapi()` (ضدِ drift).
-- **اعتبارسنجی نهایی:** کلِ سوئیت بدونِ env دستی → **114 passed** (۹۸ قبلی + ۱۶ جدید).
-- ⚠️ همچنان تستِ integration واقعی (DB + auth override) برای اندپوینت‌ها آتی است.
+- **اعتبارسنجی:** کلِ سوئیت بدونِ env دستی → **114 passed** (۹۸ قبلی + ۱۶ واحدِ جدید).
+
+## تستِ integration اندپوینت‌های stickers/stories ✅ انجام‌شده
+- هارنسِ HTTP در `conftest.py` (فیکسچرِ `integration`): engineِ SQLite با `StaticPool`
+  (اشتراکِ همان دیتابیسِ درون‌حافظه بین اتصال‌ها) + **ATTACH DATABASE** برای schemaهای
+  `stickers`/`stories` (تا جداولِ schema-qualified روی SQLite ساخته شوند)، override روی
+  `get_session` و `get_current_user`، و `httpx.AsyncClient` روی ASGI. کلاسِ
+  `IntegrationHarness` امکانِ `as_user(...)` برای تعویضِ کاربرِ احرازشده در طولِ تست را می‌دهد.
+  - نکتهٔ فنی حل‌شده: `postgresql.UUID` روی SQLite به CHAR افت می‌کند (SQLAlchemy 2.0)؛
+    و باگِ overwriteِ نامِ `app` توسط `import app.modules...` با importِ alias رفع شد.
+- `tests/test_stickers_integration.py` (۸ تست): create pack، list mine، add sticker +
+  detail (+cover)، public listing، مخفی‌بودنِ خصوصی، چرخهٔ install توسط کاربرِ دیگر،
+  star/starred، ۴۰۴ برای بستهٔ ناموجود.
+- `tests/test_stories_integration.py` (۸ تست): create story، feed (ring خودی)، user
+  stories، view (idempotent) + viewers، ۴۰۳ برای غیرِنویسنده، مخفی‌بودنِ داستانِ حلقه‌ای
+  و نمایانی پس از افزودن به حلقه، circles list/add، ردِ افزودنِ خود.
+- **اعتبارسنجی نهایی:** کلِ سوئیت بدونِ env دستی → **130 passed** (بدون هشدارِ event-loop).
