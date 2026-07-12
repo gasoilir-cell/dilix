@@ -208,6 +208,18 @@ export interface EsimOut {
   status: string;
 }
 
+export interface PolicyOut {
+  id: string;
+  holder_earth_id: string;
+  provider_code: string;
+  product_code: string;
+  coverage_minor: number;
+  premium_minor: number;
+  currency: string;
+  external_ref: string | null;
+  status: string;
+}
+
 export interface NearbyPerson {
   earth_id: string;
   entity_type: string;
@@ -431,6 +443,15 @@ export const api = {
     }) => request<TopUpOut>("/v1/telecom/top-up", { method: "POST", body: JSON.stringify(body) }),
     activateEsim: (body: { iccid: string; country_code: string; provider_code?: string }) =>
       request<EsimOut>("/v1/telecom/esim/activate", { method: "POST", body: JSON.stringify(body) }),
+  },
+
+  insurance: {
+    createQuote: (body: {
+      product_code: string;
+      coverage_minor: number;
+      currency?: string;
+      provider_code?: string;
+    }) => request<PolicyOut>("/v1/insurance/quotes", { method: "POST", body: JSON.stringify(body) }),
   },
 
   discovery: {
