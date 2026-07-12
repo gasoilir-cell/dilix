@@ -196,15 +196,37 @@ export interface NearbyPerson {
 export interface ReferralLink {
   code: string;
   url: string;
+  total_referred: number;
+}
+
+export interface RewardBalance {
+  currency: string;
+  amount_minor: number;
+  reward_count: number;
 }
 
 export interface RewardWallet {
-  total_by_currency: Record<string, number>;
+  balances: RewardBalance[];
+  pending_count: number;
 }
 
 export interface RevenueShare {
   eligible: boolean;
+  plan: string;
   entitlement_bps: number;
+  investment_units: number;
+  note: string;
+}
+
+export interface PaymentOrderOut {
+  id: string;
+  payer_earth_id: string;
+  payee_earth_id: string;
+  amount_minor: number;
+  currency: string;
+  provider_code: string;
+  external_ref: string | null;
+  status: string;
 }
 
 export interface ProviderOut {
@@ -377,6 +399,18 @@ export const api = {
     referralLink: () => request<ReferralLink>("/v1/growth/referrals/link"),
     rewards: () => request<RewardWallet>("/v1/growth/rewards"),
     revenueShare: () => request<RevenueShare>("/v1/growth/revenue-share"),
+  },
+
+  payments: {
+    createEscrow: (body: { payee_earth_id: string; amount_minor: number; currency: string; provider_code?: string }) =>
+      request<PaymentOrderOut>("/v1/payments/escrow", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    capture: (orderId: string) =>
+      request<PaymentOrderOut>(`/v1/payments/${orderId}/capture`, { method: "POST" }),
+    refund: (orderId: string) =>
+      request<PaymentOrderOut>(`/v1/payments/${orderId}/refund`, { method: "POST" }),
   },
 
   notifications: {
