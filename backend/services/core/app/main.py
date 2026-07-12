@@ -25,6 +25,8 @@ from app.modules.kyc.router import router as kyc_router
 # ── Layer 1 — Engagement Shell ──
 from app.modules.messaging.router import router as messaging_router
 from app.modules.social.router import router as social_router
+from app.modules.stickers.router import router as stickers_router
+from app.modules.stories.router import router as stories_router
 from app.modules.notification.router import router as notification_router
 from app.modules.earth.router import router as earth_router
 from app.modules.discovery.router import router as discovery_router
@@ -146,6 +148,8 @@ app.include_router(kyc_router)
 # Layer 1 — Engagement Shell
 app.include_router(messaging_router)
 app.include_router(social_router)
+app.include_router(stickers_router)
+app.include_router(stories_router)
 app.include_router(notification_router)
 app.include_router(earth_router)
 app.include_router(discovery_router)

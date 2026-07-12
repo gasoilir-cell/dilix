@@ -246,6 +246,17 @@ export interface CredentialOut {
   api_key: string | null;
 }
 
+export interface NotificationOut {
+  id: string;
+  recipient_earth_id: string;
+  channel: string;
+  title: string;
+  body: string;
+  status: string;
+  read: boolean;
+  created_at: string;
+}
+
 // ─────────────────────── API surface ──────────────────────────
 
 export const api = {
@@ -366,6 +377,13 @@ export const api = {
     referralLink: () => request<ReferralLink>("/v1/growth/referrals/link"),
     rewards: () => request<RewardWallet>("/v1/growth/rewards"),
     revenueShare: () => request<RevenueShare>("/v1/growth/revenue-share"),
+  },
+
+  notifications: {
+    list: (unreadOnly = false, limit = 50) =>
+      request<NotificationOut[]>(`/v1/notifications?unread_only=${unreadOnly}&limit=${limit}`),
+    markRead: (id: string) =>
+      request<void>(`/v1/notifications/${id}/read`, { method: "POST" }),
   },
 
   ai: {
