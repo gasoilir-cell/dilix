@@ -177,6 +177,37 @@ export interface CargoPostOut {
   shipment_id: string | null;
 }
 
+export interface ListingOut {
+  id: string;
+  provider_earth_id: string;
+  title: string;
+  description: string;
+  category: string;
+  base_price_minor: number;
+  currency: string;
+  delivery_days: number;
+  tags: string[];
+  status: string;
+  is_featured: boolean;
+}
+
+export interface TopUpOut {
+  id: string;
+  msisdn: string;
+  product_code: string;
+  amount_minor: number;
+  currency: string;
+  status: string;
+  external_ref: string | null;
+}
+
+export interface EsimOut {
+  id: string;
+  iccid: string;
+  country_code: string;
+  status: string;
+}
+
 export interface NearbyPerson {
   earth_id: string;
   entity_type: string;
@@ -370,6 +401,36 @@ export const api = {
       budget_minor?: number;
       currency?: string;
     }) => request<CargoPostOut>("/v1/freight/cargo", { method: "POST", body: JSON.stringify(body) }),
+  },
+
+  marketplace: {
+    listListings: (params: { category?: string; keyword?: string } = {}) => {
+      const q = new URLSearchParams();
+      Object.entries(params).forEach(([k, v]) => v != null && v !== "" && q.set(k, String(v)));
+      const qs = q.toString();
+      return request<ListingOut[]>(`/v1/marketplace/listings${qs ? `?${qs}` : ""}`);
+    },
+    createListing: (body: {
+      title: string;
+      description: string;
+      category: string;
+      base_price_minor: number;
+      currency?: string;
+      delivery_days?: number;
+      tags?: string[];
+    }) => request<ListingOut>("/v1/marketplace/listings", { method: "POST", body: JSON.stringify(body) }),
+  },
+
+  telecom: {
+    topUp: (body: {
+      msisdn: string;
+      product_code: string;
+      amount_minor: number;
+      currency?: string;
+      provider_code?: string;
+    }) => request<TopUpOut>("/v1/telecom/top-up", { method: "POST", body: JSON.stringify(body) }),
+    activateEsim: (body: { iccid: string; country_code: string; provider_code?: string }) =>
+      request<EsimOut>("/v1/telecom/esim/activate", { method: "POST", body: JSON.stringify(body) }),
   },
 
   discovery: {
