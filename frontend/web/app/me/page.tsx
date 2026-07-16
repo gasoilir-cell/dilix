@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   api,
-  setAccessToken,
+  clearSession,
   isAuthenticated,
   type Identity,
   type RewardWallet,
@@ -12,6 +12,7 @@ import {
   type RoleOption,
 } from "@/lib/api";
 import { t } from "@/lib/i18n";
+import { requestCall, type CallMedia } from "@/lib/call-store";
 import { panelsForRole, setStoredRole } from "@/lib/roles";
 
 export default function MePage() {
@@ -69,7 +70,7 @@ export default function MePage() {
   }, [router]);
 
   function logout() {
-    setAccessToken(null);
+    clearSession();
     setStoredRole(null);
     router.replace("/login");
   }
@@ -88,6 +89,11 @@ export default function MePage() {
     }
   }
 
+  function startProfileCall(media: CallMedia) {
+    if (!me) return;
+    requestCall({ earthId: me.earth_id, name: me.profile?.display_name ?? "پروفایل من", media });
+  }
+
   if (!ready) return null;
 
   return (
@@ -101,7 +107,15 @@ export default function MePage() {
             <strong>{me?.profile?.display_name ?? "کاربر"}</strong>
             <div className="muted">Earth ID: {me?.earth_id.slice(0, 12)}…</div>
           </div>
-          <span className="badge">KYC L{me?.kyc_level ?? 0}</span>
+          <div className="row" style={{ gap: 8 }}>
+            <button className="btn secondary" onClick={() => startProfileCall("audio")} disabled={!me}>
+              تماس صوتی
+            </button>
+            <button className="btn secondary" onClick={() => startProfileCall("video")} disabled={!me}>
+              تماس تصویری
+            </button>
+            <span className="badge">KYC L{me?.kyc_level ?? 0}</span>
+          </div>
         </div>
       </div>
 
@@ -177,6 +191,12 @@ export default function MePage() {
           فعال‌سازی دیده‌شدن (محدود)
         </button>
       </div>
+
+      <a className="card service-tile" href="/stories">
+        <span className="ico-lg" aria-hidden>📸</span>
+        <strong>داستان‌ها</strong>
+        <span className="muted">انتشار و تماشای داستان‌های ۲۴ساعته و حلقه‌های مخاطب</span>
+      </a>
 
       <a className="card service-tile" href="/dashboard">
         <span className="ico-lg" aria-hidden>📊</span>

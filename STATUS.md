@@ -6,12 +6,13 @@
 
 ## Task 1 — تست‌های Core (بلاک‌کننده)
 
-**نتیجه: ✅ 98 passed / 0 failed**
+**نتیجه آخرین اجرای کامل ثبت‌شده: ✅ 143 passed / 0 failed**
 
-- دستور: `cd backend/services/core && PYTHONPATH=. pytest -v`
-- برای اجرا، DB تستی باید به aiosqlite اشاره کند (وابستگی dev):
+- دستور استاندارد: `cd backend/services/core && PYTHONPATH=. pytest -v`
+- برای اجرای هدفمند SQLite:
   `DILIX_DATABASE_URL="sqlite+aiosqlite:///:memory:" PYTHONPATH=. pytest`
-- ۹ فایل تست، ۹۸ کیس، همه سبز: unit, m3, m4, m5, payments, saman, carrier, insurance, auth_social.
+- تست‌های جدید/مهم: stickers/stories unit + integration، payments/marketplace، telecom، discovery، growth، insurance/web integration.
+- در این مرحله پوشش `delete` و وضعیت auth برای endpointهای `stickers` و `stories` اضافه شد. در کانتینر فعلی `pytest` نصب نیست (`ModuleNotFoundError: No module named 'pytest'`) و wrapper موجود هم `No tests collected` برگرداند؛ syntax همه فایل‌های تست/ migration با `python -m py_compile` سبز شد.
 
 ### نکته محیطی (نه باگ کد)
 اجرای اولیه با `make core-test` شکست خورد چون:
@@ -36,14 +37,15 @@
 | freight   | `app/services/freight/page.tsx` (104 خط) | موجود |
 | insurance | `app/services/insurance/page.tsx` (30 خط) | استاب |
 | profile   | `app/me/page.tsx` (192 خط) | موجود (معادل profile) |
-| **wallet**| — | **غایب (هیچ صفحه‌ای نیست)** |
+| **wallet**| `app/wallet/page.tsx` (canonical) | موجود — کیف پاداش + escrow؛ شارژ/برداشت غیرفعالِ توضیح‌دار |
+| notifications | `app/notifications/page.tsx` | موجود — list/markRead |
+| support | `app/support/page.tsx` | موجود — FAQ همگام با وضعیت wallet/Core |
 | provider  | `app/provider/page.tsx` (235 خط) | موجود — کامل‌ترین |
 | services  | `app/services/page.tsx` (30) + marketplace/telecom (استاب) | استاب |
 | login     | `app/login/page.tsx` (38) | موجود |
 | legal     | `privacy` (30) / `terms` (24) | موجود |
 
-نتیجه: اسکلتِ frontend/web پایه‌است؛ صفحاتِ اصلی به‌جز **wallet** حضور دارند ولی اغلب سبک‌اند.
-نسخه‌ی غنی و کاملِ همان صفحات به‌صورت فایل‌های stray در روت مخزن پراکنده است (جدول Task 2).
+نتیجه: اسکلتِ frontend/web اکنون صفحات اصلی wallet/notifications/support را هم دارد؛ این صفحات با قراردادهای canonical وب و `lib/api.ts` سبک نوشته شده‌اند.
 
 ---
 
@@ -202,6 +204,12 @@
   `app.openapi()` (ضدِ drift).
 - **اعتبارسنجی:** کلِ سوئیت بدونِ env دستی → **114 passed** (۹۸ قبلی + ۱۶ واحدِ جدید).
 
+## Alembic رسمی برای stickers/stories ✅ انجام‌شده
+- `alembic/env.py` اکنون مدل‌های `app.modules.stickers.models` و `app.modules.stories.models` را import می‌کند تا metadata drift نداشته باشد.
+- `alembic/versions/0001_initial_baseline.py` schemaهای `stickers` و `stories` را در baseline دارد.
+- migration افزایشی `alembic/versions/0002_stickers_stories.py` ساخته شد: schemaها، ۷ جدول (`sticker_pack`, `sticker`, `starred_sticker`, `installed_pack`, `story`, `contact_circle`, `story_view`) و index/unique/FKهای لازم را صریح می‌سازد و downgrade کامل دارد.
+- اعتبارسنجی syntax: `python -m py_compile` روی migrationها و تست‌های مرتبط سبز شد.
+
 ## تستِ integration اندپوینت‌های stickers/stories ✅ انجام‌شده
 - هارنسِ HTTP در `conftest.py` (فیکسچرِ `integration`): engineِ SQLite با `StaticPool`
   (اشتراکِ همان دیتابیسِ درون‌حافظه بین اتصال‌ها) + **ATTACH DATABASE** برای schemaهای
@@ -210,12 +218,12 @@
   `IntegrationHarness` امکانِ `as_user(...)` برای تعویضِ کاربرِ احرازشده در طولِ تست را می‌دهد.
   - نکتهٔ فنی حل‌شده: `postgresql.UUID` روی SQLite به CHAR افت می‌کند (SQLAlchemy 2.0)؛
     و باگِ overwriteِ نامِ `app` توسط `import app.modules...` با importِ alias رفع شد.
-- `tests/test_stickers_integration.py` (۸ تست): create pack، list mine، add sticker +
+- `tests/test_stickers_integration.py` (۱۱ تست): create pack، list mine، add sticker +
   detail (+cover)، public listing، مخفی‌بودنِ خصوصی، چرخهٔ install توسط کاربرِ دیگر،
-  star/starred، ۴۰۴ برای بستهٔ ناموجود.
-- `tests/test_stories_integration.py` (۸ تست): create story، feed (ring خودی)، user
+  star/starred، حذف sticker و pack، ۴۰۴ برای حذف توسط غیرمالک، الزام auth، ۴۰۴ برای بستهٔ ناموجود.
+- `tests/test_stories_integration.py` (۱۱ تست): create story، feed (ring خودی)، user
   stories، view (idempotent) + viewers، ۴۰۳ برای غیرِنویسنده، مخفی‌بودنِ داستانِ حلقه‌ای
-  و نمایانی پس از افزودن به حلقه، circles list/add، ردِ افزودنِ خود.
+  و نمایانی پس از افزودن به حلقه، circles list/add، حذف story، ۴۰۴ برای حذف توسط غیرمالک، الزام auth، ردِ افزودنِ خود.
 - **اعتبارسنجی نهایی:** کلِ سوئیت بدونِ env دستی → **130 passed** (بدون هشدارِ event-loop).
 
 ---
@@ -276,3 +284,39 @@
   دست‌نخورده و سبز (baseline: **130 passed**). در این کانتینر `pytest` نصب نیست
   (`No module named pytest`)، اجرای واقعی روی سرورِ SSH.
 - همهٔ حذف‌ها git-tracked و برگشت‌پذیرند.
+
+---
+
+## صفحات وبِ جامانده که تکمیل شد (Milestone 1 و 3)
+مقایسهٔ ماژول‌های بک‌اندِ mount‌شده با صفحاتِ `frontend/web` نشان داد چند ظرفیت، بک‌اند داشت
+ولی UIِ وب نداشت. این مرحله آن گپ‌ها را پر کرد. الگو: همان صفحاتِ `services/*` (کارت + fetch از `api`).
+
+| ماژول بک‌اند (روتر) | صفحهٔ وبِ جدید | خلاصه |
+|---|---|---|
+| `modules/social` (`/v1/social`) | `app/social/page.tsx` | فیدِ کامل: پست با متن + **رسانه (data-URL)** + لایک + **افزودنِ نظر** (`comment`). صفحهٔ `/` فیدِ سبکِ لندینگ می‌ماند؛ `/social` نسخهٔ کامل با رسانه/نظر است. |
+| `modules/stories` (`/v1/stories`) | `app/stories/page.tsx` | صفحهٔ مستقلِ داستان‌ها با رِندرِ `StoryBar` (که خودش `StoryViewer` + انتشار + حلقه‌ها را دارد). پیش‌تر فقط داخلِ `app/messages` بود. |
+| `modules/investment` (`/v1/investment`) | `app/investment/page.tsx` | استعلامِ NAV، خریدِ واحدِ صندوق، فهرستِ موقعیت‌های من (ADR-09، درآمدزا). |
+| `modules/membership` (`/v1/membership`) | `app/membership/page.tsx` | طرحِ فعلی، ارتقا به standard/premium، لغو، نمایشِ کش‌بک. |
+| `modules/gamification` (`/v1/gamification`) | `app/gamification/page.tsx` | امتیازِ فعالیت + فهرستِ نشان‌ها. |
+| `modules/reputation` (`/v1/reputation`) | `app/reputation/page.tsx` | امتیازِ اعتبارِ کاربرِ جاری (÷۱۰) + نظرهای دریافتی. |
+
+### نگاشتِ لایهٔ کلاینتِ API (`lib/api.ts`)
+- `api.social`: افزودنِ `media` به `createPost` + متدهای `deletePost`, `comment`.
+- بخش‌های جدید: `api.investment` (`nav/positions/buy/sell`)، `api.membership` (`get/upgrade/cancel`)،
+  `api.gamification` (`points/badges`)، `api.reputation` (`scores/reviews/submitReview`) + تایپ‌های
+  `NavOut, PositionOut, MembershipOut, PointsOut, BadgeOut, ScoreOut, ReviewOut, CommentOut`.
+
+### ثبت در ناوبری
+- `lib/roles.ts`: افزودنِ آیتمِ **«اجتماعی» (`/social`)** به `NAV_INDIVIDUAL` (نوار flex/space-around، ۶ آیتم).
+- `app/me/page.tsx`: تایلِ **«داستان‌ها» (`/stories`)** کنارِ تایل‌های داشبورد/راه‌اندازی.
+- `app/services/page.tsx`: چهار کاشیِ جدید (سرمایه‌گذاری، عضویت، امتیاز و نشان، اعتبار) در هابِ خدمات.
+
+### بک‌لاگِ آتی (بزرگ، خارج از اسکوپِ سریع)
+- **تماسِ صوتی/تصویری WebRTC** (سند M1) — کامپوننت‌های سیگنالینگ/تماس هنوز پورت نشده.
+- **AI Assistant کامل** — فعلاً فقط `AssistantFab` هست؛ صفحهٔ گفتگوی کامل نیاز است.
+- **Reels / صفحهٔ اجتماعیِ ویدیوییِ عمودی** — بک‌اند `post_type=reel` را می‌پذیرد ولی UIِ اختصاصی ندارد.
+
+### اعتبارسنجیِ این مرحله
+- `pytest`/`tsc`/`node_modules` در کانتینر نصب نیستند (طبق سیاستِ بیلدِ سنگین → فقط سرورِ SSH).
+- بررسیِ سبک: توازنِ `{}`/`()`/`[]` و وجودِ `export default` در همهٔ ۶ صفحهٔ جدید تأیید شد؛
+  تایپ‌ها و متدهای `api` ارجاع‌شده در `lib/api.ts` موجودند. تایپ‌چکِ کاملِ TS و بیلد باید روی سرورِ SSH اجرا شود.

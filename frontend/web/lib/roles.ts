@@ -25,6 +25,7 @@ export interface RolePanelTile {
 // ناوبریِ پایین به‌ازای هر نقش. نقش‌های ناشناخته به individual برمی‌گردند.
 const NAV_INDIVIDUAL: NavItem[] = [
   { href: "/", icon: "🏠", label: "خانه" },
+  { href: "/social", icon: "📣", label: "اجتماعی" },
   { href: "/earth", icon: "🌍", label: "کره" },
   { href: "/messages", icon: "💬", label: "پیام‌ها" },
   { href: "/services", icon: "🧩", label: "خدمات" },

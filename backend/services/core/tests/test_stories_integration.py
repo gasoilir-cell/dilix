@@ -109,6 +109,34 @@ async def test_circles_list_and_add(integration) -> None:
     assert circles["family"] == []
 
 
+async def test_delete_story_removes_from_user_list(integration) -> None:
+    author = integration.earth_id
+    story = await _create_story(integration)
+
+    r = await integration.client.delete(f"/v1/stories/{story['id']}")
+    assert r.status_code == 204
+    r = await integration.client.get(f"/v1/stories/user/{author}")
+    assert r.status_code == 200
+    assert r.json() == []
+
+
+async def test_delete_story_forbidden_to_other_user_as_404(integration) -> None:
+    story = await _create_story(integration)
+    integration.as_user()
+    r = await integration.client.delete(f"/v1/stories/{story['id']}")
+    assert r.status_code == 404
+
+
+async def test_stories_auth_required_for_protected_routes() -> None:
+    from httpx import ASGITransport, AsyncClient
+
+    from app.main import app
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        r = await client.get("/v1/stories/feed")
+    assert r.status_code == 403
+
+
 async def test_add_self_to_circle_rejected(integration) -> None:
     r = await integration.client.post(
         "/v1/stories/circles/friends", json={"earth_id": str(integration.earth_id)}

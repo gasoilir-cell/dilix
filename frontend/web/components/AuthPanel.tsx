@@ -1,41 +1,20 @@
 "use client";
 
-// پنلِ احرازِ هویتِ یکپارچه و آسان — همه‌ی روش‌ها در یک‌جا، با حفظِ امنیت:
-//  ۱) اجتماعی (Google/Microsoft/Apple/Facebook) — یک‌لمسی
-//  ۲) موبایل با کدِ یک‌بارمصرف (passwordless) — سریع‌ترین مسیر
-//  ۳) ایمیل + گذرواژه — با امکانِ «ورود» و «ثبت‌نام»
+// پنلِ احرازِ هویت — فعلاً فقط ایمیل (ثبت‌نام و ورود). سایرِ روش‌ها (اجتماعی و
+// موبایلِ یک‌بارمصرف) موقتاً غیرفعال‌اند و پس از آماده‌سازیِ زیرساخت بازمی‌گردند.
 //
-// پس از موفقیت، توکن ذخیره و onAuthenticated فراخوانی می‌شود.
+// پس از موفقیت، هر دو توکن (access + refresh) ذخیره و onAuthenticated فراخوانی می‌شود.
 
 import { useState } from "react";
-import {
-  api,
-  setAccessToken,
-  type OAuthProvider,
-} from "@/lib/api";
-import { getProviderCredential, SocialAuthError } from "@/lib/social";
+import { api, setSession } from "@/lib/api";
 
-type Method = "phone" | "email";
 type EmailMode = "login" | "register";
 
-const SOCIAL_PROVIDERS: { id: OAuthProvider; label: string; icon: string }[] = [
-  { id: "google", label: "Google", icon: "G" },
-  { id: "microsoft", label: "Microsoft", icon: "⊞" },
-  { id: "apple", label: "Apple", icon: "" },
-  { id: "facebook", label: "Facebook", icon: "f" },
-];
-
 export default function AuthPanel({ onAuthenticated }: { onAuthenticated: () => void }) {
-  const [method, setMethod] = useState<Method>("phone");
   const [emailMode, setEmailMode] = useState<EmailMode>("login");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [showPwd, setShowPwd] = useState(false);
-
-  // phone OTP
-  const [phone, setPhone] = useState("");
-  const [otpChallengeId, setOtpChallengeId] = useState<string | null>(null);
-  const [otpCode, setOtpCode] = useState("");
 
   // email login/register
   const [displayName, setDisplayName] = useState("");
@@ -47,49 +26,6 @@ export default function AuthPanel({ onAuthenticated }: { onAuthenticated: () => 
     onAuthenticated();
   }
 
-  async function socialLogin(provider: OAuthProvider) {
-    setError(null);
-    setBusy(provider);
-    try {
-      const credential = await getProviderCredential(provider);
-      const res = await api.auth.oauthLogin(provider, credential);
-      setAccessToken(res.tokens.access_token);
-      finish();
-    } catch (e) {
-      setError(e instanceof SocialAuthError ? e.message : "ورود با شبکه‌ی اجتماعی ناموفق بود.");
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function sendOtp() {
-    setError(null);
-    setBusy("otp");
-    try {
-      const res = await api.auth.otpRequest("sms", phone.trim());
-      setOtpChallengeId(res.challenge_id);
-    } catch {
-      setError("ارسالِ کد ناموفق بود. شماره‌ی موبایل را بررسی کنید.");
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function verifyOtp() {
-    if (!otpChallengeId) return;
-    setError(null);
-    setBusy("otp");
-    try {
-      const res = await api.auth.otpVerify(otpChallengeId, otpCode.trim());
-      setAccessToken(res.tokens.access_token);
-      finish();
-    } catch {
-      setError("کدِ واردشده نادرست یا منقضی است.");
-    } finally {
-      setBusy(null);
-    }
-  }
-
   async function emailLogin() {
     setError(null);
     setBusy("email");
@@ -99,10 +35,10 @@ export default function AuthPanel({ onAuthenticated }: { onAuthenticated: () => 
         setError("این حساب تأییدِ دومرحله‌ای دارد؛ لطفاً از اپِ موبایل ادامه دهید.");
         return;
       }
-      setAccessToken(tokens.access_token);
+      setSession(tokens);
       finish();
     } catch {
-      setError("ورود ناموفق بود. ایمیل/شماره یا گذرواژه نادرست است.");
+      setError("ورود ناموفق بود. ایمیل یا گذرواژه نادرست است.");
     } finally {
       setBusy(null);
     }
@@ -124,10 +60,10 @@ export default function AuthPanel({ onAuthenticated }: { onAuthenticated: () => 
         email: isEmail ? id : undefined,
         phone: isEmail ? undefined : id,
       });
-      setAccessToken(res.tokens.access_token);
+      setSession(res.tokens);
       finish();
     } catch {
-      setError("ثبت‌نام ناموفق بود. ممکن است این ایمیل/شماره قبلاً ثبت شده باشد.");
+      setError("ثبت‌نام ناموفق بود. ممکن است این ایمیل قبلاً ثبت شده باشد.");
     } finally {
       setBusy(null);
     }
@@ -135,164 +71,79 @@ export default function AuthPanel({ onAuthenticated }: { onAuthenticated: () => 
 
   return (
     <div className="auth-panel">
-      {/* ── روشِ سریع: شبکه‌های اجتماعی ── */}
-      <div className="social-grid">
-        {SOCIAL_PROVIDERS.map((p) => (
-          <button
-            key={p.id}
-            className="btn secondary social-btn"
-            disabled={busy != null}
-            onClick={() => socialLogin(p.id)}
-          >
-            {p.icon && <span className="social-ico" aria-hidden>{p.icon}</span>}
-            {busy === p.id ? "در حال اتصال…" : p.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="divider"><span>یا</span></div>
-
-      {/* ── انتخابِ روشِ موبایل / ایمیل ── */}
-      <div className="seg">
+      <div className="seg sub">
         <button
-          className={`seg-btn ${method === "phone" ? "active" : ""}`}
-          onClick={() => { setMethod("phone"); setError(null); }}
+          className={`seg-btn ${emailMode === "login" ? "active" : ""}`}
+          onClick={() => { setEmailMode("login"); setError(null); }}
         >
-          موبایل
+          ورود
         </button>
         <button
-          className={`seg-btn ${method === "email" ? "active" : ""}`}
-          onClick={() => { setMethod("email"); setError(null); }}
+          className={`seg-btn ${emailMode === "register" ? "active" : ""}`}
+          onClick={() => { setEmailMode("register"); setError(null); }}
         >
-          ایمیل
+          ثبت‌نام
         </button>
       </div>
 
-      {method === "phone" && (
-        <div>
-          <input
-            className="input"
-            inputMode="tel"
-            placeholder="۰۹۱۲۱۲۳۴۵۶۷ یا ‎+۹۸۹۱۲۱۲۳۴۵۶۷"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            disabled={otpChallengeId != null}
-            dir="ltr"
-          />
-          {otpChallengeId == null ? (
-            <button
-              className="btn block"
-              disabled={busy != null || phone.trim().length < 8}
-              onClick={sendOtp}
-            >
-              {busy === "otp" ? "در حال ارسال…" : "ارسالِ کدِ تأیید"}
-            </button>
-          ) : (
-            <>
-              <input
-                className="input"
-                inputMode="numeric"
-                placeholder="کدِ ۶ رقمی"
-                value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && verifyOtp()}
-                dir="ltr"
-              />
-              <button
-                className="btn block"
-                disabled={busy != null || otpCode.trim().length < 4}
-                onClick={verifyOtp}
-              >
-                {busy === "otp" ? "در حال بررسی…" : "تأیید و ورود"}
-              </button>
-              <button
-                className="btn link"
-                onClick={() => { setOtpChallengeId(null); setOtpCode(""); }}
-              >
-                تغییرِ شماره
-              </button>
-            </>
-          )}
-        </div>
+      {emailMode === "register" && (
+        <input
+          className="input"
+          placeholder="نامِ نمایشی"
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
+        />
       )}
 
-      {method === "email" && (
-        <div>
-          <div className="seg sub">
-            <button
-              className={`seg-btn ${emailMode === "login" ? "active" : ""}`}
-              onClick={() => { setEmailMode("login"); setError(null); }}
-            >
-              ورود
-            </button>
-            <button
-              className={`seg-btn ${emailMode === "register" ? "active" : ""}`}
-              onClick={() => { setEmailMode("register"); setError(null); }}
-            >
-              ثبت‌نام
-            </button>
-          </div>
+      <input
+        className="input"
+        placeholder="ایمیل"
+        value={identifier}
+        onChange={(e) => setIdentifier(e.target.value)}
+        dir="ltr"
+      />
 
-          {emailMode === "register" && (
-            <input
-              className="input"
-              placeholder="نامِ نمایشی"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-            />
-          )}
+      <div className="password-field">
+        <input
+          className="input"
+          type={showPwd ? "text" : "password"}
+          placeholder="گذرواژه (حداقل ۸ نویسه)"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && (emailMode === "login" ? emailLogin() : emailRegister())}
+          dir="ltr"
+        />
+        <button
+          type="button"
+          className="pwd-toggle"
+          onClick={() => setShowPwd((v) => !v)}
+          aria-label={showPwd ? "پنهان‌کردنِ گذرواژه" : "نمایشِ گذرواژه"}
+        >
+          {showPwd ? "🙈" : "👁"}
+        </button>
+      </div>
 
-          <input
-            className="input"
-            placeholder="ایمیل یا شماره موبایل"
-            value={identifier}
-            onChange={(e) => setIdentifier(e.target.value)}
-            dir="ltr"
-          />
-
-          <div className="password-field">
-            <input
-              className="input"
-              type={showPwd ? "text" : "password"}
-              placeholder="گذرواژه (حداقل ۸ نویسه)"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && (emailMode === "login" ? emailLogin() : emailRegister())}
-              dir="ltr"
-            />
-            <button
-              type="button"
-              className="pwd-toggle"
-              onClick={() => setShowPwd((v) => !v)}
-              aria-label={showPwd ? "پنهان‌کردنِ گذرواژه" : "نمایشِ گذرواژه"}
-            >
-              {showPwd ? "🙈" : "👁"}
-            </button>
-          </div>
-
-          {emailMode === "login" ? (
-            <button
-              className="btn block"
-              disabled={busy != null || identifier.trim().length < 3 || password.length < 1}
-              onClick={emailLogin}
-            >
-              {busy === "email" ? "در حال ورود…" : "ورود"}
-            </button>
-          ) : (
-            <button
-              className="btn block"
-              disabled={
-                busy != null ||
-                displayName.trim().length < 2 ||
-                identifier.trim().length < 3 ||
-                password.length < 8
-              }
-              onClick={emailRegister}
-            >
-              {busy === "email" ? "در حال ساخت…" : "ساختِ حساب"}
-            </button>
-          )}
-        </div>
+      {emailMode === "login" ? (
+        <button
+          className="btn block"
+          disabled={busy != null || identifier.trim().length < 3 || password.length < 1}
+          onClick={emailLogin}
+        >
+          {busy === "email" ? "در حال ورود…" : "ورود"}
+        </button>
+      ) : (
+        <button
+          className="btn block"
+          disabled={
+            busy != null ||
+            displayName.trim().length < 2 ||
+            identifier.trim().length < 3 ||
+            password.length < 8
+          }
+          onClick={emailRegister}
+        >
+          {busy === "email" ? "در حال ساخت…" : "ساختِ حساب"}
+        </button>
       )}
 
       {error && <p className="danger auth-error">{error}</p>}

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import AssistantFab from "@/components/AssistantFab";
+import CallManager from "@/components/CallManager";
 import { dir } from "@/lib/i18n";
 
 export const metadata: Metadata = {
@@ -26,6 +27,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>
         <div className="app-shell">
           {children}
+          <CallManager />
           <AssistantFab />
         </div>
         <BottomNav />

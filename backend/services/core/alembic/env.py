@@ -23,6 +23,8 @@ from app.modules.kyc import models as _kyc  # noqa: F401
 from app.modules.freight import models as _freight  # noqa: F401
 from app.modules.messaging import models as _messaging  # noqa: F401
 from app.modules.social import models as _social  # noqa: F401
+from app.modules.stickers import models as _stickers  # noqa: F401
+from app.modules.stories import models as _stories  # noqa: F401
 from app.modules.notification import models as _notification  # noqa: F401
 from app.modules.referral import models as _referral  # noqa: F401
 from app.modules.gamification import models as _gamification  # noqa: F401

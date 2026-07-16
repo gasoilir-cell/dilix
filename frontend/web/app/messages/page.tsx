@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { api, type MessageOut, type RoomOut, isAuthenticated } from "@/lib/api";
+import { requestCall, type CallMedia } from "@/lib/call-store";
 import StoryBar from "@/components/StoryBar";
 import StickerLibrary from "@/components/StickerLibrary";
 
@@ -33,6 +34,12 @@ export default function Messenger() {
     } catch {
       setError("ساخت گفتگو ممکن نشد. ابتدا وارد شوید.");
     }
+  }
+
+  function startCall(media: CallMedia) {
+    const peer = window.prompt("Earth ID مخاطب برای تماس را وارد کنید");
+    if (!peer?.trim()) return;
+    requestCall({ earthId: peer.trim(), name: peer.trim(), media });
   }
 
   async function send() {
@@ -71,7 +78,15 @@ export default function Messenger() {
           <div className="card">
             <div className="row-between">
               <strong>{room.title ?? "گفتگو"}</strong>
-              {room.is_e2ee && <span className="badge">E2EE 🔒</span>}
+              <div className="row" style={{ gap: 8 }}>
+                <button className="btn secondary" onClick={() => startCall("audio")} aria-label="شروع تماس صوتی">
+                  تماس صوتی
+                </button>
+                <button className="btn secondary" onClick={() => startCall("video")} aria-label="شروع تماس تصویری">
+                  تماس تصویری
+                </button>
+                {room.is_e2ee && <span className="badge">E2EE 🔒</span>}
+              </div>
             </div>
           </div>
 

@@ -26,7 +26,7 @@ export default function LoginPage() {
 
       <div className="card auth-card">
         <h1 className="auth-title">ورود / ثبت‌نام</h1>
-        <p className="muted">سریع و امن وارد شوید — موبایل، ایمیل یا حسابِ اجتماعی</p>
+        <p className="muted">با ایمیل سریع و امن وارد شوید</p>
         <AuthPanel onAuthenticated={() => router.replace("/me")} />
       </div>
 

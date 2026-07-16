@@ -104,6 +104,41 @@ async def test_star_and_starred_listing(integration) -> None:
     assert starred[0]["is_starred"] is True
 
 
+async def test_delete_sticker_then_pack(integration) -> None:
+    pack = await _create_pack(integration)
+    sticker = await _add_sticker(integration, pack["id"])
+
+    r = await integration.client.delete(f"/v1/stickers/{sticker['id']}")
+    assert r.status_code == 204
+    r = await integration.client.get(f"/v1/stickers/packs/{pack['id']}")
+    assert r.status_code == 200
+    detail = r.json()
+    assert detail["sticker_count"] == 0
+    assert detail["stickers"] == []
+
+    r = await integration.client.delete(f"/v1/stickers/packs/{pack['id']}")
+    assert r.status_code == 204
+    r = await integration.client.get(f"/v1/stickers/packs/{pack['id']}")
+    assert r.status_code == 404
+
+
+async def test_delete_pack_forbidden_to_other_user_as_404(integration) -> None:
+    pack = await _create_pack(integration, is_public=False)
+    integration.as_user()
+    r = await integration.client.delete(f"/v1/stickers/packs/{pack['id']}")
+    assert r.status_code == 404
+
+
+async def test_stickers_auth_required_for_protected_routes() -> None:
+    from httpx import ASGITransport, AsyncClient
+
+    from app.main import app
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        r = await client.get("/v1/stickers/packs/mine")
+    assert r.status_code == 403
+
+
 async def test_get_unknown_pack_404(integration) -> None:
     r = await integration.client.get(f"/v1/stickers/packs/{uuid.uuid4()}")
     assert r.status_code == 404

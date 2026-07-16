@@ -14,6 +14,8 @@ from alembic import op
 
 from app.core.database import Base
 
+EXCLUDED_FUTURE_SCHEMAS = {"stickers", "stories"}
+
 # شناسه‌های Alembic
 revision = "0001_initial_baseline"
 down_revision = None
@@ -43,6 +45,8 @@ SCHEMAS = (
     "referral",
     "reputation",
     "social",
+    "stickers",
+    "stories",
     "telecom",
 )
 
@@ -51,12 +55,16 @@ def upgrade() -> None:
     bind = op.get_bind()
     for schema in SCHEMAS:
         op.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema}"')
-    # ساختِ همه‌ی جداولِ ثبت‌شده در metadata (ترتیبِ FK خودکار رعایت می‌شود)
-    Base.metadata.create_all(bind=bind)
+    # ساختِ جداولِ ثبت‌شده در baseline؛ جدول‌های مهاجرت‌های بعدی این‌جا ساخته نمی‌شوند.
+    for table in Base.metadata.sorted_tables:
+        if table.schema not in EXCLUDED_FUTURE_SCHEMAS:
+            table.create(bind=bind, checkfirst=True)
 
 
 def downgrade() -> None:
     bind = op.get_bind()
-    Base.metadata.drop_all(bind=bind)
+    for table in reversed(Base.metadata.sorted_tables):
+        if table.schema not in EXCLUDED_FUTURE_SCHEMAS:
+            table.drop(bind=bind, checkfirst=True)
     for schema in SCHEMAS:
         op.execute(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE')

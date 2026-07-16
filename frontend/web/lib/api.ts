@@ -26,7 +26,10 @@ export class ApiError extends Error {
 }
 
 const TOKEN_KEY = "dilix.access_token";
+const REFRESH_KEY = "dilix.refresh_token";
+const REFRESH_PATH = "/v1/auth/token/refresh";
 let accessToken: string | null = null;
+let refreshToken: string | null = null;
 
 export function setAccessToken(token: string | null): void {
   accessToken = token;
@@ -42,11 +45,65 @@ export function getAccessToken(): string | null {
   return accessToken;
 }
 
-export function isAuthenticated(): boolean {
-  return getAccessToken() != null;
+export function setRefreshToken(token: string | null): void {
+  refreshToken = token;
+  if (!isServer) {
+    if (token) window.localStorage.setItem(REFRESH_KEY, token);
+    else window.localStorage.removeItem(REFRESH_KEY);
+  }
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+export function getRefreshToken(): string | null {
+  if (refreshToken) return refreshToken;
+  if (!isServer) refreshToken = window.localStorage.getItem(REFRESH_KEY);
+  return refreshToken;
+}
+
+// نشستِ کامل را ذخیره می‌کند: هم access و هم refresh (برای پایداریِ نشست پس از رفرش).
+export function setSession(tokens: TokenPair): void {
+  setAccessToken(tokens.access_token);
+  setRefreshToken(tokens.refresh_token);
+}
+
+export function clearSession(): void {
+  setAccessToken(null);
+  setRefreshToken(null);
+}
+
+export function isAuthenticated(): boolean {
+  return getAccessToken() != null || getRefreshToken() != null;
+}
+
+// تجدیدِ access token با refresh token. برای جلوگیری از چند درخواستِ هم‌زمان،
+// نتیجه در یک Promise مشترک نگه داشته می‌شود.
+let refreshing: Promise<boolean> | null = null;
+async function tryRefresh(): Promise<boolean> {
+  if (refreshing) return refreshing;
+  const rt = getRefreshToken();
+  if (!rt) return false;
+  refreshing = (async () => {
+    try {
+      const res = await fetch(`${baseUrl()}${REFRESH_PATH}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ refresh_token: rt }),
+      });
+      if (!res.ok) {
+        clearSession();
+        return false;
+      }
+      setSession((await res.json()) as TokenPair);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      refreshing = null;
+    }
+  })();
+  return refreshing;
+}
+
+async function request<T>(path: string, init: RequestInit = {}, retried = false): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("Accept", "application/json");
   if (init.body) headers.set("Content-Type", "application/json");
@@ -54,6 +111,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
   const res = await fetch(`${baseUrl()}${path}`, { ...init, headers });
+  // اگر access token منقضی شده باشد، یک‌بار با refresh token تجدید و درخواست را تکرار می‌کنیم.
+  if (res.status === 401 && !retried && path !== REFRESH_PATH && getRefreshToken()) {
+    if (await tryRefresh()) return request<T>(path, init, true);
+  }
   if (!res.ok) {
     let problem: ProblemDetail;
     try {
@@ -322,6 +383,28 @@ export interface NotificationOut {
   created_at: string;
 }
 
+export interface AiConversationOut {
+  id: string;
+  agent_type: string;
+  title: string | null;
+  created_at: string;
+}
+
+export interface AiMessageOut {
+  id: string;
+  conversation_id: string;
+  role: "user" | "assistant" | "system" | string;
+  content: string;
+  tool_calls: unknown[];
+  sent_at: string;
+}
+
+export interface WsCallSignal {
+  type: "call.offer" | "call.answer" | "call.end" | "ice.candidate" | string;
+  payload: Record<string, unknown>;
+  ts?: string;
+}
+
 // داستان‌ها (stories) — قرارداد: media_url (بدونِ آپلودِ فایل؛ data-URL هم می‌پذیرد).
 export interface StoryRingOut {
   author_earth_id: string;
@@ -390,6 +473,68 @@ export interface StickerPackDetailOut extends StickerPackOut {
   stickers: StickerOut[];
 }
 
+export interface CommentOut {
+  id: string;
+  post_id: string;
+  author_earth_id: string;
+  parent_id: string | null;
+  content: string;
+  created_at: string;
+}
+
+// سرمایه‌گذاری (investment)
+export interface NavOut {
+  fund_code: string;
+  nav_minor: number;
+}
+
+export interface PositionOut {
+  id: string;
+  fund_code: string;
+  units: number;
+  status: string;
+}
+
+// عضویت (membership)
+export interface MembershipOut {
+  id: string;
+  earth_id: string;
+  plan: string;
+  status: string;
+  cashback_bps: number;
+  expires_at: string | null;
+}
+
+// بازی‌وارسازی (gamification)
+export interface PointsOut {
+  balance: number;
+}
+
+export interface BadgeOut {
+  id: string;
+  badge_code: string;
+  description: string | null;
+  awarded_at: string;
+}
+
+// اعتبار (reputation)
+export interface ScoreOut {
+  earth_id: string;
+  domain: string;
+  score: number;
+  review_count: number;
+}
+
+export interface ReviewOut {
+  id: string;
+  reviewee_earth_id: string;
+  reviewer_earth_id: string;
+  domain: string;
+  transaction_ref: string;
+  rating: number;
+  comment: string | null;
+}
+
 // ─────────────────────── API surface ──────────────────────────
 
 export const api = {
@@ -451,12 +596,19 @@ export const api = {
 
   social: {
     feed: (limit = 30) => request<PostOut[]>(`/v1/social/feed?limit=${limit}`),
-    createPost: (body: { post_type?: string; content?: string; visibility?: string }) =>
+    createPost: (body: { post_type?: string; content?: string; media?: unknown[]; visibility?: string }) =>
       request<PostOut>("/v1/social/posts", { method: "POST", body: JSON.stringify(body) }),
+    deletePost: (postId: string) =>
+      request<void>(`/v1/social/posts/${postId}`, { method: "DELETE" }),
     react: (postId: string, reaction: string) =>
       request<PostOut>(`/v1/social/posts/${postId}/reactions`, {
         method: "POST",
         body: JSON.stringify({ reaction }),
+      }),
+    comment: (postId: string, content: string) =>
+      request<CommentOut>(`/v1/social/posts/${postId}/comments`, {
+        method: "POST",
+        body: JSON.stringify({ content }),
       }),
   },
 
@@ -551,6 +703,39 @@ export const api = {
     revenueShare: () => request<RevenueShare>("/v1/growth/revenue-share"),
   },
 
+  investment: {
+    nav: (fundCode: string) => request<NavOut>(`/v1/investment/nav?fund_code=${encodeURIComponent(fundCode)}`),
+    positions: () => request<PositionOut[]>("/v1/investment/positions"),
+    buy: (body: { fund_code: string; amount_minor: number; currency?: string; provider_code?: string }) =>
+      request<PositionOut>("/v1/investment/buy", { method: "POST", body: JSON.stringify(body) }),
+    sell: (body: { position_id: string; units: number }) =>
+      request<PositionOut>("/v1/investment/sell", { method: "POST", body: JSON.stringify(body) }),
+  },
+
+  membership: {
+    get: () => request<MembershipOut>("/v1/membership"),
+    upgrade: (body: { plan: "free" | "standard" | "premium"; months?: number }) =>
+      request<MembershipOut>("/v1/membership/upgrade", { method: "POST", body: JSON.stringify(body) }),
+    cancel: () => request<MembershipOut>("/v1/membership/cancel", { method: "POST" }),
+  },
+
+  gamification: {
+    points: () => request<PointsOut>("/v1/gamification/points"),
+    badges: () => request<BadgeOut[]>("/v1/gamification/badges"),
+  },
+
+  reputation: {
+    scores: (earthId: string) => request<ScoreOut[]>(`/v1/reputation/scores/${earthId}`),
+    reviews: (earthId: string) => request<ReviewOut[]>(`/v1/reputation/reviews/${earthId}`),
+    submitReview: (body: {
+      reviewee_earth_id: string;
+      domain: string;
+      transaction_ref: string;
+      rating: number;
+      comment?: string;
+    }) => request<ReviewOut>("/v1/reputation/reviews", { method: "POST", body: JSON.stringify(body) }),
+  },
+
   stories: {
     feed: () => request<StoryRingOut[]>("/v1/stories/feed"),
     userStories: (earthId: string) => request<StoryOut[]>(`/v1/stories/user/${earthId}`),
@@ -618,11 +803,34 @@ export const api = {
   },
 
   ai: {
-    invoke: (conversationId: string, message: string) =>
-      request<{ reply: string }>(`/v1/ai/conversations/${conversationId}/messages`, {
+    createConversation: (body: { agent_type?: string; title?: string } = {}) =>
+      request<AiConversationOut>("/v1/ai/conversations", { method: "POST", body: JSON.stringify(body) }),
+    conversations: () => request<AiConversationOut[]>("/v1/ai/conversations"),
+    history: (conversationId: string, limit = 50) =>
+      request<AiMessageOut[]>(`/v1/ai/conversations/${conversationId}/history?limit=${limit}`),
+    chat: (conversationId: string, message: string) =>
+      request<AiMessageOut>(`/v1/ai/conversations/${conversationId}/chat`, {
         method: "POST",
         body: JSON.stringify({ message }),
       }),
+    invoke: async (conversationId: string, message: string) => {
+      const msg = await request<AiMessageOut>(`/v1/ai/conversations/${conversationId}/chat`, {
+        method: "POST",
+        body: JSON.stringify({ message }),
+      });
+      return { reply: msg.content };
+    },
+  },
+
+  realtime: {
+    open: (token: string) => {
+      const base = baseUrl();
+      const httpBase = base.startsWith("/") ? window.location.origin + base : base;
+      const url = new URL("/v1/ws", httpBase);
+      url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+      url.searchParams.set("token", token);
+      return new WebSocket(url);
+    },
   },
 
   provider: {

@@ -11,6 +11,7 @@
   --color-border: #263150;
   --color-success: #34d399;
   --color-danger: #f87171;
+  --color-overlay: rgba(5, 8, 18, 0.92);
   --radius: 14px;
   --radius-sm: 8px;
   --space: 16px;
@@ -27,6 +28,7 @@
     --color-text: #11182a;
     --color-text-muted: #5b6680;
     --color-border: #dfe5f1;
+    --color-overlay: rgba(226, 232, 244, 0.9);
   }
 }
 
@@ -221,6 +223,48 @@ a { color: inherit; text-decoration: none; }
 .assistant-input input {
   flex: 1;
 }
+.assistant-full {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+.assistant-full.compact {
+  display: block;
+}
+.assistant-full.compact .assistant-sidebar {
+  display: none;
+}
+.assistant-full.compact .assistant-chat {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}
+.assistant-chat .assistant-body {
+  min-height: 260px;
+  max-height: 56dvh;
+}
+.conversation-chip {
+  display: block;
+  width: 100%;
+  margin: 6px 0;
+  padding: 9px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  text-align: right;
+  font-family: inherit;
+  cursor: pointer;
+}
+.conversation-chip.active {
+  border-color: var(--color-primary);
+  color: #fff;
+  background: var(--color-primary);
+}
+@media (max-width: 680px) {
+  .assistant-full { grid-template-columns: 1fr; }
+}
 
 /* ── Chat / bubbles ── */
 .chat {
@@ -246,6 +290,57 @@ a { color: inherit; text-decoration: none; }
   background: var(--color-primary);
   color: #fff;
 }
+
+.call-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--color-overlay);
+}
+.call-card {
+  width: min(420px, 100%);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: calc(var(--radius) + 8px);
+  padding: 24px;
+  text-align: center;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+}
+.call-avatar {
+  width: 86px;
+  height: 86px;
+  margin: 0 auto 12px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--color-surface-2);
+  font-size: 2rem;
+}
+.call-remote-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+}
+.call-local-video {
+  position: absolute;
+  inset-block-start: 16px;
+  inset-inline-start: 16px;
+  width: 110px;
+  height: 150px;
+  object-fit: cover;
+  border-radius: var(--radius);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: #000;
+  z-index: 1;
+}
+.danger-text { color: var(--color-danger); }
 
 /* ── Form inputs ── */
 .input {

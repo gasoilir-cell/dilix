@@ -20,6 +20,8 @@ import uuid  # noqa: E402
 
 import pytest_asyncio  # noqa: E402
 from sqlalchemy import event  # noqa: E402
+from sqlalchemy.dialects.postgresql import JSONB  # noqa: E402
+from sqlalchemy.ext.compiler import compiles  # noqa: E402
 from sqlalchemy.ext.asyncio import (  # noqa: E402
     AsyncSession,
     async_sessionmaker,
@@ -27,10 +29,13 @@ from sqlalchemy.ext.asyncio import (  # noqa: E402
 )
 from sqlalchemy.pool import StaticPool  # noqa: E402
 
-_ATTACHED_SCHEMAS = ("stickers", "stories")
+_ATTACHED_SCHEMAS = ("ai", "stickers", "stories")
 
 
-class IntegrationHarness:
+@compiles(JSONB, "sqlite")
+def _compile_jsonb_sqlite(_type, compiler, **kw):  # noqa: ANN001, ARG001
+    return "JSON"
+
     """کلاینتِ HTTP + قابلیتِ تعویضِ کاربرِ احرازشده در طولِ تست."""
 
     def __init__(self, client, state: dict) -> None:
@@ -53,8 +58,9 @@ class IntegrationHarness:
 async def integration() -> IntegrationHarness:
     from httpx import ASGITransport, AsyncClient
 
-    # register شدنِ جداولِ دو ماژول روی metadata با alias — تا `import app.modules...`
+    # register شدنِ جداولِ ماژول‌های تست‌شده روی metadata با alias — تا `import app.modules...`
     # نامِ محلیِ `app` (نمونهٔ FastAPI) را با پکیجِ `app` overwrite نکند.
+    import app.modules.ai.models as _ai_models  # noqa: F401
     import app.modules.stickers.models as _stickers_models  # noqa: F401
     import app.modules.stories.models as _stories_models  # noqa: F401
 

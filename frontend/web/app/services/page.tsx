@@ -8,6 +8,10 @@ const services = [
   { href: "/services/marketplace", icon: "🛍️", title: "بازارگاه", desc: "خدمات و فریلنسری" },
   { href: "/services/discovery", icon: "🧭", title: "کشف", desc: "یافتنِ افراد و کسب‌وکارهای نزدیک" },
   { href: "/services/growth", icon: "🌱", title: "رشد", desc: "دعوت، پاداش و سهمِ درآمد" },
+  { href: "/investment", icon: "📈", title: "سرمایه‌گذاری", desc: "صندوق‌های دارای مجوز و موقعیت‌های من" },
+  { href: "/membership", icon: "⭐", title: "عضویت", desc: "طرح‌های اشتراک و کش‌بک" },
+  { href: "/gamification", icon: "🎮", title: "امتیاز و نشان", desc: "امتیازِ فعالیت و نشان‌ها" },
+  { href: "/reputation", icon: "🏆", title: "اعتبار", desc: "امتیازِ اعتبار و نظرهای دریافتی" },
 ];
 
 export default function ServicesHub() {

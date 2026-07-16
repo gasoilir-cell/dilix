@@ -30,19 +30,22 @@ dilix/
 
 ---
 
-## وضعیت فعلی — Milestone 0 (Foundation)
+## وضعیت فعلی — Milestone 0–3 Backend + Web Shell
 
 | مؤلفه | وضعیت |
 |---|---|
 | Shared Kernel (Earth ID, Events, Errors) | ✅ |
-| سرویس Core — اسکلت | ✅ |
+| سرویس Core — Modular Monolith | ✅ لایه‌های ۰ تا ۳ |
 | Identity (Earth ID + Profile + Visibility opt-in) | ✅ |
-| Auth (Register + Login + JWT، اسکلت MFA) | ✅ |
+| Auth (Register + Login + JWT، MFA/E2EE keys) | ✅ |
 | Authorization (RBAC + ABAC سبک) | ✅ |
 | Provider (ثبت‌نام + KYB + ثبت API) | ✅ |
-| تست‌های واحد | ✅ ۷ تست |
-| Alembic migrations | ✅ پیکربندی |
-| Web Super-App Shell (فید/کره/پیام‌ها/خدمات/من + دستیار شناور) | ✅ Next.js + RTL |
+| Engagement (Messaging/Social/Notifications/Stickers/Stories) | ✅ |
+| Verticals (Payments/Escrow, Insurance, Carrier, Freight) | ✅ |
+| Growth (Referral/Gamification/Membership/Telecom/Investment/Marketplace) | ✅ |
+| تست‌ها | ✅ آخرین اجرای کامل ثبت‌شده: ۱۴۳ تست |
+| Alembic migrations | ✅ baseline + migration رسمی stickers/stories |
+| Web Super-App Shell | ✅ Next.js + RTL؛ wallet/notifications/support و صفحات خدمات |
 
 ---
 
@@ -55,6 +58,8 @@ cp backend/services/core/.env.example backend/services/core/.env
 make core-migrate      # ساخت جداول
 make core-run          # http://localhost:8000/docs
 make core-test         # اجرای تست‌ها
+# یا اجرای مستقیم روی SQLite درون‌حافظه‌ای:
+# cd backend/services/core && DILIX_DATABASE_URL="sqlite+aiosqlite:///:memory:" PYTHONPATH=. pytest
 ```
 
 وب (Super-App Shell):

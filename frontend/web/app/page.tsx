@@ -9,6 +9,9 @@ export default function HomeFeed() {
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [authed, setAuthed] = useState(false);
+  const [commentOpen, setCommentOpen] = useState<string | null>(null);
+  const [commentText, setCommentText] = useState("");
+  const [commentBusy, setCommentBusy] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -36,6 +39,29 @@ export default function HomeFeed() {
       setDraft("");
     } catch {
       setError("ارسال پست ناموفق بود. ابتدا وارد شوید.");
+    }
+  }
+
+  function toggleComment(postId: string) {
+    setCommentOpen((cur) => (cur === postId ? null : postId));
+    setCommentText("");
+  }
+
+  async function submitComment(postId: string) {
+    const content = commentText.trim();
+    if (!content || commentBusy) return;
+    setCommentBusy(true);
+    try {
+      await api.social.comment(postId, content);
+      setPosts((prev) =>
+        prev.map((p) => (p.id === postId ? { ...p, comment_count: p.comment_count + 1 } : p)),
+      );
+      setCommentText("");
+      setCommentOpen(null);
+    } catch {
+      setError("ثبت نظر ناموفق بود. ابتدا وارد شوید.");
+    } finally {
+      setCommentBusy(false);
     }
   }
 
@@ -81,8 +107,32 @@ export default function HomeFeed() {
             <button className="link-btn" onClick={() => api.social.react(post.id, "like").then(load)}>
               👍 {post.reaction_counts?.like ?? 0}
             </button>
-            <span className="muted">💬 {post.comment_count}</span>
+            <button className="link-btn" onClick={() => toggleComment(post.id)}>
+              💬 {post.comment_count}
+            </button>
           </div>
+
+          {authed && commentOpen === post.id && (
+            <div className="row" style={{ gap: 8, marginTop: 8 }}>
+              <input
+                className="input"
+                style={{ flex: 1 }}
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && submitComment(post.id)}
+                placeholder="نظر خود را بنویسید…"
+                aria-label="نوشتن نظر"
+                autoFocus
+              />
+              <button
+                className="btn"
+                onClick={() => submitComment(post.id)}
+                disabled={commentBusy || commentText.trim().length === 0}
+              >
+                {commentBusy ? "…" : "ارسال"}
+              </button>
+            </div>
+          )}
         </article>
       ))}
     </main>
