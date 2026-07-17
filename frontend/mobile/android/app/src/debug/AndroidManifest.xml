@@ -1,0 +1,4 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- اجازهٔ اینترنت در حالتِ debug برای اتصال به Dart tools / hot reload. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+</manifest>

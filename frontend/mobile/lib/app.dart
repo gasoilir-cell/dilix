@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/api_client.dart';
 import 'core/config.dart';
 import 'core/theme.dart';
+import 'features/auth/login_screen.dart';
 import 'features/shell/home_shell.dart';
 
 /// در دسترس‌گذاریِ ApiClient به کلِ درختِ ویجت (بدونِ وابستگیِ state-management اضافی).
@@ -54,8 +55,28 @@ class _DilixAppState extends State<DilixApp> {
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
-        home: const HomeShell(),
+        home: const RootGate(),
       ),
     );
+  }
+}
+
+/// دروازهٔ ریشه: تا وقتی کاربر احراز هویت نشده `LoginScreen`، و پس از
+/// ورودِ موفق `HomeShell` را نشان می‌دهد.
+class RootGate extends StatefulWidget {
+  const RootGate({super.key});
+
+  @override
+  State<RootGate> createState() => _RootGateState();
+}
+
+class _RootGateState extends State<RootGate> {
+  @override
+  Widget build(BuildContext context) {
+    final api = ApiScope.of(context);
+    if (!api.isAuthenticated) {
+      return LoginScreen(onAuthenticated: () => setState(() {}));
+    }
+    return const HomeShell();
   }
 }

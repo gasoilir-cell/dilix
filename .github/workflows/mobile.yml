@@ -1,0 +1,64 @@
+name: Mobile — Build Android APK
+
+# بیلدِ APK روی runnerِ ابری انجام می‌شود تا سرورِ تولید (که Android SDK/Flutter
+# ندارد و نباید با ~۱۰GB تولچین سنگین شود) دست‌نخورده بماند.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/mobile/**"
+      - ".github/workflows/mobile.yml"
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: "Base URL سرویسِ Core که APK به آن وصل می‌شود"
+        required: true
+        default: "https://api.dilix.ir"
+        type: string
+
+env:
+  FLUTTER_VERSION: "3.24.5"
+
+jobs:
+  build-apk:
+    name: Build Release APK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend/mobile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java (Temurin 17)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Analyze (non-blocking)
+        run: flutter analyze || true
+
+      - name: Build release APK
+        run: |
+          flutter build apk --release \
+            --dart-define=DILIX_API_BASE_URL=${{ github.event.inputs.api_base_url || 'https://api.dilix.ir' }}
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dilix-mobile-release-apk
+          path: frontend/mobile/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 30

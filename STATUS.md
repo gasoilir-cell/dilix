@@ -320,3 +320,51 @@
 - `pytest`/`tsc`/`node_modules` در کانتینر نصب نیستند (طبق سیاستِ بیلدِ سنگین → فقط سرورِ SSH).
 - بررسیِ سبک: توازنِ `{}`/`()`/`[]` و وجودِ `export default` در همهٔ ۶ صفحهٔ جدید تأیید شد؛
   تایپ‌ها و متدهای `api` ارجاع‌شده در `lib/api.ts` موجودند. تایپ‌چکِ کاملِ TS و بیلد باید روی سرورِ SSH اجرا شود.
+
+---
+
+## [2026-07-17] اپ موبایل اندروید — اسکفولد پلتفرم + ورود + بیلد CI
+
+### تسک ۱ — اسکفولدِ پلتفرم اندروید ✅
+`frontend/mobile/android/` دستی و مطابقِ قالبِ استانداردِ Flutter 3.x ساخته شد (چون
+Flutter/Java/Android SDK نه در کانتینر و نه روی سرورِ تولید موجود نیست و نصبِ ~۱۰GB
+تولچین روی سرورِ زنده مجاز/درست نبود). محتوا:
+- `settings.gradle` (declarative plugins: AGP 8.1.0، Kotlin 1.8.22)، `build.gradle`،
+  `gradle.properties`، `gradle/wrapper/gradle-wrapper.properties` (Gradle 8.3).
+- `app/build.gradle`: `applicationId = "com.dilix.dilix_mobile"`، `namespace` همان،
+  `minSdk 21`، `compileSdk/targetSdk = flutter.*` (نسخهٔ جاری)، امضای release با کلیدِ debug
+  برای APKِ تستِ قابل‌نصب، و `manifestPlaceholders += [appAuthRedirectScheme: "app.dilix"]`.
+- `AndroidManifest.xml` (main/debug/profile) با `<uses-permission android.permission.INTERNET/>`،
+  `MainActivity.kt`، styles (light/night)، launch backgrounds، و آیکونِ vector
+  (`drawable/ic_launcher.xml`) تا نیازی به فایلِ باینریِ mipmap نباشد.
+- `android/.gitignore` مطابقِ پیش‌فرضِ Flutter (gradlew/jar/local.properties تولیدشونده‌اند).
+
+### تسک ۲ — صفحهٔ ورود + اتصال به auth ✅
+- فایلِ جدید `lib/features/auth/login_screen.dart`: ورود با شناسه/رمز، ورودِ یک‌بارمصرف
+  (OTP/پیامک: request→verify)، و دکمه‌های اجتماعی که **فقط اگر در بیلد پیکربندی شده باشند**
+  نمایش داده می‌شوند. از `ApiScope.of(context).login/otpRequest/otpVerify/oauthLogin` استفاده می‌کند.
+- ویرایشِ `lib/app.dart`: افزودنِ `RootGate` — `home` حالا تا احراز هویت `LoginScreen`
+  و پس از ورودِ موفق `HomeShell` را نشان می‌دهد (`setState`).
+
+### تسک ۳ — وابستگی‌ها/کانفیگ social auth ✅
+- `apiBaseUrl` از قبل با `--dart-define=DILIX_API_BASE_URL=...` قابلِ override است (نیازی به تغییر نبود).
+- ورودِ اجتماعی بدونِ کانفیگِ بومی، **بیلدِ پایه را نمی‌شکند**: دکمه‌ها فقط با وجودِ
+  clientId نمایش داده می‌شوند و `SocialAuth` در نبودِ کانفیگ خطای مدیریت‌شده می‌دهد.
+  تنها الزامِ بیلدیِ `flutter_appauth` (appAuthRedirectScheme) در `app/build.gradle` تأمین شد.
+
+### تسک ۴ — بیلد APK و تحویل ✅ (روی CI ابری، نه سرور)
+- workflowِ جدید `.github/workflows/mobile.yml`: روی `ubuntu-latest` با Flutter `3.24.5`
+  (pin‌شده مطابقِ اسکفولد) و Java 17، دستورِ `flutter build apk --release` را با
+  `--dart-define=DILIX_API_BASE_URL=...` اجرا و APK را به‌عنوان artifact
+  (`dilix-mobile-release-apk`) آپلود می‌کند. trigger: push روی `frontend/mobile/**` + `workflow_dispatch`.
+- خروجیِ مورد انتظار: `frontend/mobile/build/app/outputs/flutter-apk/app-release.apk`.
+
+### چرا CI به‌جای سرور SSH
+سرورِ تولید (185.55.226.250) Flutter/Java/Android SDK ندارد و نصبِ تولچینِ سنگینِ اندروید
+روی سرورِ زندهٔ Dilix هم غلط است (همان نگرانیِ حجم/کارایی سرور). runnerِ ابری این را
+بدونِ هیچ بارِ اضافه‌ای روی سرور حل می‌کند.
+
+### اعتبارسنجی
+- `flutter`/`gradle` در کانتینر نصب نیست (طبق سیاستِ بیلد). صحتِ ساختاری دستی بررسی شد؛
+  `flutter analyze` و بیلدِ APK در CI اجرا می‌شود. برای تولیدِ فایلِ APK کافی است workflow
+  از تبِ Actions (یا با push) اجرا شود؛ خروجی از artifacts دانلود می‌شود.
