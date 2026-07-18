@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../../app.dart';
 import '../../models/models.dart';
+import '../call/call_screen.dart';
+import '../call/call_service.dart';
 
 /// پیام‌ها (سند ۷ §۴). Core هنوز endpointِ «لیستِ گفتگوها» ندارد، پس این صفحه
 /// گفتگویِ مستقیم را با Earth ID طرفِ مقابل باز می‌کند (ساختِ اتاق + چتِ زنده)
@@ -94,6 +96,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
             room: room,
             peerLabel: peer,
             myEarthId: _myEarthId,
+            peerEarthId: peer,
           ),
         ),
       );
@@ -233,11 +236,15 @@ class ChatView extends StatefulWidget {
     required this.room,
     required this.peerLabel,
     required this.myEarthId,
+    this.peerEarthId,
   });
 
   final ChatRoom room;
   final String peerLabel;
   final String? myEarthId;
+
+  /// Earth ID طرفِ مقابل برای شروعِ تماس (اگر مشخص باشد).
+  final String? peerEarthId;
 
   @override
   State<ChatView> createState() => _ChatViewState();
@@ -316,16 +323,46 @@ class _ChatViewState extends State<ChatView> {
     }
   }
 
+  /// Earth ID طرفِ مقابل: از پارامترِ صریح یا از فرستندهٔ پیامی که خودم نیستم.
+  String? _effectivePeerId() {
+    if (widget.peerEarthId != null && widget.peerEarthId!.isNotEmpty) {
+      return widget.peerEarthId;
+    }
+    for (final m in _messages) {
+      if (m.senderEarthId.isNotEmpty && m.senderEarthId != widget.myEarthId) {
+        return m.senderEarthId;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _startCall(String peerId, String peerName, CallMedia media) =>
+      startOutgoingCall(context,
+          peerId: peerId, peerName: peerName, media: media);
+
   @override
   Widget build(BuildContext context) {
     final title = widget.room.title ??
         (widget.peerLabel.length > 12
             ? '${widget.peerLabel.substring(0, 12)}…'
             : widget.peerLabel);
+    final peerId = _effectivePeerId();
     return Scaffold(
       appBar: AppBar(
         title: Text(title),
         actions: [
+          if (peerId != null) ...[
+            IconButton(
+              tooltip: 'تماسِ صوتی',
+              icon: const Icon(Icons.call),
+              onPressed: () => _startCall(peerId, title, CallMedia.audio),
+            ),
+            IconButton(
+              tooltip: 'تماسِ تصویری',
+              icon: const Icon(Icons.videocam),
+              onPressed: () => _startCall(peerId, title, CallMedia.video),
+            ),
+          ],
           if (widget.room.isE2ee)
             const Padding(
               padding: EdgeInsets.only(left: 12),

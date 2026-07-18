@@ -51,3 +51,58 @@ async def test_webrtc_signal_without_target_is_ignored(monkeypatch) -> None:
     await _relay_signal(WsEventType.CALL_END, "user-a", {"call_id": "c1"})
 
     assert called is False
+
+
+@pytest.mark.asyncio
+async def test_ws_rejects_invalid_token(monkeypatch) -> None:
+    """اتصالِ WS با توکنِ نامعتبر باید با کدِ 4001 بسته شود و connect صدا نشود."""
+    import app.modules.realtime.router as router
+
+    monkeypatch.setattr(router, "decode_token", lambda _t: None)
+
+    connected = False
+
+    async def fake_connect(_ws, _earth_id: str) -> None:
+        nonlocal connected
+        connected = True
+
+    monkeypatch.setattr(router.manager, "connect", fake_connect)
+
+    closed: dict = {}
+
+    class _FakeWS:
+        async def close(self, code: int = 1000, reason: str = "") -> None:
+            closed["code"] = code
+            closed["reason"] = reason
+
+    await router.websocket_endpoint(_FakeWS(), token="bogus")
+
+    assert closed.get("code") == 4001
+    assert connected is False
+
+
+@pytest.mark.asyncio
+async def test_ws_rejects_non_access_token(monkeypatch) -> None:
+    """توکنی که نوعِ آن access نیست (مثلاً refresh) باید رد شود."""
+    import app.modules.realtime.router as router
+
+    monkeypatch.setattr(router, "decode_token", lambda _t: {"sub": "u1", "type": "refresh"})
+
+    connected = False
+
+    async def fake_connect(_ws, _earth_id: str) -> None:
+        nonlocal connected
+        connected = True
+
+    monkeypatch.setattr(router.manager, "connect", fake_connect)
+
+    closed: dict = {}
+
+    class _FakeWS:
+        async def close(self, code: int = 1000, reason: str = "") -> None:
+            closed["code"] = code
+
+    await router.websocket_endpoint(_FakeWS(), token="refresh-token")
+
+    assert closed.get("code") == 4001
+    assert connected is False

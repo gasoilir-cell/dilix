@@ -34,6 +34,12 @@ class ApiClient {
   bool get isAuthenticated => _accessToken != null;
   void setAccessToken(String? token) => _accessToken = token;
 
+  /// توکنِ دسترسیِ جاری (برای اتصالِ WebSocket تماس).
+  String? get accessToken => _accessToken;
+
+  /// آدرسِ پایهٔ سرویسِ Core (برای ساختِ URLِ WebSocket).
+  String get baseUrl => _base;
+
   /// خواندنِ نشستِ پایدارشده هنگامِ راه‌اندازیِ اپ (قبل از تصمیمِ ورود/خانه).
   Future<void> loadSession() async {
     final prefs = await SharedPreferences.getInstance();
