@@ -64,9 +64,9 @@ jobs:
           t = gradle.read_text()
           t = re.sub(r"minSdk\s*=\s*flutter\.minSdkVersion", "minSdk = 21", t)
           # flutter.compileSdkVersion برای این کانالِ Flutter روی ۳۱ resolve می‌شود، درحالی‌که
-          # وابستگی‌های transitiveِ flutter_appauth (androidx.fragment 1.7.1 و...) حداقل
-          # compileSdk=34 می‌خواهند (خطای checkReleaseAarMetadata). ثابت‌کردنِ آن روی ۳۵ کافی‌ست.
-          t = re.sub(r"compileSdk\s*=\s*flutter\.compileSdkVersion", "compileSdk = 35", t)
+          # وابستگی‌های transitiveِ flutter_appauth/flutter_facebook_auth/flutter_secure_storage
+          # حداقل compileSdk=36 می‌خواهند (خطای checkReleaseAarMetadata).
+          t = re.sub(r"compileSdk\s*=\s*flutter\.compileSdkVersion", "compileSdk = 36", t)
           if "manifestPlaceholders" not in t:
               t = t.replace(
                   "defaultConfig {",
