@@ -368,3 +368,34 @@ Flutter/Java/Android SDK نه در کانتینر و نه روی سرورِ تو
 - `flutter`/`gradle` در کانتینر نصب نیست (طبق سیاستِ بیلد). صحتِ ساختاری دستی بررسی شد؛
   `flutter analyze` و بیلدِ APK در CI اجرا می‌شود. برای تولیدِ فایلِ APK کافی است workflow
   از تبِ Actions (یا با push) اجرا شود؛ خروجی از artifacts دانلود می‌شود.
+
+---
+
+## [2026-07-18] بیلدِ اولین APK واقعی — موفق ✅
+
+ریپازیتوریِ گیت‌هاب (`gasoilir-cell/dilix`) به‌عنوان remote ست شد، کدِ موبایل push شد و
+workflowِ `mobile.yml` چند دور با شکست‌های واقعی (نه فرضی) اجرا و روتِ هرکدام رفع شد:
+
+1. **`CardThemeData` نبود** → Flutter pin‌شده (۳.۲۴.۵) خیلی قدیمی بود؛ pin حذف و
+   `channel: stable` گذاشته شد (روی runner به Flutter 3.44.6 resolve شد).
+2. **تضادِ نسخهٔ `intl`** → SDKِ `flutter_localizations` نیازِ `intl 0.20.2` دارد؛
+   pubspec به `intl: ^0.20.2` بروزرسانی شد.
+3. **تضادِ Groovy/Kotlin DSL در `android/`** → تمپلیتِ جدیدِ Flutter از `build.gradle.kts`
+   استفاده می‌کند و اسکفولدِ دستیِ Groovیِ قدیمی با آن هم‌زیستی نمی‌کرد. راه‌حل: CI حالا
+   هر بار `rm -rf android && flutter create --platforms=android ...` را تازه اجرا می‌کند
+   (نه `--overwrite`) و سپس customization patch (minSdk/compileSdk/manifestPlaceholders/
+   INTERNET permission) را روی فایل‌های `.kts` اعمال می‌کند.
+4. **`checkReleaseAarMetadata` fail (flutter_appauth/flutter_facebook_auth/flutter_secure_storage)**
+   → `flutter.compileSdkVersion` روی این کانالِ Flutter به ۳۱ resolve می‌شد درحالی‌که
+   وابستگی‌های transitive این پلاگین‌ها حداقل compileSdk=۳۶ می‌خواهند. چون هرکدام
+   ماژولِ Gradleِ جداگانه‌اند (نه فقط `:app`)، یک `subprojects { afterEvaluate {...} }` در
+   ریشهٔ `android/build.gradle.kts` اضافه شد تا compileSdk را روی همهٔ ماژول‌های
+   `com.android.library` (به‌جز `:app` که خودش مستقیم ست می‌شود) به ۳۶ force کند.
+
+### نتیجه
+- **بیلد موفق**: workflow run [`0c8a043`](https://github.com/gasoilir-cell/dilix/actions/runs/29631673107) → `Build Release APK` سبز.
+- **APK تحویل داده شد**: `outputs/app-release.apk` (~۵۰ مگابایت، امضاشده با کلیدِ debug
+  برای نصبِ تستی؛ برای انتشار در Play Store باید با کلیدِ release واقعی امضا شود).
+- ورودِ اجتماعی (Google/Microsoft/Apple/Facebook) در این APK کامپایل می‌شود اما تا وقتی
+  client-idهای واقعی در بیلد ست نشوند دکمه‌هایش مخفی می‌مانند؛ ورود با
+  رمز/OTP کاملاً فعال است.
