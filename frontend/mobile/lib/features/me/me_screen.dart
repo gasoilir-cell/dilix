@@ -4,6 +4,7 @@ import '../../app.dart';
 import '../../core/social_auth.dart';
 import '../../models/models.dart';
 import '../dashboard/dashboard_screen.dart';
+import '../legal/legal_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../support/support_screen.dart';
 import '../wallet/wallet_screen.dart';
@@ -435,6 +436,18 @@ class _MeScreenState extends State<MeScreen> {
             trailing: const Icon(Icons.chevron_left),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const SupportScreen()),
+            ),
+          ),
+        ),
+        // اسنادِ حقوقی (قوانین و حریمِ خصوصی)
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.gavel_outlined),
+            title: const Text('اسنادِ حقوقی'),
+            subtitle: const Text('قوانین و مقررات + حریمِ خصوصی'),
+            trailing: const Icon(Icons.chevron_left),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const LegalScreen()),
             ),
           ),
         ),
