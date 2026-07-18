@@ -115,6 +115,8 @@ class NearbyPerson {
     required this.displayName,
     required this.geoPrecision,
     required this.profession,
+    required this.ageRange,
+    required this.languages,
     required this.lat,
     required this.lon,
   });
@@ -124,6 +126,8 @@ class NearbyPerson {
   final String? displayName;
   final String geoPrecision;
   final String? profession;
+  final String? ageRange;
+  final List<String> languages;
   final double lat;
   final double lon;
 
@@ -133,6 +137,8 @@ class NearbyPerson {
         displayName: j['display_name'] as String?,
         geoPrecision: (j['geo_precision'] ?? 'region') as String,
         profession: j['profession'] as String?,
+        ageRange: j['age_range'] as String?,
+        languages: ((j['languages'] ?? const []) as List).whereType<String>().toList(),
         lat: (j['lat'] as num).toDouble(),
         lon: (j['lon'] as num).toDouble(),
       );

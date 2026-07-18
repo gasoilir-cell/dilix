@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app.dart';
 import '../../models/models.dart';
+import '../discovery/discovery_screen.dart';
 import '../insurance/insurance_screen.dart';
 import '../investment/investment_screen.dart';
 import '../marketplace/marketplace_screen.dart';
@@ -25,6 +26,7 @@ class ServicesScreen extends StatelessWidget {
       _Service(Icons.shield_outlined, 'بیمه', 'استعلام و صدور', const InsuranceScreen()),
       _Service(Icons.signal_cellular_alt, 'ارتباطات', 'اینترنت و eSIM', const TelecomScreen()),
       _Service(Icons.storefront_outlined, 'بازارگاه', 'خدمات و فریلنسری', const MarketplaceScreen()),
+      _Service(Icons.travel_explore, 'کشفِ اطراف', 'افراد و کسب‌وکارِ نزدیک', const DiscoveryScreen()),
       _Service(Icons.trending_up, 'سرمایه‌گذاری', 'صندوق و NAV', const InvestmentScreen()),
       _Service(Icons.workspace_premium_outlined, 'عضویت', 'پلن، نشان و اعتبار', const MembershipScreen()),
       _Service(Icons.account_balance_wallet_outlined, 'کیف پول', 'پاداش و پرداختِ امن', const WalletScreen()),
