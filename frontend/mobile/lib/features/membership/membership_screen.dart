@@ -15,6 +15,17 @@ class MembershipScreen extends StatefulWidget {
 
 class _MembershipScreenState extends State<MembershipScreen> {
   static const _plans = ['free', 'standard', 'premium'];
+  // برچسب/توضیحِ فارسیِ پلن‌ها — منطبق با PLANS صفحهٔ وب.
+  static const _planLabels = <String, String>{
+    'free': 'رایگان',
+    'standard': 'استاندارد',
+    'premium': 'ویژه',
+  };
+  static const _planDescs = <String, String>{
+    'free': 'امکاناتِ پایه',
+    'standard': 'کش‌بک و مزایای بیشتر',
+    'premium': 'بیشترین کش‌بک و اولویت',
+  };
 
   Membership? _membership;
   List<Badge> _badges = const [];
@@ -220,7 +231,18 @@ class _MembershipScreenState extends State<MembershipScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(plan),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(_planLabels[plan] ?? plan,
+                              style: const TextStyle(fontWeight: FontWeight.bold)),
+                          if (_planDescs[plan] != null)
+                            Text(_planDescs[plan]!,
+                                style: Theme.of(context).textTheme.bodySmall),
+                        ],
+                      ),
+                    ),
                     plan == current
                         ? const Chip(label: Text('فعال'))
                         : FilledButton.tonal(
