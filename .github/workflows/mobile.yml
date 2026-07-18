@@ -84,6 +84,27 @@ jobs:
                   1,
               )
           manifest.write_text(m)
+
+          # پکیج‌هایی مثلِ flutter_appauth ماژولِ Androidِ خودشان را (داخلِ pub cache) با
+          # compileSdk قدیمی (۳۱) منتشر کرده‌اند؛ عوض‌کردنِ compileSdk فقط در android/app کافی
+          # نیست چون :flutter_appauth/:flutter_facebook_auth/:flutter_secure_storage هرکدام
+          # ماژولِ Gradleِ جداگانه‌اند. با یک subprojects block در ریشه، compileSdk را روی همهٔ
+          # ماژول‌های Android library (صرف‌نظر از مقدارِ داخلیِ خودشان) به ۳۶ force می‌کنیم.
+          root_gradle = pathlib.Path("android/build.gradle.kts")
+          rt = root_gradle.read_text()
+          force_block = '''
+          subprojects {
+              plugins.withId("com.android.library") {
+                  extensions.configure<com.android.build.gradle.LibraryExtension> {
+                      compileSdk = 36
+                  }
+              }
+          }
+          '''
+          if "com.android.build.gradle.LibraryExtension" not in rt:
+              rt += force_block
+          root_gradle.write_text(rt)
+
           print("--- build.gradle.kts defaultConfig ---")
           print("\n".join(l for l in gradle.read_text().splitlines() if "applicationId" in l or "minSdk" in l or "compileSdk" in l or "manifestPlaceholders" in l))
           print("--- manifest permission ---")
