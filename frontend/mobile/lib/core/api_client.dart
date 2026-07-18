@@ -196,6 +196,22 @@ class ApiClient {
   Future<void> commentOnPost(String postId, String content) =>
       _post('/v1/social/posts/$postId/comments', {'content': content});
 
+  /// ساختِ پستِ جدید (متن + رسانه). `media` آرایه‌ای از `{url, type}`.
+  Future<Post> createPost({
+    required String postType,
+    String? content,
+    List<Map<String, dynamic>> media = const [],
+    String visibility = 'public',
+  }) async {
+    final j = await _post('/v1/social/posts', {
+      'post_type': postType,
+      if (content != null) 'content': content,
+      'media': media,
+      'visibility': visibility,
+    });
+    return Post.fromJson(j as Map<String, dynamic>);
+  }
+
   // ─────────────── Discovery ───────────────
   Future<List<NearbyPerson>> nearby({
     required String bbox,

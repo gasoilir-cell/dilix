@@ -82,6 +82,17 @@ class Post {
     return null;
   }
 
+  /// کپیِ سبک با شمارِ نظرِ به‌روزشده (برای افزایشِ خوش‌بینانه پس از ثبتِ نظر).
+  Post copyWithCommentCount(int count) => Post(
+        id: id,
+        authorEarthId: authorEarthId,
+        postType: postType,
+        content: content,
+        media: media,
+        reactionCounts: reactionCounts,
+        commentCount: count,
+      );
+
   factory Post.fromJson(Map<String, dynamic> j) => Post(
         id: j['id'] as String,
         authorEarthId: j['author_earth_id'] as String,
