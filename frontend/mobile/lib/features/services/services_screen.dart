@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app.dart';
 import '../../models/models.dart';
+import '../marketplace/marketplace_screen.dart';
 import '../reels/reels_screen.dart';
 
 /// هابِ verticalها (سند ۷ §۲): حمل‌ونقل، بیمه، ارتباطات، بازارگاه.
@@ -15,7 +16,7 @@ class ServicesScreen extends StatelessWidget {
       _Service(Icons.local_shipping_outlined, 'حمل‌ونقل', 'اسنپِ بار', const FreightScreen()),
       _Service(Icons.shield_outlined, 'بیمه', 'استعلام و صدور', null),
       _Service(Icons.signal_cellular_alt, 'ارتباطات', 'اینترنت و eSIM', null),
-      _Service(Icons.storefront_outlined, 'بازارگاه', 'خدمات و فریلنسری', null),
+      _Service(Icons.storefront_outlined, 'بازارگاه', 'خدمات و فریلنسری', const MarketplaceScreen()),
     ];
     return Scaffold(
       appBar: AppBar(title: const Text('خدمات')),

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dilix_shared.errors import ConflictError, ForbiddenError, NotFoundError
@@ -68,6 +68,23 @@ async def search_listings(
             if kw in item.title.lower() or kw in item.description.lower()
         ]
     return listings
+
+
+async def list_orders(
+    db: AsyncSession, earth_id: uuid.UUID
+) -> list[ServiceOrder]:
+    """سفارش‌هایی که کاربر در آن‌ها خریدار یا فروشنده است (جدیدترین اول)."""
+    result = await db.execute(
+        select(ServiceOrder)
+        .where(
+            or_(
+                ServiceOrder.buyer_earth_id == earth_id,
+                ServiceOrder.provider_earth_id == earth_id,
+            )
+        )
+        .order_by(ServiceOrder.created_at.desc())
+    )
+    return list(result.scalars().all())
 
 
 async def place_order(

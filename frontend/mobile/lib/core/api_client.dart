@@ -214,6 +214,64 @@ class ApiClient {
     return list.map((e) => CargoPost.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  // ─────────────── Marketplace ───────────────
+  /// فهرست/جستجویِ آگهی‌های خدمت.
+  Future<List<Listing>> marketplaceListings({String? keyword}) async {
+    final q = (keyword == null || keyword.isEmpty)
+        ? ''
+        : '?keyword=${Uri.encodeQueryComponent(keyword)}';
+    final list = await _get('/v1/marketplace/listings$q') as List;
+    return list.map((e) => Listing.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// ثبتِ آگهیِ خدمتِ جدید.
+  Future<Listing> createListing({
+    required String title,
+    required String description,
+    required String category,
+    required int basePriceMinor,
+    String currency = 'IRR',
+    int deliveryDays = 7,
+  }) async {
+    final j = await _post('/v1/marketplace/listings', {
+      'title': title,
+      'description': description,
+      'category': category,
+      'base_price_minor': basePriceMinor,
+      'currency': currency,
+      'delivery_days': deliveryDays,
+    });
+    return Listing.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// ثبتِ سفارش روی یک آگهی (escrow سمتِ سرور ساخته می‌شود).
+  Future<MarketOrder> placeOrder(
+    String listingId, {
+    required int agreedPriceMinor,
+    required String currency,
+    String? requirements,
+  }) async {
+    final j = await _post('/v1/marketplace/orders', {
+      'listing_id': listingId,
+      'agreed_price_minor': agreedPriceMinor,
+      'currency': currency,
+      if (requirements != null) 'requirements': requirements,
+    });
+    return MarketOrder.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// سفارش‌هایی که کاربر خریدار یا فروشندهٔ آن‌هاست.
+  Future<List<MarketOrder>> marketplaceOrders() async {
+    final list = await _get('/v1/marketplace/orders') as List;
+    return list.map((e) => MarketOrder.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// اکشن‌های چرخهٔ سفارش: accept/deliver/complete.
+  Future<MarketOrder> orderAction(String orderId, String action) async {
+    final j = await _post('/v1/marketplace/orders/$orderId/$action', null);
+    return MarketOrder.fromJson(j as Map<String, dynamic>);
+  }
+
   // ─────────────── Growth ───────────────
   Future<ReferralLink> referralLink() async =>
       ReferralLink.fromJson(await _get('/v1/growth/referrals/link') as Map<String, dynamic>);

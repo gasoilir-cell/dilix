@@ -47,6 +47,15 @@ async def place_order(
     return OrderOut.model_validate(order, from_attributes=True)
 
 
+@router.get("/orders", response_model=list[OrderOut])
+async def list_orders(
+    db: AsyncSession = Depends(get_session),
+    earth_id: uuid.UUID = Depends(get_current_earth_id),
+) -> list[OrderOut]:
+    orders = await service.list_orders(db, earth_id)
+    return [OrderOut.model_validate(o, from_attributes=True) for o in orders]
+
+
 @router.post("/orders/{order_id}/accept", response_model=OrderOut)
 async def accept_order(
     order_id: uuid.UUID,

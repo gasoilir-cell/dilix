@@ -151,6 +151,74 @@ class CargoPost {
       );
 }
 
+/// آگهیِ خدمتِ بازارگاه — منطبق با `ListingOut` بک‌اند.
+class Listing {
+  Listing({
+    required this.id,
+    required this.providerEarthId,
+    required this.title,
+    required this.description,
+    required this.category,
+    required this.basePriceMinor,
+    required this.currency,
+    required this.deliveryDays,
+    required this.status,
+  });
+
+  final String id;
+  final String providerEarthId;
+  final String title;
+  final String description;
+  final String category;
+  final int basePriceMinor;
+  final String currency;
+  final int deliveryDays;
+  final String status;
+
+  factory Listing.fromJson(Map<String, dynamic> j) => Listing(
+        id: j['id'] as String,
+        providerEarthId: j['provider_earth_id'] as String,
+        title: j['title'] as String,
+        description: (j['description'] ?? '') as String,
+        category: (j['category'] ?? '') as String,
+        basePriceMinor: (j['base_price_minor'] as num).toInt(),
+        currency: (j['currency'] ?? 'IRR') as String,
+        deliveryDays: (j['delivery_days'] ?? 0) as int,
+        status: (j['status'] ?? 'active') as String,
+      );
+}
+
+/// سفارشِ بازارگاه — منطبق با `OrderOut` بک‌اند.
+class MarketOrder {
+  MarketOrder({
+    required this.id,
+    required this.listingId,
+    required this.buyerEarthId,
+    required this.providerEarthId,
+    required this.agreedPriceMinor,
+    required this.currency,
+    required this.status,
+  });
+
+  final String id;
+  final String listingId;
+  final String buyerEarthId;
+  final String providerEarthId;
+  final int agreedPriceMinor;
+  final String currency;
+  final String status;
+
+  factory MarketOrder.fromJson(Map<String, dynamic> j) => MarketOrder(
+        id: j['id'] as String,
+        listingId: j['listing_id'] as String,
+        buyerEarthId: j['buyer_earth_id'] as String,
+        providerEarthId: j['provider_earth_id'] as String,
+        agreedPriceMinor: (j['agreed_price_minor'] as num).toInt(),
+        currency: (j['currency'] ?? 'IRR') as String,
+        status: (j['status'] ?? 'pending') as String,
+      );
+}
+
 class ReferralLink {
   ReferralLink({required this.code, required this.url});
   final String code;

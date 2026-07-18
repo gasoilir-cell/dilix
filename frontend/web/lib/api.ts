@@ -252,6 +252,18 @@ export interface ListingOut {
   is_featured: boolean;
 }
 
+export interface OrderOut {
+  id: string;
+  listing_id: string;
+  buyer_earth_id: string;
+  provider_earth_id: string;
+  agreed_price_minor: number;
+  currency: string;
+  payment_order_id: string | null;
+  status: string;
+  platform_fee_bps: number;
+}
+
 export interface TopUpOut {
   id: string;
   msisdn: string;
@@ -658,6 +670,21 @@ export const api = {
       delivery_days?: number;
       tags?: string[];
     }) => request<ListingOut>("/v1/marketplace/listings", { method: "POST", body: JSON.stringify(body) }),
+    // ثبتِ سفارش روی یک آگهی؛ escrow سمتِ بک‌اند ساخته می‌شود.
+    placeOrder: (body: {
+      listing_id: string;
+      agreed_price_minor: number;
+      currency: string;
+      requirements?: string;
+    }) => request<OrderOut>("/v1/marketplace/orders", { method: "POST", body: JSON.stringify(body) }),
+    // سفارش‌هایی که کاربر خریدار یا فروشندهٔ آن‌هاست.
+    listOrders: () => request<OrderOut[]>("/v1/marketplace/orders"),
+    acceptOrder: (orderId: string) =>
+      request<OrderOut>(`/v1/marketplace/orders/${orderId}/accept`, { method: "POST" }),
+    deliverOrder: (orderId: string) =>
+      request<OrderOut>(`/v1/marketplace/orders/${orderId}/deliver`, { method: "POST" }),
+    completeOrder: (orderId: string) =>
+      request<OrderOut>(`/v1/marketplace/orders/${orderId}/complete`, { method: "POST" }),
   },
 
   telecom: {
