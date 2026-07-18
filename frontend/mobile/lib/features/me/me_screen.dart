@@ -4,6 +4,7 @@ import '../../app.dart';
 import '../../core/social_auth.dart';
 import '../../models/models.dart';
 import '../notifications/notifications_screen.dart';
+import '../support/support_screen.dart';
 import '../wallet/wallet_screen.dart';
 
 const _socialProviders = <({String id, String label})>[
@@ -417,10 +418,10 @@ class _MeScreenState extends State<MeScreen> {
           child: ListTile(
             leading: const Icon(Icons.support_agent_outlined),
             title: const Text('پشتیبانی'),
-            subtitle: const Text('گفتگو با دستیارِ هوشمند یا تیمِ پشتیبانی'),
+            subtitle: const Text('راه‌های ارتباط + سوالاتِ متداول'),
             trailing: const Icon(Icons.chevron_left),
-            onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('برای پشتیبانی، دستیارِ هوشمند (دکمهٔ ✨) را باز کنید.')),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SupportScreen()),
             ),
           ),
         ),
