@@ -12,7 +12,9 @@ from dilix_shared.errors import ForbiddenError
 
 from app.core.security import decode_token
 
-_bearer = HTTPBearer(auto_error=True)
+# auto_error=False تا نبودِ هدرِ Authorization به‌جای ۴۰۱ (پیش‌فرضِ نسخه‌های جدیدِ
+# FastAPI) با قراردادِ ثابتِ پروژه (۴۰۳ ForbiddenError) پاسخ داده شود — مستقل از نسخه.
+_bearer = HTTPBearer(auto_error=False)
 
 
 @dataclass(slots=True)
@@ -22,8 +24,10 @@ class CurrentUser:
 
 
 async def get_current_user(
-    creds: HTTPAuthorizationCredentials = Depends(_bearer),
+    creds: HTTPAuthorizationCredentials | None = Depends(_bearer),
 ) -> CurrentUser:
+    if creds is None:
+        raise ForbiddenError("توکنِ احراز هویت ارائه نشده است.")
     try:
         payload = decode_token(creds.credentials)
     except jwt.PyJWTError as exc:  # امضا/انقضای نامعتبر

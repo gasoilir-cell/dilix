@@ -6,12 +6,68 @@
 
 ## Task 1 — تست‌های Core (بلاک‌کننده)
 
-**نتیجه آخرین اجرای کامل ثبت‌شده: ✅ 143 passed / 0 failed**
+**نتیجه آخرین اجرای کامل ثبت‌شده: ✅ 200 passed / 0 failed** (2026-07-18)
 
 - دستور استاندارد: `cd backend/services/core && PYTHONPATH=. pytest -v`
 - برای اجرای هدفمند SQLite:
-  `DILIX_DATABASE_URL="sqlite+aiosqlite:///:memory:" PYTHONPATH=. pytest`
+  `DILIX_DATABASE_URL="sqlite+aiosqlite:///:memory:" PYTHONPATH=".:/project/backend/libs/shared" pytest`
 - تست‌های جدید/مهم: stickers/stories unit + integration، payments/marketplace، telecom، discovery، growth، insurance/web integration.
+
+### [2026-07-18] پوششِ integration برای ۱۱ ماژولِ بدونِ تستِ اختصاصی
+
+baseline از ۱۶۰ به **۲۰۰ passed** رسید (۴۰ تستِ جدید). فایل‌های افزوده‌شده در `tests/`:
+
+- `_harness.py` — هلپرِ مشترک: `build_module_client(schemas, models)` (موتورِ SQLite مستقل، ATTACHِ schemaها + `events`، override کردنِ `get_session`/`get_current_user`) و `assert_auth_required(method, path, expected=403)`.
+- تستِ integration برای ماژول‌ها (schema هرکدام = نامِ ماژول): **earth, freight, gamification, identity, investment, kyc, membership, notification, provider, referral, reputation** — هرکدام مسیرهای اصلی router (CRUD + auth-required) را پوشش می‌دهد.
+- `test_authorization_unit.py` — ماژولِ `authorization` **support module** است (بدون router/endpoint) ولی تابعِ خالصِ `is_allowed` (RBAC + ABAC) دارد؛ ۹ تستِ واحد برای شاخه‌های allow/deny نقش، wildcardِ `global_admin`، گیتِ سطحِ KYC و بررسیِ مالکیتِ منبع (ضدِ IDOR).
+
+**باگِ محصولی که تست‌ها آشکار کرد و ریشه‌ای رفع شد:** در `app/modules/earth/service.py` هر دو `update_location` و `get_location` از `db.get(LocationPin, earth_id)` استفاده می‌کردند؛ اما PKِ `LocationPin` ستونِ `id` است نه `earth_id` → لوکاپ هرگز match نمی‌شد (GET /location همیشه ۴۰۴ و PUTِ دوم روی `unique(earth_id)` می‌شکست). با هلپرِ `_find_pin` مبتنی بر `select(LocationPin).where(LocationPin.earth_id == earth_id)` اصلاح شد.
+
+**اصلاحِ baselineِ auth (نسخه‌مستقل):** `app/modules/auth/deps.py` به `HTTPBearer(auto_error=False)` + raiseِ صریحِ `ForbiddenError` تغییر کرد تا نبودِ هدرِ Authorization مستقل از نسخهٔ FastAPI با قراردادِ ثابتِ پروژه (۴۰۳) پاسخ داده شود.
+
+### [2026-07-18] تأییدِ آمادگیِ مرحلهٔ تست — پوششِ کاملِ ماژول‌ها
+
+**اجرای بدونِ env دستی سبز است:** `conftest.py:17` قبل از هر importِ `app.*` مقدارِ
+`DILIX_DATABASE_URL` را با `os.environ.setdefault(...)` روی `sqlite+aiosqlite:///:memory:`
+ست می‌کند؛ پس `pytest` بدونِ تنظیمِ دستیِ env سبز می‌شود (فقط `PYTHONPATH` برای shared kernel لازم است).
+
+- خروجیِ واقعیِ pytest: **`200 passed`** — با دستورِ
+  `cd backend/services/core && PYTHONPATH=".:/project/backend/libs/shared" python3 -m pytest`
+  (بدونِ ست‌کردنِ دستیِ `DILIX_DATABASE_URL`).
+- **اسکنِ پوشش:** هر ۲۶ ماژولِ دارای `router.py` + ماژولِ پشتیبانِ `authorization` یک فایلِ تستِ متناظر دارند؛ **هیچ ماژولِ بدونِ تستی باقی نمانده**. مجموعِ تعدادِ تست‌ها دقیقاً ۲۰۰ است (همه سبز).
+
+| ماژول | فایل(های) تست | تعداد |
+|---|---|---|
+| ai | `test_ai_integration.py` | 2 |
+| auth | `test_auth_social.py` (+ auth در m3/m4/unit) | 16 |
+| authorization *(بدون router)* | `test_authorization_unit.py` | 9 |
+| carrier | `test_carrier.py` | 3 |
+| discovery | `test_discovery_integration.py` | 3 |
+| earth | `test_earth_integration.py` | 3 |
+| freight | `test_freight_integration.py` | 3 |
+| gamification | `test_gamification_integration.py` | 3 |
+| growth | `test_growth_integration.py` | 3 |
+| identity | `test_identity_integration.py` | 3 |
+| insurance | `test_insurance.py` | 3 |
+| investment | `test_investment_integration.py` | 3 |
+| kyc | `test_kyc_integration.py` | 2 |
+| marketplace | `test_marketplace_integration.py` | 3 |
+| membership | `test_membership_integration.py` | 3 |
+| messaging | `test_messaging_integration.py` | 2 |
+| notification | `test_notification_integration.py` | 3 |
+| payments | `test_payments.py` + `test_payments_integration.py` + `test_saman.py` | 6+3+2 |
+| provider | `test_provider_integration.py` | 3 |
+| realtime | `test_realtime_webrtc.py` | 4 |
+| referral | `test_referral_integration.py` | 3 |
+| reputation | `test_reputation_integration.py` | 2 |
+| social | `test_social_reels_integration.py` | 2 |
+| stickers | `test_stickers.py` + `test_stickers_integration.py` | 7+11 |
+| stories | `test_stories.py` + `test_stories_integration.py` | 9+11 |
+| telecom | `test_telecom_integration.py` | 2 |
+| *cross-cutting / milestone* | `test_m3.py` / `test_m4.py` / `test_m5.py` / `test_unit.py` | 12+20+29+7 |
+
+**نتیجه:** ورود به مرحلهٔ تستِ رسمی از منظرِ پوششِ ماژول‌محورِ backend آماده است — همهٔ مسیرهای اصلیِ router دستِ‌کم یک تستِ integration (CRUD + auth-required) دارند.
+
 - در این مرحله پوشش `delete` و وضعیت auth برای endpointهای `stickers` و `stories` اضافه شد. در کانتینر فعلی `pytest` نصب نیست (`ModuleNotFoundError: No module named 'pytest'`) و wrapper موجود هم `No tests collected` برگرداند؛ syntax همه فایل‌های تست/ migration با `python -m py_compile` سبز شد.
 
 ### نکته محیطی (نه باگ کد)

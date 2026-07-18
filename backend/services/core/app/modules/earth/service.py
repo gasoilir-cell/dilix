@@ -39,7 +39,7 @@ async def update_location(
     db: AsyncSession, *, earth_id: uuid.UUID, data: LocationUpdate
 ) -> LocationPin:
     fuzz_lat, fuzz_lon = _fuzz(data.lat, data.lon, data.geo_precision)
-    pin = await db.get(LocationPin, earth_id)
+    pin = await _find_pin(db, earth_id)
     if pin is None:
         pin = LocationPin(earth_id=earth_id)
         db.add(pin)
@@ -52,8 +52,17 @@ async def update_location(
     return pin
 
 
+async def _find_pin(db: AsyncSession, earth_id: uuid.UUID) -> LocationPin | None:
+    # LocationPin کلیدِ اصلی‌اش `id` است؛ جستجو باید بر اساسِ ستونِ `earth_id`
+    # انجام شود (نه `db.get` که با PK می‌گردد و هرگز match نمی‌کند).
+    result = await db.execute(
+        select(LocationPin).where(LocationPin.earth_id == earth_id)
+    )
+    return result.scalar_one_or_none()
+
+
 async def get_location(db: AsyncSession, earth_id: uuid.UUID) -> LocationPin:
-    pin = await db.get(LocationPin, earth_id)
+    pin = await _find_pin(db, earth_id)
     if pin is None:
         raise NotFoundError("موقعیتِ کاربر ثبت نشده یا opt-in نشده.")
     return pin
