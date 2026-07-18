@@ -50,6 +50,19 @@ jobs:
       - name: Regenerate Android scaffold (Flutter-matched Gradle/AGP/Kotlin)
         run: flutter create --platforms=android --org com.dilix --overwrite .
 
+      - name: "[DEBUG] dump generated android files"
+        run: |
+          echo "--- tree ---"
+          find android -maxdepth 4 -type f | sort
+          echo "--- android/build.gradle* ---"
+          cat android/build.gradle* 2>/dev/null || echo "(none)"
+          echo "--- android/settings.gradle* ---"
+          cat android/settings.gradle* 2>/dev/null || echo "(none)"
+          echo "--- android/app/build.gradle* ---"
+          cat android/app/build.gradle* 2>/dev/null || echo "(none)"
+          echo "--- flutter --version ---"
+          flutter --version
+
       # بازاعمالِ سفارشی‌سازی‌های Dilix که flutter create نمی‌داند: minSdk، مجوزِ اینترنت،
       # و placeholderِ appAuthRedirectScheme برای flutter_appauth.
       - name: Apply Dilix Android customizations
