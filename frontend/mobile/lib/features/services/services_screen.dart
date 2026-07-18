@@ -79,7 +79,8 @@ class _Service {
   final Widget? screen;
 }
 
-/// فهرستِ بارهای باز (اسنپِ بار) — سند ۷ §۵.
+/// فهرست + ثبتِ بار (اسنپِ بار) — سند ۷ §۵. معادلِ صفحهٔ وبِ
+/// `app/services/freight/page.tsx`: نمایشِ فهرست + فرمِ ثبتِ بار.
 class FreightScreen extends StatefulWidget {
   const FreightScreen({super.key});
 
@@ -88,46 +89,233 @@ class FreightScreen extends StatefulWidget {
 }
 
 class _FreightScreenState extends State<FreightScreen> {
-  late Future<List<CargoPost>> _future;
+  // برچسبِ فارسیِ وضعیت‌ها — منطبق با STATUS_LABEL صفحهٔ وب.
+  static const _statusLabels = <String, String>{
+    'open': 'باز',
+    'matched': 'تطبیق‌یافته',
+    'in_transit': 'در مسیر',
+    'delivered': 'تحویل‌شده',
+    'settled': 'تسویه‌شده',
+    'cancelled': 'لغوشده',
+  };
+
+  final List<CargoPost> _cargo = [];
+  bool _loading = true;
+  bool _showForm = false;
+  bool _submitting = false;
+  String? _error;
+
+  final _titleCtrl = TextEditingController();
+  final _originCtrl = TextEditingController();
+  final _destCtrl = TextEditingController();
+  final _weightCtrl = TextEditingController();
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _future = ApiScope.of(context).listCargo();
+    if (_loading) _load();
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _originCtrl.dispose();
+    _destCtrl.dispose();
+    _weightCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final cargo = await ApiScope.of(context).listCargo();
+      if (!mounted) return;
+      setState(() {
+        _cargo
+          ..clear()
+          ..addAll(cargo);
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'بارگذاریِ فهرستِ بار ممکن نشد.\n$e';
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _submit() async {
+    final title = _titleCtrl.text.trim();
+    final origin = _originCtrl.text.trim();
+    final dest = _destCtrl.text.trim();
+    final weightKg = double.tryParse(_weightCtrl.text.trim());
+    if (title.isEmpty || origin.isEmpty || dest.isEmpty) {
+      setState(() => _error = 'عنوان، مبدأ و مقصد را وارد کنید.');
+      return;
+    }
+    if (weightKg == null || weightKg <= 0) {
+      setState(() => _error = 'وزنِ معتبر (کیلوگرم) وارد کنید.');
+      return;
+    }
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      final created = await ApiScope.of(context).createCargo(
+        title: title,
+        origin: origin,
+        destination: dest,
+        weightGrams: (weightKg * 1000).round(),
+      );
+      if (!mounted) return;
+      setState(() {
+        _cargo.insert(0, created);
+        _showForm = false;
+        _submitting = false;
+        _titleCtrl.clear();
+        _originCtrl.clear();
+        _destCtrl.clear();
+        _weightCtrl.clear();
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'ثبتِ بار ناموفق بود. ابتدا وارد شوید.';
+        _submitting = false;
+      });
+    }
+  }
+
+  String _formatWeight(int grams) {
+    final kg = grams / 1000;
+    final text = kg == kg.roundToDouble() ? kg.round().toString() : kg.toStringAsFixed(1);
+    return '$text کیلوگرم';
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('بارهای باز')),
-      body: FutureBuilder<List<CargoPost>>(
-        future: _future,
-        builder: (context, snap) {
-          if (snap.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snap.hasError) {
-            return Center(child: Text('بارگذاری ممکن نشد.\n${snap.error}', textAlign: TextAlign.center));
-          }
-          final cargo = snap.data ?? const [];
-          if (cargo.isEmpty) {
-            return const Center(child: Text('باری برای نمایش نیست.'));
-          }
-          return ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: cargo.length,
-            itemBuilder: (context, i) {
-              final c = cargo[i];
-              return Card(
-                child: ListTile(
-                  title: Text(c.title),
-                  subtitle: Text('${c.origin} ← ${c.destination}'),
-                  trailing: Chip(label: Text(c.status)),
+      appBar: AppBar(
+        title: const Text('اسنپِ بار'),
+        actions: [
+          IconButton(
+            onPressed: _loading ? null : _load,
+            icon: const Icon(Icons.refresh),
+            tooltip: 'تازه‌سازی',
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => setState(() => _showForm = !_showForm),
+        icon: Icon(_showForm ? Icons.close : Icons.add),
+        label: Text(_showForm ? 'بستن' : 'ثبتِ بار'),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+                padding: const EdgeInsets.all(12),
+                children: [
+                  Text(
+                    'ثبتِ بار، تطبیقِ راننده، بارنامه و ردیابیِ زنده',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 8),
+                  if (_showForm) _formCard(),
+                  if (_error != null)
+                    Card(
+                      color: Theme.of(context).colorScheme.errorContainer,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Text(_error!),
+                      ),
+                    ),
+                  if (_cargo.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(32),
+                      child: Text('باری برای نمایش نیست.', textAlign: TextAlign.center),
+                    )
+                  else
+                    ..._cargo.map(_cargoCard),
+                ],
+              ),
+            ),
+    );
+  }
+
+  Widget _formCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: _titleCtrl,
+              decoration: const InputDecoration(labelText: 'عنوانِ بار'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _originCtrl,
+              decoration: const InputDecoration(labelText: 'مبدأ'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _destCtrl,
+              decoration: const InputDecoration(labelText: 'مقصد'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _weightCtrl,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(labelText: 'وزن (کیلوگرم)'),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: _submitting ? null : _submit,
+                child: Text(_submitting ? 'در حال…' : 'ثبت'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _cargoCard(CargoPost c) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    c.title,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
-              );
-            },
-          );
-        },
+                Chip(label: Text(_statusLabels[c.status] ?? c.status)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${c.origin} ← ${c.destination} · ${_formatWeight(c.weightGrams)}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
       ),
     );
   }

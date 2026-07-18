@@ -151,6 +151,9 @@ class CargoPost {
     required this.origin,
     required this.destination,
     required this.status,
+    required this.weightGrams,
+    this.budgetMinor,
+    this.currency = 'IRR',
   });
 
   final String id;
@@ -158,6 +161,9 @@ class CargoPost {
   final String origin;
   final String destination;
   final String status;
+  final int weightGrams;
+  final int? budgetMinor;
+  final String currency;
 
   factory CargoPost.fromJson(Map<String, dynamic> j) => CargoPost(
         id: j['id'] as String,
@@ -165,6 +171,9 @@ class CargoPost {
         origin: j['origin'] as String,
         destination: j['destination'] as String,
         status: (j['status'] ?? 'open') as String,
+        weightGrams: (j['weight_grams'] as num?)?.toInt() ?? 0,
+        budgetMinor: (j['budget_minor'] as num?)?.toInt(),
+        currency: (j['currency'] ?? 'IRR') as String,
       );
 }
 

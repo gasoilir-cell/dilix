@@ -236,6 +236,26 @@ class ApiClient {
     return list.map((e) => CargoPost.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  /// ثبتِ آگهیِ بارِ جدید (اسنپِ بار). وزن به گرم و بودجهٔ اختیاری به amount_minor.
+  Future<CargoPost> createCargo({
+    required String title,
+    required String origin,
+    required String destination,
+    required int weightGrams,
+    int? budgetMinor,
+    String currency = 'IRR',
+  }) async {
+    final j = await _post('/v1/freight/cargo', {
+      'title': title,
+      'origin': origin,
+      'destination': destination,
+      'weight_grams': weightGrams,
+      if (budgetMinor != null) 'budget_minor': budgetMinor,
+      'currency': currency,
+    });
+    return CargoPost.fromJson(j as Map<String, dynamic>);
+  }
+
   // ─────────────── Marketplace ───────────────
   /// فهرست/جستجویِ آگهی‌های خدمت.
   Future<List<Listing>> marketplaceListings({String? keyword}) async {
