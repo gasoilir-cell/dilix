@@ -315,6 +315,43 @@ class ApiClient {
   Future<ReferralLink> referralLink() async =>
       ReferralLink.fromJson(await _get('/v1/growth/referrals/link') as Map<String, dynamic>);
 
+  /// کیفِ پاداش: موجودی‌ها به‌تفکیکِ ارز + شمارِ پاداش‌های در انتظار.
+  Future<RewardWallet> rewardWallet() async =>
+      RewardWallet.fromJson(await _get('/v1/growth/rewards') as Map<String, dynamic>);
+
+  /// وضعیتِ سهم از درآمد (پلن، سهمِ bps، واحدهای سرمایه‌گذاری).
+  Future<RevenueShare> revenueShare() async =>
+      RevenueShare.fromJson(await _get('/v1/growth/revenue-share') as Map<String, dynamic>);
+
+  // ─────────────── Payments (escrow) ───────────────
+  /// ساختِ سفارشِ پرداختِ امانی (Dilix فقط ارکستریت می‌کند؛ مدلِ escrow).
+  Future<PaymentOrder> createEscrow({
+    required String payeeEarthId,
+    required int amountMinor,
+    required String currency,
+    String providerCode = 'sandbox',
+  }) async {
+    final j = await _post('/v1/payments/escrow', {
+      'payee_earth_id': payeeEarthId,
+      'amount_minor': amountMinor,
+      'currency': currency,
+      'provider_code': providerCode,
+    });
+    return PaymentOrder.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// تسویهٔ سفارشِ امانی (held → captured).
+  Future<PaymentOrder> capturePayment(String orderId) async {
+    final j = await _post('/v1/payments/$orderId/capture', null);
+    return PaymentOrder.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// برگشتِ سفارشِ امانی (held → refunded).
+  Future<PaymentOrder> refundPayment(String orderId) async {
+    final j = await _post('/v1/payments/$orderId/refund', null);
+    return PaymentOrder.fromJson(j as Map<String, dynamic>);
+  }
+
   // ─────────────── Notifications ───────────────
   Future<List<NotificationItem>> notifications({
     bool unreadOnly = false,
@@ -332,6 +369,129 @@ class ApiClient {
   Future<int> rewardPoints() async {
     final j = await _get('/v1/gamification/points') as Map<String, dynamic>;
     return (j['balance'] as num).toInt();
+  }
+
+  /// نشان‌هایِ کسب‌شدهٔ کاربر.
+  Future<List<Badge>> gamificationBadges() async {
+    final list = await _get('/v1/gamification/badges') as List;
+    return list.map((e) => Badge.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  // ─────────────── Investment ───────────────
+  /// آخرین NAVِ یک صندوق (به کوچک‌ترین واحدِ پول).
+  Future<NavQuote> investmentNav(String fundCode) async {
+    final j = await _get('/v1/investment/nav?fund_code=${Uri.encodeQueryComponent(fundCode)}');
+    return NavQuote.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// موقعیت‌های سرمایه‌گذاریِ کاربر.
+  Future<List<InvestmentPosition>> investmentPositions() async {
+    final list = await _get('/v1/investment/positions') as List;
+    return list.map((e) => InvestmentPosition.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// خریدِ واحدِ صندوق؛ موقعیتِ به‌روزشده را برمی‌گرداند.
+  Future<InvestmentPosition> buyFund({
+    required String fundCode,
+    required int amountMinor,
+    String currency = 'IRR',
+    String providerCode = 'sandbox_fund',
+  }) async {
+    final j = await _post('/v1/investment/buy', {
+      'fund_code': fundCode,
+      'amount_minor': amountMinor,
+      'currency': currency,
+      'provider_code': providerCode,
+    });
+    return InvestmentPosition.fromJson(j as Map<String, dynamic>);
+  }
+
+  // ─────────────── Membership ───────────────
+  /// عضویتِ جاریِ کاربر.
+  Future<Membership> membership() async =>
+      Membership.fromJson(await _get('/v1/membership') as Map<String, dynamic>);
+
+  /// ارتقا/تمدیدِ پلنِ عضویت.
+  Future<Membership> upgradeMembership(String plan, {int months = 1}) async {
+    final j = await _post('/v1/membership/upgrade', {'plan': plan, 'months': months});
+    return Membership.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// لغوِ عضویت (بازگشت به پلنِ رایگان).
+  Future<Membership> cancelMembership() async {
+    final j = await _post('/v1/membership/cancel', null);
+    return Membership.fromJson(j as Map<String, dynamic>);
+  }
+
+  // ─────────────── Reputation ───────────────
+  /// امتیازهایِ اعتبارِ یک کاربر به‌تفکیکِ حوزه.
+  Future<List<ReputationScore>> reputationScores(String earthId) async {
+    final list = await _get('/v1/reputation/scores/$earthId') as List;
+    return list.map((e) => ReputationScore.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// نظرهایِ دریافتیِ یک کاربر.
+  Future<List<Review>> reputationReviews(String earthId) async {
+    final list = await _get('/v1/reputation/reviews/$earthId') as List;
+    return list.map((e) => Review.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  // ─────────────── Insurance ───────────────
+  /// استعلامِ بیمه (ساختِ بیمه‌نامهٔ در وضعیتِ استعلام).
+  Future<InsurancePolicy> createInsuranceQuote({
+    required String productCode,
+    required int coverageMinor,
+    String currency = 'IRR',
+    String providerCode = 'sandbox',
+    Map<String, dynamic> attributes = const {},
+  }) async {
+    final j = await _post('/v1/insurance/quotes', {
+      'product_code': productCode,
+      'coverage_minor': coverageMinor,
+      'currency': currency,
+      'provider_code': providerCode,
+      'attributes': attributes,
+    });
+    return InsurancePolicy.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// صدورِ نهاییِ بیمه‌نامه.
+  Future<InsurancePolicy> issuePolicy(String policyId) async {
+    final j = await _post('/v1/insurance/$policyId/issue', null);
+    return InsurancePolicy.fromJson(j as Map<String, dynamic>);
+  }
+
+  // ─────────────── Telecom ───────────────
+  /// شارژِ خطِ موبایل / بستهٔ اینترنت.
+  Future<TopUp> telecomTopUp({
+    required String msisdn,
+    required String productCode,
+    required int amountMinor,
+    String currency = 'IRR',
+    String providerCode = 'sandbox',
+  }) async {
+    final j = await _post('/v1/telecom/top-up', {
+      'msisdn': msisdn,
+      'product_code': productCode,
+      'amount_minor': amountMinor,
+      'currency': currency,
+      'provider_code': providerCode,
+    });
+    return TopUp.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// فعال‌سازیِ eSIM.
+  Future<Esim> activateEsim({
+    required String iccid,
+    required String countryCode,
+    String providerCode = 'sandbox',
+  }) async {
+    final j = await _post('/v1/telecom/esim/activate', {
+      'iccid': iccid,
+      'country_code': countryCode,
+      'provider_code': providerCode,
+    });
+    return Esim.fromJson(j as Map<String, dynamic>);
   }
 
   // ─────────────── Messaging ───────────────

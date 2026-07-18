@@ -2,9 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../../app.dart';
 import '../../models/models.dart';
+import '../insurance/insurance_screen.dart';
+import '../investment/investment_screen.dart';
 import '../marketplace/marketplace_screen.dart';
+import '../membership/membership_screen.dart';
+import '../notifications/notifications_screen.dart';
 import '../reels/reels_screen.dart';
 import '../stories/stories_screen.dart';
+import '../telecom/telecom_screen.dart';
+import '../wallet/wallet_screen.dart';
 
 /// هابِ verticalها (سند ۷ §۲): حمل‌ونقل، بیمه، ارتباطات، بازارگاه.
 class ServicesScreen extends StatelessWidget {
@@ -16,9 +22,13 @@ class ServicesScreen extends StatelessWidget {
       _Service(Icons.movie_creation_outlined, 'ریلز', 'ویدیوهای کوتاه', const ReelsScreen()),
       _Service(Icons.auto_stories_outlined, 'داستان‌ها', 'داستانِ ۲۴ساعته', const StoriesScreen()),
       _Service(Icons.local_shipping_outlined, 'حمل‌ونقل', 'اسنپِ بار', const FreightScreen()),
-      _Service(Icons.shield_outlined, 'بیمه', 'استعلام و صدور', null),
-      _Service(Icons.signal_cellular_alt, 'ارتباطات', 'اینترنت و eSIM', null),
+      _Service(Icons.shield_outlined, 'بیمه', 'استعلام و صدور', const InsuranceScreen()),
+      _Service(Icons.signal_cellular_alt, 'ارتباطات', 'اینترنت و eSIM', const TelecomScreen()),
       _Service(Icons.storefront_outlined, 'بازارگاه', 'خدمات و فریلنسری', const MarketplaceScreen()),
+      _Service(Icons.trending_up, 'سرمایه‌گذاری', 'صندوق و NAV', const InvestmentScreen()),
+      _Service(Icons.workspace_premium_outlined, 'عضویت', 'پلن، نشان و اعتبار', const MembershipScreen()),
+      _Service(Icons.account_balance_wallet_outlined, 'کیف پول', 'پاداش و پرداختِ امن', const WalletScreen()),
+      _Service(Icons.notifications_outlined, 'اعلان‌ها', 'رویدادها و پیام‌ها', const NotificationsScreen()),
     ];
     return Scaffold(
       appBar: AppBar(title: const Text('خدمات')),

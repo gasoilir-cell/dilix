@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../app.dart';
 import '../../core/social_auth.dart';
 import '../../models/models.dart';
+import '../notifications/notifications_screen.dart';
+import '../wallet/wallet_screen.dart';
 
 const _socialProviders = <({String id, String label})>[
   (id: 'google', label: 'Google'),
@@ -314,31 +316,48 @@ class _MeScreenState extends State<MeScreen> {
             trailing: Chip(label: Text('KYC L${_me?.kycLevel ?? 0}')),
           ),
         ),
-        // کیفِ پاداش (سکه‌ی دیلیکس)
+        // کیفِ پاداش (سکه‌ی دیلیکس) — کارت به صفحهٔ کاملِ کیف پول می‌رود.
         Card(
           child: ListTile(
             leading: const Icon(Icons.account_balance_wallet_outlined),
-            title: const Text('کیفِ پاداش'),
-            subtitle: const Text('امتیازِ قابلِ استفاده در سرویس‌ها'),
-            trailing: Text(
-              _points != null ? '$_points' : '—',
-              style: Theme.of(context).textTheme.titleLarge,
+            title: const Text('کیفِ پول'),
+            subtitle: const Text('پاداش، پرداختِ امن و درآمد'),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _points != null ? '$_points' : '—',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const Icon(Icons.chevron_left),
+              ],
+            ),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const WalletScreen()),
             ),
           ),
         ),
-        // اعلان‌ها
+        // اعلان‌ها — سرصفحه به صفحهٔ کاملِ اعلان‌ها می‌رود.
         Card(
           child: Column(
             children: [
               ListTile(
                 leading: const Icon(Icons.notifications_outlined),
                 title: const Text('اعلان‌ها'),
-                trailing: unread > 0
-                    ? Chip(
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (unread > 0)
+                      Chip(
                         label: Text('$unread جدید'),
                         backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                      )
-                    : null,
+                      ),
+                    const Icon(Icons.chevron_left),
+                  ],
+                ),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const NotificationsScreen()),
+                ),
               ),
               if (_notifications.isEmpty)
                 const Padding(

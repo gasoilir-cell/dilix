@@ -220,11 +220,15 @@ class MarketOrder {
 }
 
 class ReferralLink {
-  ReferralLink({required this.code, required this.url});
+  ReferralLink({required this.code, required this.url, this.totalReferred = 0});
   final String code;
   final String url;
-  factory ReferralLink.fromJson(Map<String, dynamic> j) =>
-      ReferralLink(code: j['code'] as String, url: j['url'] as String);
+  final int totalReferred;
+  factory ReferralLink.fromJson(Map<String, dynamic> j) => ReferralLink(
+        code: j['code'] as String,
+        url: j['url'] as String,
+        totalReferred: (j['total_referred'] ?? 0) as int,
+      );
 }
 
 class ChatRoom {
@@ -421,5 +425,311 @@ class Story {
         isMine: (j['is_mine'] ?? false) as bool,
         createdAt: DateTime.tryParse((j['created_at'] ?? '') as String) ??
             DateTime.fromMillisecondsSinceEpoch(0),
+      );
+}
+
+/// موجودیِ پاداش برای یک ارز (`RewardBalance`).
+class RewardBalance {
+  RewardBalance({
+    required this.currency,
+    required this.amountMinor,
+    required this.rewardCount,
+  });
+
+  final String currency;
+  final int amountMinor;
+  final int rewardCount;
+
+  factory RewardBalance.fromJson(Map<String, dynamic> j) => RewardBalance(
+        currency: (j['currency'] ?? '') as String,
+        amountMinor: (j['amount_minor'] ?? 0) as int,
+        rewardCount: (j['reward_count'] ?? 0) as int,
+      );
+}
+
+/// کیفِ پاداش (`RewardWallet`): موجودی‌ها + شمارِ در انتظار.
+class RewardWallet {
+  RewardWallet({required this.balances, required this.pendingCount});
+
+  final List<RewardBalance> balances;
+  final int pendingCount;
+
+  factory RewardWallet.fromJson(Map<String, dynamic> j) => RewardWallet(
+        balances: ((j['balances'] ?? const []) as List)
+            .map((e) => RewardBalance.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        pendingCount: (j['pending_count'] ?? 0) as int,
+      );
+}
+
+/// سهم از درآمد (`RevenueShare`).
+class RevenueShare {
+  RevenueShare({
+    required this.eligible,
+    required this.plan,
+    required this.entitlementBps,
+    required this.investmentUnits,
+    required this.note,
+  });
+
+  final bool eligible;
+  final String plan;
+  final int entitlementBps;
+  final int investmentUnits;
+  final String note;
+
+  factory RevenueShare.fromJson(Map<String, dynamic> j) => RevenueShare(
+        eligible: (j['eligible'] ?? false) as bool,
+        plan: (j['plan'] ?? '') as String,
+        entitlementBps: (j['entitlement_bps'] ?? 0) as int,
+        investmentUnits: (j['investment_units'] ?? 0) as int,
+        note: (j['note'] ?? '') as String,
+      );
+}
+
+/// سفارشِ پرداختِ امانی (`PaymentOrderOut`).
+class PaymentOrder {
+  PaymentOrder({
+    required this.id,
+    required this.payerEarthId,
+    required this.payeeEarthId,
+    required this.amountMinor,
+    required this.currency,
+    required this.providerCode,
+    required this.externalRef,
+    required this.status,
+  });
+
+  final String id;
+  final String payerEarthId;
+  final String payeeEarthId;
+  final int amountMinor;
+  final String currency;
+  final String providerCode;
+  final String? externalRef;
+  final String status;
+
+  factory PaymentOrder.fromJson(Map<String, dynamic> j) => PaymentOrder(
+        id: j['id'] as String,
+        payerEarthId: (j['payer_earth_id'] ?? '') as String,
+        payeeEarthId: (j['payee_earth_id'] ?? '') as String,
+        amountMinor: (j['amount_minor'] ?? 0) as int,
+        currency: (j['currency'] ?? 'IRR') as String,
+        providerCode: (j['provider_code'] ?? '') as String,
+        externalRef: j['external_ref'] as String?,
+        status: (j['status'] ?? '') as String,
+      );
+}
+
+/// نرخِ روزِ صندوقِ سرمایه‌گذاری (`NavOut`).
+class NavQuote {
+  NavQuote({required this.fundCode, required this.navMinor});
+  final String fundCode;
+  final int navMinor;
+  factory NavQuote.fromJson(Map<String, dynamic> j) => NavQuote(
+        fundCode: (j['fund_code'] ?? '') as String,
+        navMinor: (j['nav_minor'] ?? 0) as int,
+      );
+}
+
+/// موقعیتِ سرمایه‌گذاریِ کاربر (`PositionOut`).
+class InvestmentPosition {
+  InvestmentPosition({
+    required this.id,
+    required this.fundCode,
+    required this.units,
+    required this.status,
+  });
+  final String id;
+  final String fundCode;
+  final num units;
+  final String status;
+  factory InvestmentPosition.fromJson(Map<String, dynamic> j) => InvestmentPosition(
+        id: j['id'] as String,
+        fundCode: (j['fund_code'] ?? '') as String,
+        units: (j['units'] ?? 0) as num,
+        status: (j['status'] ?? '') as String,
+      );
+}
+
+/// عضویت/اشتراک (`MembershipOut`).
+class Membership {
+  Membership({
+    required this.id,
+    required this.earthId,
+    required this.plan,
+    required this.status,
+    required this.cashbackBps,
+    required this.expiresAt,
+  });
+  final String id;
+  final String earthId;
+  final String plan;
+  final String status;
+  final int cashbackBps;
+  final DateTime? expiresAt;
+  factory Membership.fromJson(Map<String, dynamic> j) => Membership(
+        id: (j['id'] ?? '') as String,
+        earthId: (j['earth_id'] ?? '') as String,
+        plan: (j['plan'] ?? 'free') as String,
+        status: (j['status'] ?? '') as String,
+        cashbackBps: (j['cashback_bps'] ?? 0) as int,
+        expiresAt: j['expires_at'] == null
+            ? null
+            : DateTime.tryParse(j['expires_at'] as String),
+      );
+}
+
+/// نشانِ کسب‌شده (`BadgeOut`).
+class Badge {
+  Badge({
+    required this.id,
+    required this.badgeCode,
+    required this.description,
+    required this.awardedAt,
+  });
+  final String id;
+  final String badgeCode;
+  final String? description;
+  final DateTime awardedAt;
+  factory Badge.fromJson(Map<String, dynamic> j) => Badge(
+        id: (j['id'] ?? '') as String,
+        badgeCode: (j['badge_code'] ?? '') as String,
+        description: j['description'] as String?,
+        awardedAt: DateTime.tryParse((j['awarded_at'] ?? '') as String) ??
+            DateTime.fromMillisecondsSinceEpoch(0),
+      );
+}
+
+/// امتیازِ اعتبار در یک حوزه (`ScoreOut`).
+class ReputationScore {
+  ReputationScore({
+    required this.earthId,
+    required this.domain,
+    required this.score,
+    required this.reviewCount,
+  });
+  final String earthId;
+  final String domain;
+  final int score;
+  final int reviewCount;
+  factory ReputationScore.fromJson(Map<String, dynamic> j) => ReputationScore(
+        earthId: (j['earth_id'] ?? '') as String,
+        domain: (j['domain'] ?? '') as String,
+        score: (j['score'] ?? 0) as int,
+        reviewCount: (j['review_count'] ?? 0) as int,
+      );
+}
+
+/// نظرِ دریافتی (`ReviewOut`).
+class Review {
+  Review({
+    required this.id,
+    required this.revieweeEarthId,
+    required this.reviewerEarthId,
+    required this.domain,
+    required this.transactionRef,
+    required this.rating,
+    required this.comment,
+  });
+  final String id;
+  final String revieweeEarthId;
+  final String reviewerEarthId;
+  final String domain;
+  final String transactionRef;
+  final int rating;
+  final String? comment;
+  factory Review.fromJson(Map<String, dynamic> j) => Review(
+        id: (j['id'] ?? '') as String,
+        revieweeEarthId: (j['reviewee_earth_id'] ?? '') as String,
+        reviewerEarthId: (j['reviewer_earth_id'] ?? '') as String,
+        domain: (j['domain'] ?? '') as String,
+        transactionRef: (j['transaction_ref'] ?? '') as String,
+        rating: (j['rating'] ?? 0) as int,
+        comment: j['comment'] as String?,
+      );
+}
+
+/// بیمه‌نامه (`PolicyOut`): استعلام/صدور.
+class InsurancePolicy {
+  InsurancePolicy({
+    required this.id,
+    required this.holderEarthId,
+    required this.providerCode,
+    required this.productCode,
+    required this.coverageMinor,
+    required this.premiumMinor,
+    required this.currency,
+    required this.externalRef,
+    required this.status,
+  });
+  final String id;
+  final String holderEarthId;
+  final String providerCode;
+  final String productCode;
+  final int coverageMinor;
+  final int premiumMinor;
+  final String currency;
+  final String? externalRef;
+  final String status;
+  factory InsurancePolicy.fromJson(Map<String, dynamic> j) => InsurancePolicy(
+        id: j['id'] as String,
+        holderEarthId: (j['holder_earth_id'] ?? '') as String,
+        providerCode: (j['provider_code'] ?? '') as String,
+        productCode: (j['product_code'] ?? '') as String,
+        coverageMinor: (j['coverage_minor'] ?? 0) as int,
+        premiumMinor: (j['premium_minor'] ?? 0) as int,
+        currency: (j['currency'] ?? 'IRR') as String,
+        externalRef: j['external_ref'] as String?,
+        status: (j['status'] ?? '') as String,
+      );
+}
+
+/// شارژِ موبایل (`TopUpOut`).
+class TopUp {
+  TopUp({
+    required this.id,
+    required this.msisdn,
+    required this.productCode,
+    required this.amountMinor,
+    required this.currency,
+    required this.status,
+    required this.externalRef,
+  });
+  final String id;
+  final String msisdn;
+  final String productCode;
+  final int amountMinor;
+  final String currency;
+  final String status;
+  final String? externalRef;
+  factory TopUp.fromJson(Map<String, dynamic> j) => TopUp(
+        id: j['id'] as String,
+        msisdn: (j['msisdn'] ?? '') as String,
+        productCode: (j['product_code'] ?? '') as String,
+        amountMinor: (j['amount_minor'] ?? 0) as int,
+        currency: (j['currency'] ?? 'IRR') as String,
+        status: (j['status'] ?? '') as String,
+        externalRef: j['external_ref'] as String?,
+      );
+}
+
+/// eSIMِ فعال‌شده (`EsimOut`).
+class Esim {
+  Esim({
+    required this.id,
+    required this.iccid,
+    required this.countryCode,
+    required this.status,
+  });
+  final String id;
+  final String iccid;
+  final String countryCode;
+  final String status;
+  factory Esim.fromJson(Map<String, dynamic> j) => Esim(
+        id: j['id'] as String,
+        iccid: (j['iccid'] ?? '') as String,
+        countryCode: (j['country_code'] ?? '') as String,
+        status: (j['status'] ?? '') as String,
       );
 }

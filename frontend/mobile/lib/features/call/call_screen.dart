@@ -4,69 +4,30 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../../app.dart';
 import 'call_service.dart';
 
-/// شروعِ یک تماسِ خروجی: سرویس را می‌سازد، به سیگنالینگ وصل می‌شود، آفر را
-/// می‌فرستد و صفحهٔ تماس را باز می‌کند. سرویس با بستنِ صفحه dispose می‌شود.
+/// شروعِ یک تماسِ خروجی روی نمونهٔ سراسریِ [CallService] (از `CallScope`).
+/// UIِ تماس را overlayِ سراسری در `app.dart` نمایش می‌دهد؛ اینجا فقط آفر
+/// فرستاده می‌شود.
 Future<void> startOutgoingCall(
   BuildContext context, {
   required String peerId,
   required String peerName,
   required CallMedia media,
 }) async {
-  final service = CallService(ApiScope.of(context));
-  await service.init();
+  final service = CallScope.of(context);
   await service.startCall(peerId: peerId, peerName: peerName, media: media);
-  if (!context.mounted) {
-    service.dispose();
-    return;
-  }
-  await Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      builder: (_) => CallScreen(service: service, owned: true),
-    ),
-  );
 }
 
-/// صفحهٔ تماسِ صوتی/تصویری. با تغییرِ فاز به idle خودکار بسته می‌شود.
-class CallScreen extends StatefulWidget {
-  const CallScreen({super.key, required this.service, this.owned = false});
+/// صفحهٔ تماسِ صوتی/تصویری. یک view بدونِ حالت است که وضعیت را از
+/// [CallService] می‌خواند؛ بازساختنِ آن با overlayِ سراسری (ListenableBuilder)
+/// مدیریت می‌شود و با فازِ idle دیگر نمایش داده نمی‌شود.
+class CallScreen extends StatelessWidget {
+  const CallScreen({super.key, required this.service});
 
   final CallService service;
 
-  /// اگر true، این صفحه مالکِ سرویس است و هنگامِ بسته‌شدن آن را dispose می‌کند.
-  final bool owned;
-
-  @override
-  State<CallScreen> createState() => _CallScreenState();
-}
-
-class _CallScreenState extends State<CallScreen> {
-  bool _popped = false;
-
-  @override
-  void initState() {
-    super.initState();
-    widget.service.addListener(_onChange);
-  }
-
-  @override
-  void dispose() {
-    widget.service.removeListener(_onChange);
-    if (widget.owned) widget.service.dispose();
-    super.dispose();
-  }
-
-  void _onChange() {
-    if (widget.service.phase == CallPhase.idle && !_popped && mounted) {
-      _popped = true;
-      Navigator.of(context).maybePop();
-    } else if (mounted) {
-      setState(() {});
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final s = widget.service;
+    final s = service;
     final isVideo = s.media == CallMedia.video;
     return Scaffold(
       backgroundColor: Colors.black,
@@ -74,7 +35,6 @@ class _CallScreenState extends State<CallScreen> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // ویدیوی طرفِ مقابل (تمام‌صفحه) یا آواتارِ صوتی
             if (isVideo && s.phase == CallPhase.active)
               RTCVideoView(s.remoteRenderer,
                   objectFit:
@@ -82,7 +42,6 @@ class _CallScreenState extends State<CallScreen> {
             else
               _audioBackdrop(s),
 
-            // ویدیوی خودم (PiP)
             if (isVideo)
               Positioned(
                 top: 16,
@@ -95,7 +54,6 @@ class _CallScreenState extends State<CallScreen> {
                 ),
               ),
 
-            // عنوان/وضعیت
             Positioned(
               top: 24,
               left: 0,
@@ -121,7 +79,6 @@ class _CallScreenState extends State<CallScreen> {
               ),
             ),
 
-            // کنترل‌ها
             Positioned(
               bottom: 40,
               left: 0,
@@ -156,8 +113,8 @@ class _CallScreenState extends State<CallScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _roundBtn(Icons.call_end, Colors.red, () => s.reject()),
-        _roundBtn(Icons.call, Colors.green, () => s.accept()),
+        _roundBtn(Icons.call_end, Colors.red, s.reject, 'رد'),
+        _roundBtn(Icons.call, Colors.green, s.accept, 'پاسخ'),
       ],
     );
   }
@@ -169,22 +126,25 @@ class _CallScreenState extends State<CallScreen> {
         _roundBtn(
           s.muted ? Icons.mic_off : Icons.mic,
           Colors.white24,
-          () => s.toggleMute(),
+          s.toggleMute,
+          'میوت',
         ),
         if (isVideo)
           _roundBtn(
             s.camOff ? Icons.videocam_off : Icons.videocam,
             Colors.white24,
-            () => s.toggleCamera(),
+            s.toggleCamera,
+            'دوربین',
           ),
         if (isVideo)
-          _roundBtn(Icons.cameraswitch, Colors.white24, () => s.switchCamera()),
-        _roundBtn(Icons.call_end, Colors.red, () => s.hangup()),
+          _roundBtn(Icons.cameraswitch, Colors.white24, s.switchCamera, 'تعویض'),
+        _roundBtn(Icons.call_end, Colors.red, s.hangup, 'قطع'),
       ],
     );
   }
 
-  Widget _roundBtn(IconData icon, Color bg, VoidCallback onTap) {
+  Widget _roundBtn(
+      IconData icon, Color bg, VoidCallback onTap, String tooltip) {
     return Material(
       color: bg,
       shape: const CircleBorder(),
@@ -193,7 +153,7 @@ class _CallScreenState extends State<CallScreen> {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Icon(icon, color: Colors.white, size: 28),
+          child: Icon(icon, color: Colors.white, size: 28, semanticLabel: tooltip),
         ),
       ),
     );

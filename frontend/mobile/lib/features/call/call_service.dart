@@ -51,6 +51,7 @@ class CallService extends ChangeNotifier {
   bool _outgoing = false;
   bool _muted = false;
   bool _camOff = false;
+  bool _initialized = false;
   String? _error;
 
   CallPhase get phase => _phase;
@@ -62,11 +63,30 @@ class CallService extends ChangeNotifier {
   String? get error => _error;
   bool get isBusy => _phase != CallPhase.idle;
 
-  /// آماده‌سازیِ رندررها و اتصالِ WebSocket. یک‌بار در آغازِ کار صدا زده شود.
+  /// آماده‌سازیِ رندررها و اتصالِ WebSocket. idempotent است و پس از احرازِ هویت
+  /// یک‌بار به‌صورتِ سراسری صدا زده می‌شود تا WS همیشه به تماسِ ورودی گوش دهد.
   Future<void> init() async {
-    await localRenderer.initialize();
-    await remoteRenderer.initialize();
+    if (_initialized) return;
+    _initialized = true;
+    // در محیطِ تست پلاگینِ WebRTC وجود ندارد؛ خطای مقداردهیِ رندرر را می‌بلعیم.
+    try {
+      await localRenderer.initialize();
+      await remoteRenderer.initialize();
+    } catch (_) {}
     await _ensureSocket();
+  }
+
+  /// فقط برای تست: تنظیمِ مستقیمِ فاز/طرف بدونِ درگیرکردنِ WebRTC واقعی.
+  @visibleForTesting
+  void debugSetPhase(
+    CallPhase phase, {
+    String peerName = 'آزمون',
+    CallMedia media = CallMedia.audio,
+  }) {
+    _phase = phase;
+    _peerName = peerName;
+    _media = media;
+    notifyListeners();
   }
 
   Future<void> _ensureSocket() async {

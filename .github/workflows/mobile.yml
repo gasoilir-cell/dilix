@@ -114,6 +114,12 @@ jobs:
       - name: Analyze (non-blocking)
         run: flutter analyze || true
 
+      # تست‌های ویجت/واحد (مثلِ test/call_flow_test.dart و marketplace_screen_test.dart)
+      # بدونِ نیاز به دستگاه/شبیه‌ساز روی همین runner اجرا می‌شوند و شکستشان بیلد را
+      # متوقف می‌کند تا رگرسیونِ UI پیش از انتشارِ APK گرفته شود.
+      - name: Run widget/unit tests
+        run: flutter test
+
       - name: Build release APK
         run: |
           flutter build apk --release \
