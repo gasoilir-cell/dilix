@@ -94,8 +94,10 @@ jobs:
           rt = root_gradle.read_text()
           force_block = '''
           subprojects {
-              afterEvaluate {
-                  extensions.findByType(com.android.build.gradle.LibraryExtension::class.java)?.compileSdk = 36
+              if (project.name != "app") {
+                  afterEvaluate {
+                      extensions.findByType(com.android.build.gradle.LibraryExtension::class.java)?.compileSdk = 36
+                  }
               }
           }
           '''
