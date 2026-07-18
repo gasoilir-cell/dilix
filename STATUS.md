@@ -399,3 +399,73 @@ workflowِ `mobile.yml` چند دور با شکست‌های واقعی (نه ف
 - ورودِ اجتماعی (Google/Microsoft/Apple/Facebook) در این APK کامپایل می‌شود اما تا وقتی
   client-idهای واقعی در بیلد ست نشوند دکمه‌هایش مخفی می‌مانند؛ ورود با
   رمز/OTP کاملاً فعال است.
+
+---
+
+## [2026-07-18] هم‌ترازیِ اپ موبایل با web — ماندگاریِ ورود + کیفِ پاداش/اعلان‌ها
+
+- **ماندگاریِ نشست**: توکن‌ها با `shared_preferences` ذخیره و هنگامِ باز شدنِ اپ
+  بازخوانی می‌شوند (`ApiClient.loadSession/_persistTokens/logout`). `RootGate`
+  اکنون پیش از انتخابِ ورود/خانه، `loadSession()` را async اجرا و تا پایان یک
+  اسپینر نشان می‌دهد → کاربر با هر بار باز کردنِ اپ مجبور به ورودِ دوباره نیست.
+- **صفحهٔ «حساب من»** تکمیل شد: کارتِ کیفِ پاداش (امتیاز از `/v1/gamification/points`)،
+  بخشِ اعلان‌ها (از `/v1/notifications` با شمارشِ نخوانده‌ها و علامت‌گذاریِ خوانده‌شده
+  روی `/v1/notifications/{id}/read`)، لینکِ پشتیبانی (ارجاع به دستیارِ هوشمند) و
+  دکمهٔ خروج از حساب.
+- مدلِ `NotificationItem` و متدهای کلاینت (`notifications`, `markNotificationRead`,
+  `rewardPoints`) افزوده شد. همهٔ endpointها با روترهای واقعی Core تطبیق داده شدند.
+- **اعتبارسنجی**: Flutter در کانتینر نصب نیست (طبق سیاستِ بیلد سنگین)، پس به‌جای
+  `flutter analyze` موازنهٔ پرانتز/براکت و صحتِ import/type دستی بررسی شد (سبز).
+- **تصمیم‌های آگاهانه (بدون گسترشِ scope):** ساختارِ موجودِ `lib/features/*` +
+  مسیریابیِ `Navigator` حفظ شد و به go_router/`lib/screens` مهاجرت داده نشد تا کارِ
+  کاملِ قبلی دوباره‌کاری/تخریب نشود. داده‌ی واقعیِ صفحهٔ پیام‌ها موکول ماند چون
+  Core هنوز endpointِ list-rooms ندارد (نیازمندِ کارِ backend، خارج از این scope).
+
+### پیام‌های اپ موبایل — دادهٔ واقعی (نه placeholder)
+- `features/messages/messages_screen.dart` بازنویسی شد: بازکردنِ گفتگویِ مستقیم با
+  Earth ID طرفِ مقابل + `ChatView` با لیستِ پیام (پولِ ۵ثانیه‌ای) و ارسال، روی
+  endpointهایِ واقعیِ `/v1/messaging/rooms`, `.../{id}/messages`.
+- `api_client.dart`: متدهای `createDirectRoom`/`roomMessages`/`sendMessage`.
+- `models.dart`: مدل‌های `ChatRoom` و `ChatMessage` (منطبق با `RoomOut`/`MessageOut` Core).
+- محدودیت: Core endpointِ فهرستِ اتاق‌ها ندارد → لیستِ گفتگوهای گذشته نمایش داده
+  نمی‌شود (گفتگو با Earth ID باز می‌شود). این نیازمندِ کارِ backend است.
+
+### endpointِ فهرستِ اتاق‌ها (list-rooms) — رفعِ گپِ ثبت‌شده
+- **backend** `messaging/router.py` + `service.py`: افزودنِ `GET /v1/messaging/rooms`
+  (`service.list_rooms`) که اتاق‌های عضوِ کاربرِ فعلی را برمی‌گرداند، مرتب بر اساسِ
+  جدیدترین فعالیت (آخرین پیام؛ در نبودِ پیام، `created_at` اتاق) با subqueryِ
+  `max(sent_at)` + `coalesce`.
+- **موبایل** `api_client.listRooms()` + `messages_screen`: فهرستِ گفتگوها بالای
+  فرمِ «گفتگویِ جدید» (tap→`ChatView`، رفرش پس از بازگشت).
+- **web** `lib/api.ts messaging.listRooms` + `app/messages/page.tsx`: نمایشِ لیست
+  اتاق‌ها (پولِ ۱۰ثانیه‌ای، دکمهٔ بازگشت به فهرست از داخلِ اتاق).
+- **تست** `tests/test_messaging_integration.py`: (۱) فهرست فقط اتاق‌های خودِ کاربر
+  را می‌دهد نه کاربرِ دیگر؛ (۲) اتاقِ دارای پیامِ جدیدتر بالای فهرست می‌آید.
+- اعتبارسنجی: `py_compile` سبز، موازنهٔ پرانتزِ فرانت سبز. اجرای `pytest`/`flutter`
+  در کانتینر ممکن نیست (deps نصب نیست، طبق سیاستِ بیلد) → روی سرور SSH اجرا شود.
+
+### دستیارِ هوشمندِ موبایل — صفحهٔ گفتگوی کامل (۲۰۲۶-۰۷-۱۸)
+- **باگِ رفع‌شده:** `aiInvoke` قدیمی مسیرِ ناموجودِ `/v1/ai/conversations/{id}/messages`
+  و یک شناسهٔ جعلیِ timestamp را صدا می‌زد → عملاً کار نمی‌کرد (۴۰۴/۴۰۴).
+- **موبایل** `api_client.dart`: متدهای واقعیِ AI روی `/v1/ai` →
+  `createAiConversation(agentType)`, `aiConversations()`, `aiHistory(id)`, `aiChat(id,msg)`.
+  مدل‌های `AiConversation`/`AiMessage` در `models.dart`.
+- **UI** `features/assistant/assistant_sheet.dart`: چتِ پایدارِ واقعی؛ انتخاب‌گرِ تخصص
+  (۷ agent: personal/freight/insurance/financial/matchmaking/travel/business)، ساختِ
+  مکالمهٔ واقعی، حبابِ کاربر/دستیار، auto-scroll، نوارِ خطا. هم‌تراز `AssistantPanel` وب.
+- بک‌اند `modules/ai` و web `AssistantPanel` از قبل کامل بودند؛ فقط گپِ موبایل بسته شد.
+- اعتبارسنجی: موازنهٔ براکت/پرانتز سبز، بدونِ ارجاعِ باقی‌مانده به `aiInvoke`.
+  اجرای `flutter analyze`/`flutter run` روی سرور SSH (طبق سیاستِ بیلد).
+
+## دستیارِ هوشمندِ موبایل — صفحهٔ گفتگوی کامل (feat/mobile-assistant)
+- **باگِ رفع‌شده:** `aiInvoke` قدیمی مسیرِ ناموجودِ `/v1/ai/conversations/{id}/messages`
+  و یک `conversationId` جعلی (timestamp) را صدا می‌زد → عملاً کار نمی‌کرد.
+- **موبایل** `api_client.dart`: متدهای واقعیِ AI روی Core →
+  `createAiConversation` (`POST /v1/ai/conversations`)، `aiConversations`
+  (`GET /v1/ai/conversations`)، `aiHistory` (`GET .../history`)، `aiChat`
+  (`POST .../chat`). مدل‌های `AiConversation`/`AiMessage` در `models.dart`.
+- **UI** `features/assistant/assistant_sheet.dart`: چتِ پایدار روی مکالمهٔ واقعی،
+  دراپ‌داونِ انتخابِ agent (۷ تخصص مطابقِ pattern بک‌اند)، تغییرِ agent →
+  مکالمهٔ تازه؛ هم‌تراز با `AssistantPanel` وب.
+- اعتبارسنجی: موازنهٔ ()/[]/{} روی هر سه فایل سبز؛ صفرْ ارجاعِ باقی‌مانده به
+  `aiInvoke`. اجرای `flutter analyze` در کانتینر ممکن نیست → روی سرور SSH.

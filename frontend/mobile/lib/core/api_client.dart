@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'config.dart';
 import '../models/models.dart';
@@ -15,19 +16,52 @@ class ApiException implements Exception {
   String toString() => detail.isNotEmpty ? detail : title;
 }
 
-/// کلاینتِ HTTP برای سرویسِ Core. توکن در حافظه نگه داشته می‌شود؛
-/// برای پایداری می‌توان آن را با secure storage جایگزین کرد.
+/// کلاینتِ HTTP برای سرویسِ Core. توکن‌ها بین اجراها با `shared_preferences`
+/// پایدار می‌مانند تا کاربر با هر بار بازکردنِ اپ مجبور به ورودِ دوباره نباشد.
 class ApiClient {
   ApiClient({http.Client? client, String? baseUrl})
       : _client = client ?? http.Client(),
         _base = baseUrl ?? AppConfig.apiBaseUrl;
 
+  static const _kAccessTokenKey = 'dilix.access_token';
+  static const _kRefreshTokenKey = 'dilix.refresh_token';
+
   final http.Client _client;
   final String _base;
   String? _accessToken;
+  String? _refreshToken;
 
   bool get isAuthenticated => _accessToken != null;
   void setAccessToken(String? token) => _accessToken = token;
+
+  /// خواندنِ نشستِ پایدارشده هنگامِ راه‌اندازیِ اپ (قبل از تصمیمِ ورود/خانه).
+  Future<void> loadSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    _accessToken = prefs.getString(_kAccessTokenKey);
+    _refreshToken = prefs.getString(_kRefreshTokenKey);
+  }
+
+  /// ذخیره‌ی توکن‌ها در حافظه + storage. با ورودِ موفق صدا زده می‌شود.
+  Future<void> _persistTokens(TokenPair tokens) async {
+    _accessToken = tokens.accessToken;
+    _refreshToken = tokens.refreshToken.isEmpty ? null : tokens.refreshToken;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kAccessTokenKey, tokens.accessToken);
+    if (_refreshToken != null) {
+      await prefs.setString(_kRefreshTokenKey, _refreshToken!);
+    } else {
+      await prefs.remove(_kRefreshTokenKey);
+    }
+  }
+
+  /// پاک‌سازیِ نشست (خروج). هم حافظه و هم storage را خالی می‌کند.
+  Future<void> logout() async {
+    _accessToken = null;
+    _refreshToken = null;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_kAccessTokenKey);
+    await prefs.remove(_kRefreshTokenKey);
+  }
 
   Map<String, String> _headers({bool json = false}) => {
         'Accept': 'application/json',
@@ -69,7 +103,7 @@ class ApiClient {
       'password': password,
     });
     final tokens = TokenPair.fromJson(j as Map<String, dynamic>);
-    setAccessToken(tokens.accessToken);
+    await _persistTokens(tokens);
     return tokens;
   }
 
@@ -87,7 +121,7 @@ class ApiClient {
     });
     final tokens =
         TokenPair.fromJson((j as Map<String, dynamic>)['tokens'] as Map<String, dynamic>);
-    setAccessToken(tokens.accessToken);
+    await _persistTokens(tokens);
     return tokens;
   }
 
@@ -114,7 +148,7 @@ class ApiClient {
     });
     final tokens =
         TokenPair.fromJson((j as Map<String, dynamic>)['tokens'] as Map<String, dynamic>);
-    setAccessToken(tokens.accessToken);
+    await _persistTokens(tokens);
     return tokens;
   }
 
@@ -169,9 +203,91 @@ class ApiClient {
   Future<ReferralLink> referralLink() async =>
       ReferralLink.fromJson(await _get('/v1/growth/referrals/link') as Map<String, dynamic>);
 
+  // ─────────────── Notifications ───────────────
+  Future<List<NotificationItem>> notifications({
+    bool unreadOnly = false,
+    int limit = 50,
+  }) async {
+    final list = await _get('/v1/notifications?unread_only=$unreadOnly&limit=$limit') as List;
+    return list.map((e) => NotificationItem.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> markNotificationRead(String id) =>
+      _post('/v1/notifications/$id/read', null);
+
+  // ─────────────── Gamification (کیفِ پاداش) ───────────────
+  /// موجودیِ امتیازِ پاداش (سکه‌ی دیلیکس).
+  Future<int> rewardPoints() async {
+    final j = await _get('/v1/gamification/points') as Map<String, dynamic>;
+    return (j['balance'] as num).toInt();
+  }
+
+  // ─────────────── Messaging ───────────────
+  /// فهرستِ گفتگوهایِ کاربرِ فعلی (مرتب بر اساسِ جدیدترین فعالیت).
+  Future<List<ChatRoom>> listRooms({int limit = 100}) async {
+    final list = await _get('/v1/messaging/rooms?limit=$limit') as List;
+    return list.map((e) => ChatRoom.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// ساختِ (یا بازکردنِ) گفتگویِ مستقیم با یک کاربر به کمکِ Earth ID او.
+  Future<ChatRoom> createDirectRoom(String peerEarthId, {String? title}) async {
+    final j = await _post('/v1/messaging/rooms', {
+      'room_type': 'direct',
+      if (title != null) 'title': title,
+      'member_ids': [peerEarthId],
+    });
+    return ChatRoom.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// پیام‌هایِ یک اتاق (جدیدترین در انتها؛ مرتب‌سازی در UI انجام می‌شود).
+  Future<List<ChatMessage>> roomMessages(String roomId, {int limit = 50}) async {
+    final list = await _get('/v1/messaging/rooms/$roomId/messages?limit=$limit') as List;
+    return list.map((e) => ChatMessage.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// ارسالِ پیامِ متنی به یک اتاق.
+  Future<ChatMessage> sendMessage(String roomId, String content) async {
+    final j = await _post('/v1/messaging/rooms/$roomId/messages', {
+      'content': content,
+      'msg_type': 'text',
+    });
+    return ChatMessage.fromJson(j as Map<String, dynamic>);
+  }
+
   // ─────────────── AI ───────────────
-  Future<String> aiInvoke(String conversationId, String message) async {
-    final j = await _post('/v1/ai/conversations/$conversationId/messages', {'message': message});
-    return (j as Map<String, dynamic>)['reply'] as String;
+  /// ساختِ مکالمهٔ جدید با agent (پیش‌فرض personal) و دریافتِ شناسهٔ واقعی.
+  Future<AiConversation> createAiConversation({
+    String agentType = 'personal',
+    String? title,
+  }) async {
+    final j = await _post('/v1/ai/conversations', {
+      'agent_type': agentType,
+      if (title != null) 'title': title,
+    });
+    return AiConversation.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// مکالمه‌های کاربرِ فعلی، جدیدترین اول.
+  Future<List<AiConversation>> aiConversations() async {
+    final list = await _get('/v1/ai/conversations') as List;
+    return list
+        .map((e) => AiConversation.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// تاریخچهٔ پیام‌های یک مکالمه (قدیمی → جدید).
+  Future<List<AiMessage>> aiHistory(String conversationId, {int limit = 50}) async {
+    final list =
+        await _get('/v1/ai/conversations/$conversationId/history?limit=$limit') as List;
+    return list.map((e) => AiMessage.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// ارسالِ پیام؛ پاسخِ assistant را برمی‌گرداند.
+  Future<AiMessage> aiChat(String conversationId, String message) async {
+    final j = await _post(
+      '/v1/ai/conversations/$conversationId/chat',
+      {'message': message},
+    );
+    return AiMessage.fromJson(j as Map<String, dynamic>);
   }
 }

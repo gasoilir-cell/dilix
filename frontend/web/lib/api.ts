@@ -613,6 +613,8 @@ export const api = {
   },
 
   messaging: {
+    listRooms: (limit = 100) =>
+      request<RoomOut[]>(`/v1/messaging/rooms?limit=${limit}`),
     createRoom: (body: { room_type?: string; title?: string; member_ids?: string[] }) =>
       request<RoomOut>("/v1/messaging/rooms", { method: "POST", body: JSON.stringify(body) }),
     messages: (roomId: string) => request<MessageOut[]>(`/v1/messaging/rooms/${roomId}/messages`),

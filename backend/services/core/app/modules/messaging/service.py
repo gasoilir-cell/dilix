@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dilix_shared.errors import ForbiddenError, NotFoundError
@@ -35,6 +35,30 @@ async def create_room(
         db.add(RoomMember(room_id=room.id, member_earth_id=mid))
     await db.flush()
     return room
+
+
+async def list_rooms(
+    db: AsyncSession, actor_earth_id: uuid.UUID, limit: int = 100
+) -> list[MessageRoom]:
+    """اتاق‌هایی که کاربر عضوِ آن‌هاست، مرتب‌شده بر اساسِ جدیدترین فعالیت
+    (آخرین پیام؛ در نبودِ پیام، زمانِ ساختِ اتاق)."""
+    last_msg = (
+        select(
+            Message.room_id.label("room_id"),
+            func.max(Message.sent_at).label("last_at"),
+        )
+        .group_by(Message.room_id)
+        .subquery()
+    )
+    result = await db.execute(
+        select(MessageRoom)
+        .join(RoomMember, RoomMember.room_id == MessageRoom.id)
+        .outerjoin(last_msg, last_msg.c.room_id == MessageRoom.id)
+        .where(RoomMember.member_earth_id == actor_earth_id)
+        .order_by(func.coalesce(last_msg.c.last_at, MessageRoom.created_at).desc())
+        .limit(limit)
+    )
+    return list(result.scalars().all())
 
 
 async def _assert_member(db: AsyncSession, room_id: uuid.UUID, earth_id: uuid.UUID) -> None:

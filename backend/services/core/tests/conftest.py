@@ -36,6 +36,8 @@ _ATTACHED_SCHEMAS = ("ai", "stickers", "stories")
 def _compile_jsonb_sqlite(_type, compiler, **kw):  # noqa: ANN001, ARG001
     return "JSON"
 
+
+class IntegrationHarness:
     """کلاینتِ HTTP + قابلیتِ تعویضِ کاربرِ احرازشده در طولِ تست."""
 
     def __init__(self, client, state: dict) -> None:

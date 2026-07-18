@@ -24,6 +24,16 @@ async def create_room(
     return RoomOut.model_validate(room, from_attributes=True)
 
 
+@router.get("/rooms", response_model=list[RoomOut])
+async def list_rooms(
+    limit: int = Query(default=100, le=200),
+    user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session),
+) -> list[RoomOut]:
+    rooms = await service.list_rooms(db, user.earth_id, limit=limit)
+    return [RoomOut.model_validate(r, from_attributes=True) for r in rooms]
+
+
 @router.post("/rooms/{room_id}/messages", response_model=MessageOut, status_code=201)
 async def send_message(
     room_id: uuid.UUID,

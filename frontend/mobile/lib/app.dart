@@ -61,8 +61,9 @@ class _DilixAppState extends State<DilixApp> {
   }
 }
 
-/// دروازهٔ ریشه: تا وقتی کاربر احراز هویت نشده `LoginScreen`، و پس از
-/// ورودِ موفق `HomeShell` را نشان می‌دهد.
+/// دروازهٔ ریشه: ابتدا نشستِ پایدارشده را می‌خواند (توکنِ ذخیره‌شده در
+/// `shared_preferences`) و تا پایانِ آن یک اسپینر نشان می‌دهد؛ سپس بسته به
+/// احراز هویت `LoginScreen` یا `HomeShell` را نمایش می‌دهد.
 class RootGate extends StatefulWidget {
   const RootGate({super.key});
 
@@ -71,8 +72,29 @@ class RootGate extends StatefulWidget {
 }
 
 class _RootGateState extends State<RootGate> {
+  bool _sessionLoaded = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_sessionLoaded) {
+      _restoreSession();
+    }
+  }
+
+  Future<void> _restoreSession() async {
+    final api = ApiScope.of(context);
+    await api.loadSession();
+    if (mounted) setState(() => _sessionLoaded = true);
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (!_sessionLoaded) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
     final api = ApiScope.of(context);
     if (!api.isAuthenticated) {
       return LoginScreen(onAuthenticated: () => setState(() {}));

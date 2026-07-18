@@ -140,3 +140,133 @@ class ReferralLink {
   factory ReferralLink.fromJson(Map<String, dynamic> j) =>
       ReferralLink(code: j['code'] as String, url: j['url'] as String);
 }
+
+class ChatRoom {
+  ChatRoom({
+    required this.id,
+    required this.roomType,
+    required this.title,
+    required this.isE2ee,
+    required this.createdBy,
+  });
+
+  final String id;
+  final String roomType;
+  final String? title;
+  final bool isE2ee;
+  final String createdBy;
+
+  factory ChatRoom.fromJson(Map<String, dynamic> j) => ChatRoom(
+        id: j['id'] as String,
+        roomType: (j['room_type'] ?? 'direct') as String,
+        title: j['title'] as String?,
+        isE2ee: (j['is_e2ee'] ?? false) as bool,
+        createdBy: (j['created_by'] ?? '') as String,
+      );
+}
+
+class ChatMessage {
+  ChatMessage({
+    required this.id,
+    required this.roomId,
+    required this.senderEarthId,
+    required this.msgType,
+    required this.content,
+    required this.sentAt,
+    required this.deleted,
+  });
+
+  final String id;
+  final String roomId;
+  final String senderEarthId;
+  final String msgType;
+  final String content;
+  final DateTime sentAt;
+  final bool deleted;
+
+  factory ChatMessage.fromJson(Map<String, dynamic> j) => ChatMessage(
+        id: j['id'] as String,
+        roomId: (j['room_id'] ?? '') as String,
+        senderEarthId: (j['sender_earth_id'] ?? '') as String,
+        msgType: (j['msg_type'] ?? 'text') as String,
+        content: (j['content'] ?? '') as String,
+        sentAt: DateTime.tryParse((j['sent_at'] ?? '') as String) ??
+            DateTime.fromMillisecondsSinceEpoch(0),
+        deleted: (j['deleted'] ?? false) as bool,
+      );
+}
+
+class NotificationItem {
+  NotificationItem({
+    required this.id,
+    required this.channel,
+    required this.title,
+    required this.body,
+    required this.read,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String channel;
+  final String title;
+  final String body;
+  final bool read;
+  final DateTime createdAt;
+
+  factory NotificationItem.fromJson(Map<String, dynamic> j) => NotificationItem(
+        id: j['id'] as String,
+        channel: (j['channel'] ?? 'system') as String,
+        title: (j['title'] ?? '') as String,
+        body: (j['body'] ?? '') as String,
+        read: (j['read'] ?? false) as bool,
+        createdAt: DateTime.tryParse((j['created_at'] ?? '') as String) ??
+            DateTime.fromMillisecondsSinceEpoch(0),
+      );
+}
+
+class AiConversation {
+  AiConversation({
+    required this.id,
+    required this.agentType,
+    required this.title,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String agentType;
+  final String? title;
+  final DateTime createdAt;
+
+  factory AiConversation.fromJson(Map<String, dynamic> j) => AiConversation(
+        id: j['id'] as String,
+        agentType: (j['agent_type'] ?? 'personal') as String,
+        title: j['title'] as String?,
+        createdAt: DateTime.tryParse((j['created_at'] ?? '') as String) ??
+            DateTime.fromMillisecondsSinceEpoch(0),
+      );
+}
+
+class AiMessage {
+  AiMessage({
+    required this.id,
+    required this.conversationId,
+    required this.role,
+    required this.content,
+    required this.sentAt,
+  });
+
+  final String id;
+  final String conversationId;
+  final String role; // user | assistant | system
+  final String content;
+  final DateTime sentAt;
+
+  factory AiMessage.fromJson(Map<String, dynamic> j) => AiMessage(
+        id: (j['id'] ?? '') as String,
+        conversationId: (j['conversation_id'] ?? '') as String,
+        role: (j['role'] ?? 'assistant') as String,
+        content: (j['content'] ?? '') as String,
+        sentAt: DateTime.tryParse((j['sent_at'] ?? '') as String) ??
+            DateTime.fromMillisecondsSinceEpoch(0),
+      );
+}

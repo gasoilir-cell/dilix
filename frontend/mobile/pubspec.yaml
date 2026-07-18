@@ -13,6 +13,7 @@ dependencies:
     sdk: flutter
   http: ^1.2.2
   intl: ^0.20.2 # باید با نسخهٔ pinِ flutter_localizations در Flutter SDK هماهنگ باشد
+  shared_preferences: ^2.3.2 # پایداریِ نشست (access/refresh token) بین اجراها
   # ورودِ اجتماعی (بومی)
   flutter_appauth: ^8.0.0 # Google/Microsoft/Apple via OIDC (PKCE)
   flutter_facebook_auth: ^7.1.1 # Facebook access_token

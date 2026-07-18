@@ -27,6 +27,8 @@ class _MeScreenState extends State<MeScreen> {
   final _social = SocialAuth();
   Identity? _me;
   ReferralLink? _referral;
+  int? _points;
+  List<NotificationItem> _notifications = const [];
   String? _error;
   bool _busy = false;
   String _otpChannel = 'sms';
@@ -45,12 +47,35 @@ class _MeScreenState extends State<MeScreen> {
     final api = ApiScope.of(context);
     final me = await api.me();
     ReferralLink? referral;
+    int? points;
+    List<NotificationItem> notifications = const [];
+    // این‌ها اختیاری‌اند؛ نبودشان نباید نمایشِ حساب را بشکند.
     try {
       referral = await api.referralLink();
+    } catch (_) {}
+    try {
+      points = await api.rewardPoints();
+    } catch (_) {}
+    try {
+      notifications = await api.notifications(limit: 20);
     } catch (_) {}
     setState(() {
       _me = me;
       _referral = referral;
+      _points = points;
+      _notifications = notifications;
+    });
+  }
+
+  Future<void> _logout() async {
+    await ApiScope.of(context).logout();
+    setState(() {
+      _me = null;
+      _referral = null;
+      _points = null;
+      _notifications = const [];
+      _idCtrl.clear();
+      _passCtrl.clear();
     });
   }
 
@@ -278,6 +303,7 @@ class _MeScreenState extends State<MeScreen> {
   }
 
   Widget _account() {
+    final unread = _notifications.where((n) => !n.read).length;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -286,6 +312,59 @@ class _MeScreenState extends State<MeScreen> {
             title: Text(_me?.displayName ?? 'کاربر'),
             subtitle: Text('Earth ID: ${_me?.earthId.substring(0, 12)}…'),
             trailing: Chip(label: Text('KYC L${_me?.kycLevel ?? 0}')),
+          ),
+        ),
+        // کیفِ پاداش (سکه‌ی دیلیکس)
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.account_balance_wallet_outlined),
+            title: const Text('کیفِ پاداش'),
+            subtitle: const Text('امتیازِ قابلِ استفاده در سرویس‌ها'),
+            trailing: Text(
+              _points != null ? '$_points' : '—',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+          ),
+        ),
+        // اعلان‌ها
+        Card(
+          child: Column(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.notifications_outlined),
+                title: const Text('اعلان‌ها'),
+                trailing: unread > 0
+                    ? Chip(
+                        label: Text('$unread جدید'),
+                        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                      )
+                    : null,
+              ),
+              if (_notifications.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Text('اعلانی ندارید.'),
+                  ),
+                )
+              else
+                ..._notifications.take(5).map(
+                      (n) => ListTile(
+                        dense: true,
+                        leading: Icon(
+                          n.read ? Icons.circle_outlined : Icons.circle,
+                          size: 12,
+                          color: n.read
+                              ? Theme.of(context).disabledColor
+                              : Theme.of(context).colorScheme.primary,
+                        ),
+                        title: Text(n.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: Text(n.body, maxLines: 2, overflow: TextOverflow.ellipsis),
+                        onTap: n.read ? null : () => _markRead(n),
+                      ),
+                    ),
+            ],
           ),
         ),
         Card(
@@ -314,7 +393,53 @@ class _MeScreenState extends State<MeScreen> {
             ),
           ),
         ),
+        // پشتیبانی
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.support_agent_outlined),
+            title: const Text('پشتیبانی'),
+            subtitle: const Text('گفتگو با دستیارِ هوشمند یا تیمِ پشتیبانی'),
+            trailing: const Icon(Icons.chevron_left),
+            onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('برای پشتیبانی، دستیارِ هوشمند (دکمهٔ ✨) را باز کنید.')),
+            ),
+          ),
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: 8),
+          Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+        ],
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: _logout,
+          icon: const Icon(Icons.logout),
+          label: const Text('خروج از حساب'),
+        ),
       ],
     );
+  }
+
+  Future<void> _markRead(NotificationItem n) async {
+    try {
+      await ApiScope.of(context).markNotificationRead(n.id);
+      setState(() {
+        _notifications = [
+          for (final x in _notifications)
+            if (x.id == n.id)
+              NotificationItem(
+                id: x.id,
+                channel: x.channel,
+                title: x.title,
+                body: x.body,
+                read: true,
+                createdAt: x.createdAt,
+              )
+            else
+              x,
+        ];
+      });
+    } catch (_) {
+      // خطای علامت‌گذاری بحرانی نیست؛ نادیده گرفته می‌شود.
+    }
   }
 }
