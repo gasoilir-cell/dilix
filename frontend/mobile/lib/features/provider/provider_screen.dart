@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app.dart';
+import '../../core/api_client.dart';
 import '../../models/models.dart';
 
 /// پورتالِ ارائه‌دهنده — parity با `app/provider/page.tsx` وب:
