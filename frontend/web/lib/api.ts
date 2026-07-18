@@ -595,7 +595,12 @@ export const api = {
   },
 
   social: {
-    feed: (limit = 30) => request<PostOut[]>(`/v1/social/feed?limit=${limit}`),
+    // فیدِ اجتماعی؛ با postType (مثلاً "reel") فقط همان نوعِ پست را می‌گیرد.
+    feed: (limit = 30, postType?: string) => {
+      const q = new URLSearchParams({ limit: String(limit) });
+      if (postType) q.set("post_type", postType);
+      return request<PostOut[]>(`/v1/social/feed?${q.toString()}`);
+    },
     createPost: (body: { post_type?: string; content?: string; media?: unknown[]; visibility?: string }) =>
       request<PostOut>("/v1/social/posts", { method: "POST", body: JSON.stringify(body) }),
     deletePost: (postId: string) =>

@@ -57,6 +57,7 @@ class Post {
     required this.authorEarthId,
     required this.postType,
     required this.content,
+    required this.media,
     required this.reactionCounts,
     required this.commentCount,
   });
@@ -65,14 +66,31 @@ class Post {
   final String authorEarthId;
   final String postType;
   final String? content;
+
+  /// آرایه‌ی رسانه‌ها؛ هر آیتم آبجکتی با کلیدِ url/media_url (و اختیاری type).
+  final List<Map<String, dynamic>> media;
   final Map<String, int> reactionCounts;
   final int commentCount;
+
+  /// اولین نشانیِ ویدیوی پست (برای ریلز). اگر ویدیویی نباشد null.
+  String? get videoUrl {
+    for (final m in media) {
+      final url = (m['url'] ?? m['media_url']) as String?;
+      final kind = (m['type'] ?? m['media_type'] ?? '') as String;
+      if (url != null && (kind.isEmpty || kind.startsWith('video'))) return url;
+    }
+    return null;
+  }
 
   factory Post.fromJson(Map<String, dynamic> j) => Post(
         id: j['id'] as String,
         authorEarthId: j['author_earth_id'] as String,
         postType: (j['post_type'] ?? 'text') as String,
         content: j['content'] as String?,
+        media: ((j['media'] ?? const []) as List)
+            .whereType<Map>()
+            .map((e) => e.cast<String, dynamic>())
+            .toList(),
         reactionCounts: ((j['reaction_counts'] ?? {}) as Map)
             .map((k, v) => MapEntry(k as String, (v as num).toInt())),
         commentCount: (j['comment_count'] ?? 0) as int,

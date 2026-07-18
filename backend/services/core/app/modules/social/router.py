@@ -38,10 +38,11 @@ async def delete_post(
 @router.get("/feed", response_model=list[PostOut])
 async def feed(
     limit: int = Query(default=20, le=100),
+    post_type: str | None = Query(default=None, description="فیلترِ نوعِ پست، مثلاً reel"),
     user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_session),
 ) -> list[PostOut]:
-    posts = await service.feed(db, user.earth_id, limit=limit)
+    posts = await service.feed(db, user.earth_id, limit=limit, post_type=post_type)
     return [PostOut.model_validate(p, from_attributes=True) for p in posts]
 
 

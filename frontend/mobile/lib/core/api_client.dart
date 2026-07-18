@@ -170,10 +170,25 @@ class ApiClient {
       });
 
   // ─────────────── Social ───────────────
-  Future<List<Post>> feed({int limit = 30}) async {
-    final list = await _get('/v1/social/feed?limit=$limit') as List;
+  Future<List<Post>> feed({int limit = 30, String? postType}) async {
+    final q = postType == null ? '' : '&post_type=$postType';
+    final list = await _get('/v1/social/feed?limit=$limit$q') as List;
     return list.map((e) => Post.fromJson(e as Map<String, dynamic>)).toList();
   }
+
+  /// فیدِ ریلز: فقط پست‌های `post_type=reel` از همان endpoint فید.
+  Future<List<Post>> reelsFeed({int limit = 30}) =>
+      feed(limit: limit, postType: 'reel');
+
+  /// ثبتِ واکنش روی یک پست؛ پستِ به‌روزشده را برمی‌گرداند.
+  Future<Post> reactToPost(String postId, {String reaction = 'like'}) async {
+    final j = await _post('/v1/social/posts/$postId/reactions', {'reaction': reaction});
+    return Post.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// ثبتِ نظر روی یک پست.
+  Future<void> commentOnPost(String postId, String content) =>
+      _post('/v1/social/posts/$postId/comments', {'content': content});
 
   // ─────────────── Discovery ───────────────
   Future<List<NearbyPerson>> nearby({

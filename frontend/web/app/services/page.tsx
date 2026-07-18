@@ -2,6 +2,7 @@ import Link from "next/link";
 
 // هابِ verticalها (سند ۷ §۲ آیتم ۴): همهٔ زیرسرویس‌های موجود در frontend/web.
 const services = [
+  { href: "/reels", icon: "🎬", title: "ریلز", desc: "ویدیوهای کوتاهِ عمودی، تمام‌صفحه" },
   { href: "/services/freight", icon: "🚚", title: "حمل‌ونقل", desc: "اسنپِ بار: ثبت بار، تطبیق راننده، بارنامه و ردیابی" },
   { href: "/services/insurance", icon: "🛡️", title: "بیمه", desc: "استعلام، مقایسه و صدور بیمه‌نامه" },
   { href: "/services/telecom", icon: "📶", title: "ارتباطات", desc: "بسته‌های اینترنت و eSIM" },

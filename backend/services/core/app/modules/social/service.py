@@ -115,9 +115,15 @@ async def unfollow(
 
 
 async def feed(
-    db: AsyncSession, viewer_earth_id: uuid.UUID, limit: int = 20
+    db: AsyncSession,
+    viewer_earth_id: uuid.UUID,
+    limit: int = 20,
+    post_type: str | None = None,
 ) -> list[SocialPost]:
-    """فیدِ ساده: پست‌های جدیدِ کسانی که فالو می‌کنیم."""
+    """فیدِ ساده: پست‌های جدیدِ کسانی که فالو می‌کنیم.
+
+    اگر `post_type` داده شود (مثلاً `reel`)، فقط همان نوع برگردانده می‌شود.
+    """
     followees_result = await db.execute(
         select(Follow.followee_earth_id).where(
             Follow.follower_earth_id == viewer_earth_id
@@ -126,10 +132,12 @@ async def feed(
     followees = [r for r in followees_result.scalars().all()]
     if not followees:
         return []
-    result = await db.execute(
+    stmt = (
         select(SocialPost)
         .where(SocialPost.author_earth_id.in_(followees), SocialPost.deleted.is_(False))
-        .order_by(SocialPost.created_at.desc())
-        .limit(limit)
     )
+    if post_type is not None:
+        stmt = stmt.where(SocialPost.post_type == post_type)
+    stmt = stmt.order_by(SocialPost.created_at.desc()).limit(limit)
+    result = await db.execute(stmt)
     return list(result.scalars().all())

@@ -17,6 +17,10 @@ dependencies:
   # ورودِ اجتماعی (بومی)
   flutter_appauth: ^8.0.0 # Google/Microsoft/Apple via OIDC (PKCE)
   flutter_facebook_auth: ^7.1.1 # Facebook access_token
+  # تماسِ صوتی/تصویری (WebRTC) — signaling روی WS /v1/ws، relay سمتِ سرور
+  flutter_webrtc: ^0.12.3
+  # پخشِ ویدیو برای فیدِ Reels
+  video_player: ^2.9.2
 
 dev_dependencies:
   flutter_test:

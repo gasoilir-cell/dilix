@@ -469,3 +469,35 @@ workflowِ `mobile.yml` چند دور با شکست‌های واقعی (نه ف
   مکالمهٔ تازه؛ هم‌تراز با `AssistantPanel` وب.
 - اعتبارسنجی: موازنهٔ ()/[]/{} روی هر سه فایل سبز؛ صفرْ ارجاعِ باقی‌مانده به
   `aiInvoke`. اجرای `flutter analyze` در کانتینر ممکن نیست → روی سرور SSH.
+
+---
+
+## [2026-07-18] Reels — وب / موبایل / تست
+
+**بک‌اند (Core):** `modules/social` فیلترِ نوعِ پست را روی فید دارد.
+- `service.feed(..., post_type=None)`: اگر داده شود، فقط همان نوع (`.where(SocialPost.post_type == post_type)`).
+- `router.feed`: کوئریِ اختیاریِ `post_type` (مثلاً `?post_type=reel`).
+
+**وب (`frontend/web`):**
+- `lib/api.ts` → `api.social.feed(limit, postType?)` که `post_type` را به کوئری map می‌کند.
+- `app/reels/page.tsx`: فیدِ ویدیوییِ عمودیِ تمام‌صفحه با scroll-snap؛ پخش/مکث با
+  `IntersectionObserver` (auto-play هنگام ورود به دید)، لایک و نظر مطابقِ قراردادهای
+  `app/social/page.tsx`. استایل‌ها در `app/globals.css` (کلاس‌های `.reels*`/`.reel*`).
+- ورودی‌ها: کاشیِ «ریلز» در `app/services/page.tsx` (مسیر `/reels`).
+
+**موبایل (`frontend/mobile`):**
+- `pubspec.yaml`: `video_player: ^2.9.2` (و `flutter_webrtc: ^0.12.3`).
+- `core/api_client.dart`: `reelsFeed()` (`GET /v1/social/feed?post_type=reel`)،
+  به‌علاوهٔ `feed(postType:)`, `reactToPost`, `commentOnPost`.
+- `models.dart`: افزودنِ `media` به `Post` + getter `videoUrl` (کلیدِ url/media_url).
+- `features/reels/reels_screen.dart`: `PageView` عمودی + `video_player`؛ تنها صفحهٔ
+  فعال پخش می‌شود، tap برای پخش/مکث، لایک و شیتِ نظر. ورودی از کاشیِ «ریلز» در
+  `features/services/services_screen.dart`.
+
+**تست:** `tests/test_social_reels_integration.py` (۲ تست، الگوی messaging؛ ATTACHِ
+schemaهای `social`+`events`). سناریو: A فالوِ B → B پست‌های reel/text/video می‌سازد →
+`feed?post_type=reel` فقط ریل‌ها، فیدِ بدونِ فیلتر همه؛ و حالتِ خالی.
+
+**اعتبارسنجی:** تستِ ریلز **۲ passed** (pytest در کانتینر با نصبِ dev-deps)؛
+`py_compile` روی social service/router/test سبز؛ موازنهٔ ()/[]/{} روی همهٔ فایل‌های
+وب و دارت سبز. اجرای `tsc`/`flutter analyze`/بیلد به سرور SSH/CI سپرده شد (سیاستِ بیلد).

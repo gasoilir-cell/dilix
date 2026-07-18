@@ -526,3 +526,113 @@ a { color: inherit; text-decoration: none; }
 }
 .role-chip:disabled:not(.active) { opacity: 0.6; cursor: not-allowed; }
 .role-current { font-weight: 700; }
+
+/* ───────── ریلز (فیدِ ویدیوییِ عمودیِ تمام‌صفحه) ───────── */
+.reels {
+  position: relative;
+  height: 100dvh;
+  overflow: hidden;
+  background: #000;
+}
+.reels-top {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), transparent);
+  color: #fff;
+}
+.reels-top h1 { font-size: 1.1rem; margin: 0; }
+.reels-top .link-btn { color: #fff; }
+.reels-msg {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline: 16px;
+  z-index: 3;
+  text-align: center;
+}
+.reels-scroll {
+  height: 100%;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+}
+.reels-scroll::-webkit-scrollbar { display: none; }
+.reel {
+  position: relative;
+  height: 100dvh;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+}
+.reel-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+.reel-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.reel-play {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 3.5rem;
+  color: rgba(255, 255, 255, 0.85);
+  pointer-events: none;
+}
+.reel-overlay {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline: 0;
+  z-index: 2;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 16px 32px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent);
+  color: #fff;
+}
+.reel-meta { flex: 1; min-width: 0; }
+.reel-meta p { margin: 6px 0 0; font-size: 0.9rem; }
+.reel-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+}
+.reel-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1.6rem;
+  cursor: pointer;
+}
+.reel-btn span { font-size: 0.75rem; }
+.reel-comment {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline: 0;
+  z-index: 3;
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.8);
+}
+.reel-comment .input { flex: 1; }
