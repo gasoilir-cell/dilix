@@ -17,9 +17,6 @@ on:
         default: "https://api.dilix.ir"
         type: string
 
-env:
-  FLUTTER_VERSION: "3.24.5"
-
 jobs:
   build-apk:
     name: Build Release APK
@@ -37,15 +34,57 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      # آخرین Flutterِ پایدار (بدونِ pinِ نسخهٔ ثابت) تا کدی که از APIهای جدیدترِ
+      # Material (مثلِ CardThemeData، فقط از Flutter 3.27+) استفاده می‌کند کامپایل شود.
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
 
       - name: Resolve dependencies
         run: flutter pub get
+
+      # اسکفولدِ android/ را با خودِ Flutterِ نصب‌شده بازتولید می‌کنیم تا Gradle/AGP/Kotlin
+      # همیشه با نسخهٔ Flutterِ runner هماهنگ باشد (به‌جای نگه‌داشتنِ دستیِ این نسخه‌ها).
+      - name: Regenerate Android scaffold (Flutter-matched Gradle/AGP/Kotlin)
+        run: flutter create --platforms=android --org com.dilix --overwrite .
+
+      # بازاعمالِ سفارشی‌سازی‌های Dilix که flutter create نمی‌داند: minSdk، مجوزِ اینترنت،
+      # و placeholderِ appAuthRedirectScheme برای flutter_appauth.
+      - name: Apply Dilix Android customizations
+        run: |
+          python3 - <<'PY'
+          import re, pathlib
+
+          gradle = pathlib.Path("android/app/build.gradle")
+          t = gradle.read_text()
+          # minSdk را صرفِ‌نظر از قالبِ نسخهٔ Flutter، صراحتاً ۲۱ می‌کنیم.
+          t = re.sub(r"minSdk(Version)?\s*=?\s*flutter\.minSdkVersion", "minSdk = 21", t)
+          if re.search(r"minSdk\s*=?\s*21\b", t) is None:
+              t = t.replace("defaultConfig {", "defaultConfig {\n        minSdk = 21", 1)
+          if "appAuthRedirectScheme" not in t:
+              t = t.replace(
+                  "defaultConfig {",
+                  "defaultConfig {\n        manifestPlaceholders += [appAuthRedirectScheme: \"app.dilix\"]",
+                  1,
+              )
+          gradle.write_text(t)
+
+          manifest = pathlib.Path("android/app/src/main/AndroidManifest.xml")
+          m = manifest.read_text()
+          if "android.permission.INTERNET" not in m:
+              m = m.replace(
+                  ">",
+                  ">\n    <uses-permission android:name=\"android.permission.INTERNET\"/>",
+                  1,
+              )
+          manifest.write_text(m)
+          print("--- build.gradle defaultConfig ---")
+          print("\n".join(l for l in gradle.read_text().splitlines() if "applicationId" in l or "minSdk" in l or "manifestPlaceholders" in l))
+          print("--- manifest permission ---")
+          print("\n".join(l for l in manifest.read_text().splitlines() if "uses-permission" in l))
+          PY
 
       - name: Analyze (non-blocking)
         run: flutter analyze || true
