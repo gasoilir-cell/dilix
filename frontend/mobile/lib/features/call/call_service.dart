@@ -52,6 +52,7 @@ class CallService extends ChangeNotifier {
   bool _muted = false;
   bool _camOff = false;
   bool _initialized = false;
+  bool _renderersReady = false;
   String? _error;
 
   CallPhase get phase => _phase;
@@ -72,6 +73,7 @@ class CallService extends ChangeNotifier {
     try {
       await localRenderer.initialize();
       await remoteRenderer.initialize();
+      _renderersReady = true;
     } catch (_) {}
     await _ensureSocket();
   }
@@ -360,8 +362,12 @@ class CallService extends ChangeNotifier {
     }
     _localStream?.dispose();
     _localStream = null;
-    localRenderer.srcObject = null;
-    remoteRenderer.srcObject = null;
+    // رندررها فقط پس از initialize() موفق اجازهٔ تنظیمِ srcObject دارند؛
+    // وگرنه (مثلاً پلاگینِ WebRTC در محیطِ تست/دستگاه در دسترس نبود) استثنا می‌دهند.
+    if (_renderersReady) {
+      localRenderer.srcObject = null;
+      remoteRenderer.srcObject = null;
+    }
     _pendingCandidates.clear();
     _pendingOffer = null;
     _peerId = '';

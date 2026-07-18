@@ -58,6 +58,14 @@ void main() {
     expect(find.text('کیف پول'), findsOneWidget);
     expect(find.text('موجودیِ پاداش'), findsOneWidget);
     expect(find.text('انتقالِ امن'), findsOneWidget);
+
+    // کارتِ لینکِ دعوت پایینِ ListView است و در ویوپورتِ پیش‌فرضِ تست ساخته
+    // نمی‌شود تا اسکرول شود.
+    await tester.dragUntilVisible(
+      find.text('لینکِ دعوت'),
+      find.byType(ListView),
+      const Offset(0, -300),
+    );
     expect(find.text('لینکِ دعوت'), findsOneWidget);
   });
 }
