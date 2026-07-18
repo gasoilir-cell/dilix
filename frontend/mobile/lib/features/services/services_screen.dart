@@ -8,6 +8,7 @@ import '../investment/investment_screen.dart';
 import '../marketplace/marketplace_screen.dart';
 import '../membership/membership_screen.dart';
 import '../notifications/notifications_screen.dart';
+import '../provider/provider_screen.dart';
 import '../reels/reels_screen.dart';
 import '../stories/stories_screen.dart';
 import '../telecom/telecom_screen.dart';
@@ -29,6 +30,7 @@ class ServicesScreen extends StatelessWidget {
       _Service(Icons.travel_explore, 'کشفِ اطراف', 'افراد و کسب‌وکارِ نزدیک', const DiscoveryScreen()),
       _Service(Icons.trending_up, 'سرمایه‌گذاری', 'صندوق و NAV', const InvestmentScreen()),
       _Service(Icons.workspace_premium_outlined, 'عضویت', 'پلن، نشان و اعتبار', const MembershipScreen()),
+      _Service(Icons.hub_outlined, 'ارائه‌دهنده', 'KYB، API، sandbox و کلید', const ProviderScreen()),
       _Service(Icons.account_balance_wallet_outlined, 'کیف پول', 'پاداش و پرداختِ امن', const WalletScreen()),
       _Service(Icons.notifications_outlined, 'اعلان‌ها', 'رویدادها و پیام‌ها', const NotificationsScreen()),
     ];

@@ -256,6 +256,65 @@ class ApiClient {
     return CargoPost.fromJson(j as Map<String, dynamic>);
   }
 
+  // ─────────────── Provider (پورتالِ خودسرویس) ───────────────
+  /// ثبت‌نامِ ارائه‌دهنده (KYB). `providerType`: insurer/carrier/psp/telecom/third_party.
+  Future<Provider> registerProvider({
+    required String legalName,
+    required String providerType,
+    String country = 'IR',
+  }) async {
+    final j = await _post('/v1/providers/register', {
+      'legal_name': legalName,
+      'provider_type': providerType,
+      'country': country,
+    });
+    return Provider.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// فهرستِ APIهای ثبت‌شدهٔ ارائه‌دهنده.
+  Future<List<ProviderApi>> providerApis(String providerId) async {
+    final list = await _get('/v1/providers/$providerId/apis') as List;
+    return list.map((e) => ProviderApi.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// ثبتِ یک API/سرویسِ جدید برای ارائه‌دهنده.
+  Future<ProviderApi> registerProviderApi(
+    String providerId, {
+    required String name,
+    String? specUrl,
+  }) async {
+    final j = await _post('/v1/providers/$providerId/apis', {
+      'name': name,
+      if (specUrl != null && specUrl.isNotEmpty) 'spec_url': specUrl,
+    });
+    return ProviderApi.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// تستِ دسترس‌پذیریِ sandbox روی یک API.
+  Future<SandboxResult> providerSandboxTest(String providerId, String apiId) async {
+    final j = await _post('/v1/providers/$providerId/apis/$apiId/sandbox-test', null);
+    return SandboxResult.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// ثبتِ webhook؛ `secret` فقط در همین پاسخ برمی‌گردد.
+  Future<Webhook> registerProviderWebhook(
+    String providerId, {
+    required String url,
+    List<String> eventTypes = const ['*'],
+  }) async {
+    final j = await _post('/v1/providers/$providerId/webhooks', {
+      'url': url,
+      'event_types': eventTypes,
+    });
+    return Webhook.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// صدورِ کلیدِ sandbox/production؛ کلیدِ خام فقط در همین پاسخ برمی‌گردد.
+  Future<Credential> issueProviderCredential(String providerId, String env) async {
+    final j = await _post('/v1/providers/$providerId/credentials', {'env': env});
+    return Credential.fromJson(j as Map<String, dynamic>);
+  }
+
   // ─────────────── Marketplace ───────────────
   /// فهرست/جستجویِ آگهی‌های خدمت.
   Future<List<Listing>> marketplaceListings({String? keyword}) async {

@@ -759,3 +759,116 @@ class Esim {
         status: (j['status'] ?? '') as String,
       );
 }
+
+/// ارائه‌دهنده (`ProviderOut`) — پورتالِ خودسرویس.
+class Provider {
+  Provider({
+    required this.id,
+    required this.legalName,
+    required this.providerType,
+    required this.country,
+    required this.kybStatus,
+  });
+
+  final String id;
+  final String legalName;
+  final String providerType;
+  final String country;
+  final String kybStatus;
+
+  factory Provider.fromJson(Map<String, dynamic> j) => Provider(
+        id: j['id'] as String,
+        legalName: (j['legal_name'] ?? '') as String,
+        providerType: (j['provider_type'] ?? '') as String,
+        country: (j['country'] ?? 'IR') as String,
+        kybStatus: (j['kyb_status'] ?? '') as String,
+      );
+}
+
+/// APIِ ثبت‌شدهٔ ارائه‌دهنده (`ProviderApiOut`).
+class ProviderApi {
+  ProviderApi({
+    required this.id,
+    required this.name,
+    required this.env,
+    required this.status,
+  });
+
+  final String id;
+  final String name;
+  final String env;
+  final String status;
+
+  factory ProviderApi.fromJson(Map<String, dynamic> j) => ProviderApi(
+        id: j['id'] as String,
+        name: (j['name'] ?? '') as String,
+        env: (j['env'] ?? '') as String,
+        status: (j['status'] ?? '') as String,
+      );
+}
+
+/// نتیجهٔ تستِ sandbox (`SandboxTestResult`).
+class SandboxResult {
+  SandboxResult({
+    required this.reachable,
+    required this.detail,
+    this.latencyMs,
+  });
+
+  final bool reachable;
+  final String detail;
+  final int? latencyMs;
+
+  factory SandboxResult.fromJson(Map<String, dynamic> j) => SandboxResult(
+        reachable: (j['reachable'] ?? false) as bool,
+        detail: (j['detail'] ?? '') as String,
+        latencyMs: (j['latency_ms'] as num?)?.toInt(),
+      );
+}
+
+/// Webhookِ ثبت‌شده (`WebhookOut`)؛ `secret` فقط هنگامِ ساخت.
+class Webhook {
+  Webhook({
+    required this.id,
+    required this.url,
+    required this.status,
+    this.secret,
+  });
+
+  final String id;
+  final String url;
+  final String status;
+  final String? secret;
+
+  factory Webhook.fromJson(Map<String, dynamic> j) => Webhook(
+        id: j['id'] as String,
+        url: (j['url'] ?? '') as String,
+        status: (j['status'] ?? '') as String,
+        secret: j['secret'] as String?,
+      );
+}
+
+/// کلیدِ صادرشده (`CredentialOut`)؛ `apiKey` فقط هنگامِ ساخت.
+class Credential {
+  Credential({
+    required this.id,
+    required this.env,
+    required this.keyPrefix,
+    required this.status,
+    this.apiKey,
+  });
+
+  final String id;
+  final String env;
+  final String keyPrefix;
+  final String status;
+  final String? apiKey;
+
+  factory Credential.fromJson(Map<String, dynamic> j) => Credential(
+        id: j['id'] as String,
+        env: (j['env'] ?? '') as String,
+        keyPrefix: (j['key_prefix'] ?? '') as String,
+        status: (j['status'] ?? '') as String,
+        apiKey: j['api_key'] as String?,
+      );
+}
