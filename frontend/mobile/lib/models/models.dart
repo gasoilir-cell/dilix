@@ -356,3 +356,70 @@ class AiMessage {
             DateTime.fromMillisecondsSinceEpoch(0),
       );
 }
+
+/// حلقهٔ داستانِ یک نویسنده در فیدِ داستان‌ها (`RingOut`).
+class StoryRing {
+  StoryRing({
+    required this.authorEarthId,
+    required this.storyCount,
+    required this.hasUnseen,
+    required this.isMe,
+    required this.latestAt,
+  });
+
+  final String authorEarthId;
+  final int storyCount;
+  final bool hasUnseen;
+  final bool isMe;
+  final DateTime latestAt;
+
+  factory StoryRing.fromJson(Map<String, dynamic> j) => StoryRing(
+        authorEarthId: j['author_earth_id'] as String,
+        storyCount: (j['story_count'] ?? 0) as int,
+        hasUnseen: (j['has_unseen'] ?? false) as bool,
+        isMe: (j['is_me'] ?? false) as bool,
+        latestAt: DateTime.tryParse((j['latest_at'] ?? '') as String) ??
+            DateTime.fromMillisecondsSinceEpoch(0),
+      );
+}
+
+/// یک داستانِ منفرد (`StoryOut`).
+class Story {
+  Story({
+    required this.id,
+    required this.authorEarthId,
+    required this.mediaUrl,
+    required this.mediaType,
+    required this.caption,
+    required this.audience,
+    required this.viewCount,
+    required this.viewedByMe,
+    required this.isMine,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String authorEarthId;
+  final String mediaUrl;
+  final String mediaType; // image | video
+  final String? caption;
+  final String audience;
+  final int viewCount;
+  final bool viewedByMe;
+  final bool isMine;
+  final DateTime createdAt;
+
+  factory Story.fromJson(Map<String, dynamic> j) => Story(
+        id: j['id'] as String,
+        authorEarthId: j['author_earth_id'] as String,
+        mediaUrl: (j['media_url'] ?? '') as String,
+        mediaType: (j['media_type'] ?? 'image') as String,
+        caption: j['caption'] as String?,
+        audience: (j['audience'] ?? 'public') as String,
+        viewCount: (j['view_count'] ?? 0) as int,
+        viewedByMe: (j['viewed_by_me'] ?? false) as bool,
+        isMine: (j['is_mine'] ?? false) as bool,
+        createdAt: DateTime.tryParse((j['created_at'] ?? '') as String) ??
+            DateTime.fromMillisecondsSinceEpoch(0),
+      );
+}

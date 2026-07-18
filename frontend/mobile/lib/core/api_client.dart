@@ -272,6 +272,39 @@ class ApiClient {
     return MarketOrder.fromJson(j as Map<String, dynamic>);
   }
 
+  // ─────────────── Stories ───────────────
+  /// فیدِ حلقه‌های داستان (هر نویسنده یک حلقه، مرتب: خودم/دیده‌نشده/جدیدتر).
+  Future<List<StoryRing>> storiesFeed() async {
+    final list = await _get('/v1/stories/feed') as List;
+    return list.map((e) => StoryRing.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// داستان‌های فعالِ یک نویسنده (به‌ترتیبِ زمانی).
+  Future<List<Story>> userStories(String earthId) async {
+    final list = await _get('/v1/stories/user/$earthId') as List;
+    return list.map((e) => Story.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// ثبتِ بازدیدِ یک داستان (idempotent؛ بازدیدِ خودِ نویسنده شمرده نمی‌شود).
+  Future<void> viewStory(String storyId) =>
+      _post('/v1/stories/$storyId/view', null);
+
+  /// ثبتِ داستانِ جدید با آدرسِ رسانه.
+  Future<Story> createStory({
+    required String mediaUrl,
+    String mediaType = 'image',
+    String? caption,
+    String audience = 'public',
+  }) async {
+    final j = await _post('/v1/stories', {
+      'media_url': mediaUrl,
+      'media_type': mediaType,
+      'audience': audience,
+      if (caption != null) 'caption': caption,
+    });
+    return Story.fromJson(j as Map<String, dynamic>);
+  }
+
   // ─────────────── Growth ───────────────
   Future<ReferralLink> referralLink() async =>
       ReferralLink.fromJson(await _get('/v1/growth/referrals/link') as Map<String, dynamic>);

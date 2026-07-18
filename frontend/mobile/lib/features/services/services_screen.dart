@@ -4,6 +4,7 @@ import '../../app.dart';
 import '../../models/models.dart';
 import '../marketplace/marketplace_screen.dart';
 import '../reels/reels_screen.dart';
+import '../stories/stories_screen.dart';
 
 /// هابِ verticalها (سند ۷ §۲): حمل‌ونقل، بیمه، ارتباطات، بازارگاه.
 class ServicesScreen extends StatelessWidget {
@@ -13,6 +14,7 @@ class ServicesScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final tiles = <_Service>[
       _Service(Icons.movie_creation_outlined, 'ریلز', 'ویدیوهای کوتاه', const ReelsScreen()),
+      _Service(Icons.auto_stories_outlined, 'داستان‌ها', 'داستانِ ۲۴ساعته', const StoriesScreen()),
       _Service(Icons.local_shipping_outlined, 'حمل‌ونقل', 'اسنپِ بار', const FreightScreen()),
       _Service(Icons.shield_outlined, 'بیمه', 'استعلام و صدور', null),
       _Service(Icons.signal_cellular_alt, 'ارتباطات', 'اینترنت و eSIM', null),
