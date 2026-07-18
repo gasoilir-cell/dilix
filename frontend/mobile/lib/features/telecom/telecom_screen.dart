@@ -13,6 +13,17 @@ class TelecomScreen extends StatefulWidget {
 }
 
 class _TelecomScreenState extends State<TelecomScreen> with SingleTickerProviderStateMixin {
+  // برچسبِ فارسیِ وضعیت — منطبق با STATUS_LABEL صفحهٔ وب.
+  static const _statusLabels = <String, String>{
+    'pending': 'در انتظار',
+    'processing': 'در حال پردازش',
+    'completed': 'انجام‌شده',
+    'failed': 'ناموفق',
+    'active': 'فعال',
+  };
+
+  String _statusLabel(String s) => _statusLabels[s] ?? s;
+
   late final TabController _tab = TabController(length: 2, vsync: this);
 
   final _msisdnCtrl = TextEditingController();
@@ -74,7 +85,7 @@ class _TelecomScreenState extends State<TelecomScreen> with SingleTickerProvider
       if (!mounted) return;
       setState(() {
         _topUps.insert(0, result);
-        _notice = 'شارژ ثبت شد (${result.status}).';
+        _notice = 'شارژ ثبت شد (${_statusLabel(result.status)}).';
         _busy = false;
       });
     } catch (e) {
@@ -110,7 +121,7 @@ class _TelecomScreenState extends State<TelecomScreen> with SingleTickerProvider
       if (!mounted) return;
       setState(() {
         _esims.insert(0, result);
-        _notice = 'eSIM فعال شد (${result.status}).';
+        _notice = 'eSIM فعال شد (${_statusLabel(result.status)}).';
         _busy = false;
       });
     } catch (e) {
@@ -222,7 +233,7 @@ class _TelecomScreenState extends State<TelecomScreen> with SingleTickerProvider
                                   style: Theme.of(context).textTheme.bodySmall),
                             ],
                           ),
-                          Chip(label: Text(t.status)),
+                          Chip(label: Text(_statusLabel(t.status))),
                         ],
                       ),
                     ),
@@ -288,7 +299,7 @@ class _TelecomScreenState extends State<TelecomScreen> with SingleTickerProvider
                               Text(e.countryCode, style: Theme.of(context).textTheme.bodySmall),
                             ],
                           ),
-                          Chip(label: Text(e.status)),
+                          Chip(label: Text(_statusLabel(e.status))),
                         ],
                       ),
                     ),

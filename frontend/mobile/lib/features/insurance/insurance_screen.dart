@@ -13,6 +13,16 @@ class InsuranceScreen extends StatefulWidget {
 }
 
 class _InsuranceScreenState extends State<InsuranceScreen> {
+  // برچسبِ فارسیِ وضعیتِ بیمه‌نامه — منطبق با STATUS_LABEL صفحهٔ وب.
+  static const _statusLabels = <String, String>{
+    'quoted': 'استعلام‌شده',
+    'issued': 'صادرشده',
+    'active': 'فعال',
+    'claimed': 'خسارت',
+    'expired': 'منقضی',
+    'cancelled': 'لغوشده',
+  };
+
   final _productCtrl = TextEditingController(text: 'motor_third_party');
   final _coverageCtrl = TextEditingController();
   final List<InsurancePolicy> _policies = [];
@@ -169,7 +179,7 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(p.productCode, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        Chip(label: Text(p.status)),
+                        Chip(label: Text(_statusLabels[p.status] ?? p.status)),
                       ],
                     ),
                     Text(
