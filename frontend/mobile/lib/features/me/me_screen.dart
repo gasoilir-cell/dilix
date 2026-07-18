@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app.dart';
 import '../../core/social_auth.dart';
 import '../../models/models.dart';
+import '../dashboard/dashboard_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../support/support_screen.dart';
 import '../wallet/wallet_screen.dart';
@@ -315,6 +316,18 @@ class _MeScreenState extends State<MeScreen> {
             title: Text(_me?.displayName ?? 'کاربر'),
             subtitle: Text('Earth ID: ${_me?.earthId.substring(0, 12)}…'),
             trailing: Chip(label: Text('KYC L${_me?.kycLevel ?? 0}')),
+          ),
+        ),
+        // نمای کلی (داشبوردِ نقش‌محور) — سلام + نقش + میان‌برهای مخصوصِ نقش.
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.dashboard_outlined),
+            title: const Text('نمای کلی'),
+            subtitle: const Text('داشبوردِ نقش‌محور و میان‌برها'),
+            trailing: const Icon(Icons.chevron_left),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const DashboardScreen()),
+            ),
           ),
         ),
         // کیفِ پاداش (سکه‌ی دیلیکس) — کارت به صفحهٔ کاملِ کیف پول می‌رود.
