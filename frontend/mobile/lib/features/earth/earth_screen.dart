@@ -5,11 +5,12 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../app.dart';
 import '../../models/models.dart';
+import '../assistant/assistant_sheet.dart';
 
 /// کشفِ افراد/کسب‌وکار روی کره (امضای محصول، سند ۷ §۳).
 /// کره‌ی سه‌بعدیِ واقعی روی خودِ دستگاه با `globe.gl` رندر می‌شود (HTMLِ
 /// خودبسنده داخلِ [WebView]، نه بارگذاریِ اپِ وب). پین‌های کاربرانِ opt-in با
-/// حریمِ خصوصی (مختصاتِ fuzzed، فقط سطحِ منطقه) روی کره و در شیتِ کشویی می‌آیند.
+/// حریمِ خصوصی (مختصاتِ fuzzed، فقط سطحِ منطقه) روی کره نمایش داده می‌شوند.
 class EarthScreen extends StatefulWidget {
   const EarthScreen({super.key});
 
@@ -21,10 +22,8 @@ class _EarthScreenState extends State<EarthScreen> {
   final _countryCtrl = TextEditingController();
   final _queryCtrl = TextEditingController();
   String _entityType = '';
-  String _query = '';
   List<NearbyPerson> _results = const [];
   bool _loading = false;
-  String? _error;
   WebViewController? _web;
 
   @override
@@ -89,19 +88,58 @@ class _EarthScreenState extends State<EarthScreen> {
 <div id="globe"></div>
 <script>
   var world = null;
+  // مرکزِ تقریبیِ هر کشور برای برچسب‌گذاری (میانگینِ رئوسِ چندضلعی).
+  function polyCentroid(geometry){
+    var polys = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
+    var sx = 0, sy = 0, n = 0;
+    polys.forEach(function(poly){
+      poly[0].forEach(function(pt){ sx += pt[0]; sy += pt[1]; n++; });
+    });
+    return n ? { lng: sx / n, lat: sy / n } : { lng: 0, lat: 0 };
+  }
+  function addCountries(){
+    fetch('https://raw.githubusercontent.com/vasturiano/globe.gl/master/example/datasets/ne_110m_admin_0_countries.geojson')
+      .then(function(r){ return r.json(); })
+      .then(function(geo){
+        var feats = geo.features || [];
+        // مرزها: چندضلعی‌های شفاف با خطِ مرزیِ روشن (مثلِ نمای وب).
+        world.polygonsData(feats)
+          .polygonCapColor(function(){ return 'rgba(0,0,0,0)'; })
+          .polygonSideColor(function(){ return 'rgba(0,0,0,0)'; })
+          .polygonStrokeColor(function(){ return 'rgba(255,255,255,0.35)'; })
+          .polygonAltitude(0.006);
+        // نامِ کشورها به‌صورتِ برچسبِ سفیدِ کوچک در مرکزِ هر کشور.
+        var labels = feats.map(function(f){
+          var c = polyCentroid(f.geometry);
+          return { lat: c.lat, lng: c.lng, text: (f.properties && (f.properties.NAME || f.properties.name)) || '' };
+        });
+        world.labelsData(labels)
+          .labelLat('lat').labelLng('lng').labelText('text')
+          .labelSize(0.42).labelDotRadius(0.0)
+          .labelColor(function(){ return 'rgba(255,255,255,0.75)'; })
+          .labelResolution(1);
+      })
+      .catch(function(){ /* بدونِ شبکه، فقط کره و پین‌ها می‌مانند. */ });
+  }
   function build(points){
     if(!window.Globe){ setTimeout(function(){build(points)}, 300); return; }
     world = Globe()(document.getElementById('globe'))
       .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
       .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
       .backgroundColor('#0B1026')
+      .showAtmosphere(true)
+      .atmosphereColor('#5B8DEF')
+      .atmosphereAltitude(0.18)
       .pointsData(points)
       .pointLat('lat').pointLng('lng')
       .pointColor(function(){return '#FF7A00'})
       .pointAltitude(0.03).pointRadius(0.5)
       .pointLabel(function(d){return d.name})
       .onPointClick(function(d){ if(window.DilixGlobe){ DilixGlobe.postMessage(d.earthId);} });
-    var c = world.controls(); if(c){ c.autoRotate=true; c.autoRotateSpeed=0.6; }
+    // دوربین روی کلِ کره تنظیم می‌شود (ایران وسط) تا کره کامل و نه فلت دیده شود.
+    world.pointOfView({ lat: 32, lng: 53, altitude: 2.5 }, 0);
+    var c = world.controls(); if(c){ c.autoRotate=true; c.autoRotateSpeed=0.3; }
+    addCountries();
   }
   window.dilixSetPoints = function(points){
     if(world){ world.pointsData(points); } else { build(points); }
@@ -119,10 +157,7 @@ class _EarthScreenState extends State<EarthScreen> {
   }
 
   Future<void> _search() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    setState(() => _loading = true);
     try {
       final res = await ApiScope.of(context).earthUsers(
         type: _entityType,
@@ -133,21 +168,12 @@ class _EarthScreenState extends State<EarthScreen> {
       _renderGlobe();
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'جست‌وجو ممکن نشد: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('جست‌وجو ممکن نشد: $e')),
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
-  }
-
-  /// فیلترِ سمتِ کلاینت روی نتایجِ بارگذاری‌شده بر اساسِ نام یا Earth ID.
-  List<NearbyPerson> get _filtered {
-    if (_query.trim().isEmpty) return _results;
-    final q = _query.trim().toLowerCase();
-    return _results
-        .where((p) =>
-            (p.displayName ?? '').toLowerCase().contains(q) ||
-            p.earthId.toLowerCase().contains(q))
-        .toList();
   }
 
   Future<void> _startChat(NearbyPerson p) async {
@@ -228,12 +254,41 @@ class _EarthScreenState extends State<EarthScreen> {
             top: MediaQuery.of(context).padding.top + 8,
             left: 12,
             right: 12,
-            child: _searchBar(),
+            child: Column(
+              children: [
+                _searchBar(),
+                if (_loading)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 6),
+                    child: LinearProgressIndicator(minHeight: 2),
+                  ),
+              ],
+            ),
           ),
-          // نتایج در شیتِ کشویی پایین.
-          _resultsSheet(),
+          // FABِ دستیارِ هوشمند در پایین‌چپ (مثلِ نمای وب).
+          Positioned(
+            bottom: MediaQuery.of(context).padding.bottom + 16,
+            left: 16,
+            child: FloatingActionButton(
+              heroTag: 'earth-assistant',
+              backgroundColor: const Color(0xFF7C3AED),
+              foregroundColor: Colors.white,
+              onPressed: _openAssistant,
+              child: const Icon(Icons.smart_toy),
+            ),
+          ),
         ],
       ),
+    );
+  }
+
+  /// گشودنِ دستیارِ هوشمندِ سراسری به‌صورتِ شیتِ پایین.
+  void _openAssistant() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => const AssistantSheet(),
     );
   }
 
@@ -275,12 +330,18 @@ class _EarthScreenState extends State<EarthScreen> {
             Expanded(
               child: TextField(
                 controller: _queryCtrl,
-                onChanged: (v) => setState(() => _query = v),
+                onSubmitted: (_) => _search(),
+                textInputAction: TextInputAction.search,
                 decoration: const InputDecoration(
                   hintText: 'جستجوی نام یا Earth ID…',
                   border: InputBorder.none,
                 ),
               ),
+            ),
+            IconButton(
+              tooltip: 'تصویر',
+              onPressed: _search,
+              icon: const Icon(Icons.image),
             ),
             IconButton(
               tooltip: 'فیلتر',
@@ -290,77 +351,6 @@ class _EarthScreenState extends State<EarthScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _resultsSheet() {
-    final theme = Theme.of(context);
-    return DraggableScrollableSheet(
-      initialChildSize: 0.28,
-      minChildSize: 0.12,
-      maxChildSize: 0.85,
-      builder: (context, scrollController) {
-        final items = _filtered;
-        return Material(
-          elevation: 8,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          child: ListView(
-            controller: scrollController,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            children: [
-              Center(
-                child: Container(
-                  margin: const EdgeInsets.symmetric(vertical: 10),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.outlineVariant,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              Text(
-                'فقط کاربرانِ opt-in نمایش داده می‌شوند؛ مختصاتِ دقیق هرگز فاش نمی‌شود.',
-                style: theme.textTheme.bodySmall,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              if (_loading)
-                const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-              if (_error != null)
-                Card(
-                  color: theme.colorScheme.errorContainer,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text(_error!),
-                  ),
-                ),
-              if (!_loading && items.isEmpty && _error == null)
-                const Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Text('کاربری برای نمایش یافت نشد.',
-                      textAlign: TextAlign.center),
-                ),
-              ...items.map(
-                (p) => Card(
-                  child: ListTile(
-                    title: Text(p.displayName ?? 'کاربر'),
-                    subtitle: Text('${p.entityType} · ${p.profession ?? '—'}'),
-                    trailing: FilledButton.tonal(
-                      onPressed: () => _startChat(p),
-                      child: const Text('گفتگو'),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
-          ),
-        );
-      },
     );
   }
 }
