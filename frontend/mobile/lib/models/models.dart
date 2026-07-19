@@ -39,14 +39,15 @@ class Identity {
   final String? displayName;
 
   factory Identity.fromJson(Map<String, dynamic> j) {
+    // dilix-api پاسخِ تخت (UserResponse) می‌دهد؛ نامِ نمایشی در `full_name`.
     final profile = j['profile'] as Map<String, dynamic>?;
     return Identity(
       earthId: j['earth_id'] as String,
       entityType: (j['entity_type'] ?? 'individual') as String,
       status: (j['status'] ?? 'active') as String,
       kycLevel: (j['kyc_level'] ?? 0) as int,
-      homeRegion: (j['home_region'] ?? 'IR') as String,
-      displayName: profile?['display_name'] as String?,
+      homeRegion: (j['home_region'] ?? j['country_code'] ?? 'IR') as String,
+      displayName: (j['full_name'] ?? profile?['display_name']) as String?,
     );
   }
 }

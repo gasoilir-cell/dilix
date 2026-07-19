@@ -12,9 +12,9 @@ on:
   workflow_dispatch:
     inputs:
       api_base_url:
-        description: "Base URL سرویسِ Core که APK به آن وصل می‌شود"
+        description: "Base URL سرویسِ dilix-api (production) که APK به آن وصل می‌شود"
         required: true
-        default: "http://185.55.226.250:8010"
+        default: "http://185.55.226.250:8000"
         type: string
 
 jobs:
@@ -128,7 +128,7 @@ jobs:
       - name: Build release APK
         run: |
           flutter build apk --release \
-            --dart-define=DILIX_API_BASE_URL=${{ github.event.inputs.api_base_url || 'http://185.55.226.250:8010' }}
+            --dart-define=DILIX_API_BASE_URL=${{ github.event.inputs.api_base_url || 'http://185.55.226.250:8000' }}
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4

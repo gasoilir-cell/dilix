@@ -2,7 +2,7 @@
 class AppConfig {
   static const String apiBaseUrl = String.fromEnvironment(
     'DILIX_API_BASE_URL',
-    defaultValue: 'http://localhost:8000',
+    defaultValue: 'http://185.55.226.250:8000',
   );
 
   static const String appName = String.fromEnvironment(

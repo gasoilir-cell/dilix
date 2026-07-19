@@ -92,9 +92,8 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     return _run(() async {
       await _api.register(
-        displayName: _nameCtrl.text.trim(),
-        email: email.isEmpty ? null : email,
-        phone: phone.isEmpty ? null : phone,
+        identifier: email.isEmpty ? phone : email,
+        fullName: _nameCtrl.text.trim(),
         password: _regPasswordCtrl.text,
       );
       widget.onAuthenticated();

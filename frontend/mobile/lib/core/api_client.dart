@@ -16,8 +16,9 @@ class ApiException implements Exception {
   String toString() => detail.isNotEmpty ? detail : title;
 }
 
-/// کلاینتِ HTTP برای سرویسِ Core. توکن‌ها بین اجراها با `shared_preferences`
-/// پایدار می‌مانند تا کاربر با هر بار بازکردنِ اپ مجبور به ورودِ دوباره نباشد.
+/// کلاینتِ HTTP برای سرویسِ dilix-api (همان backendِ وب؛ مسیرها با `/api/v1`).
+/// توکن‌ها بین اجراها با `shared_preferences` پایدار می‌مانند تا کاربر با هر بار
+/// بازکردنِ اپ مجبور به ورودِ دوباره نباشد.
 class ApiClient {
   ApiClient({http.Client? client, String? baseUrl})
       : _client = client ?? http.Client(),
@@ -104,7 +105,7 @@ class ApiClient {
 
   // ─────────────── Auth ───────────────
   Future<TokenPair> login(String identifier, String password) async {
-    final j = await _post('/v1/auth/login', {
+    final j = await _post('/api/v1/auth/login', {
       'identifier': identifier,
       'password': password,
     });
@@ -113,24 +114,19 @@ class ApiClient {
     return tokens;
   }
 
-  /// ثبت‌نامِ کاربرِ جدید. حداقل یکی از [email] یا [phone] الزامی است.
+  /// ثبت‌نامِ کاربرِ جدید. [identifier] همان ایمیل یا شمارهٔ موبایل است و
   /// در موفقیت توکن‌ها ذخیره شده و کاربر واردِ حساب می‌شود.
   Future<TokenPair> register({
-    required String displayName,
-    String? email,
-    String? phone,
+    required String identifier,
+    required String fullName,
     required String password,
-    String homeRegion = 'IR',
   }) async {
-    final j = await _post('/v1/auth/register', {
-      'display_name': displayName,
-      if (email != null && email.isNotEmpty) 'email': email,
-      if (phone != null && phone.isNotEmpty) 'phone': phone,
+    final j = await _post('/api/v1/auth/register', {
+      'identifier': identifier,
+      'full_name': fullName,
       'password': password,
-      'home_region': homeRegion,
     });
-    final tokens =
-        TokenPair.fromJson((j as Map<String, dynamic>)['tokens'] as Map<String, dynamic>);
+    final tokens = TokenPair.fromJson(j as Map<String, dynamic>);
     await _persistTokens(tokens);
     return tokens;
   }
@@ -138,51 +134,43 @@ class ApiClient {
   /// ورود/ثبت‌نام با Google/Microsoft/Apple/Facebook.
   /// [credential] برای google/microsoft/apple همان id_token و برای facebook
   /// همان access_token است.
-  Future<TokenPair> oauthLogin(
-    String provider,
-    String credential, {
-    String homeRegion = 'IR',
-  }) async {
-    final j = await _post('/v1/auth/oauth/$provider', {
+  Future<TokenPair> oauthLogin(String provider, String credential) async {
+    final j = await _post('/api/v1/auth/oauth/$provider', {
       'credential': credential,
-      'home_region': homeRegion,
     });
-    final tokens =
-        TokenPair.fromJson((j as Map<String, dynamic>)['tokens'] as Map<String, dynamic>);
+    final tokens = TokenPair.fromJson(j as Map<String, dynamic>);
     await _persistTokens(tokens);
     return tokens;
   }
 
-  /// ارسالِ کدِ یک‌بارمصرف به موبایل (پیامک) یا Facebook Messenger.
-  /// شناسه‌ی چالش برمی‌گرداند که در تأیید استفاده می‌شود.
+  /// ارسالِ کدِ یک‌بارمصرف به موبایل (پیامک). [destination] شمارهٔ موبایل است؛
+  /// همان شماره برای مرحلهٔ تأیید برگردانده می‌شود.
   Future<String> otpRequest(
     String channel,
     String destination, {
     String purpose = 'login',
   }) async {
-    final j = await _post('/v1/auth/otp/request', {
-      'channel': channel,
-      'destination': destination,
+    await _post('/api/v1/auth/otp/send', {
+      'phone': destination,
       'purpose': purpose,
     });
-    return (j as Map<String, dynamic>)['challenge_id'] as String;
+    return destination;
   }
 
-  /// تأییدِ کد و ورود/ثبت‌نامِ خودکار.
-  Future<TokenPair> otpVerify(String challengeId, String code) async {
-    final j = await _post('/v1/auth/otp/verify', {
-      'challenge_id': challengeId,
-      'code': code,
+  /// تأییدِ کد و ورود/ثبت‌نامِ خودکار. [phone] همان مقصدِ ارسالِ کد است.
+  Future<TokenPair> otpVerify(String phone, String code) async {
+    final j = await _post('/api/v1/auth/otp/verify', {
+      'phone': phone,
+      'otp': code,
     });
-    final tokens =
-        TokenPair.fromJson((j as Map<String, dynamic>)['tokens'] as Map<String, dynamic>);
+    final tokens = TokenPair.fromJson(j as Map<String, dynamic>);
     await _persistTokens(tokens);
     return tokens;
   }
 
   // ─────────────── Identity ───────────────
   Future<Identity> me() async =>
-      Identity.fromJson(await _get('/v1/identity/me') as Map<String, dynamic>);
+      Identity.fromJson(await _get('/api/v1/auth/me') as Map<String, dynamic>);
 
   Future<void> setVisibility({
     required bool discoverable,
