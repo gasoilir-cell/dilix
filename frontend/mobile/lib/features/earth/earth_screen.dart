@@ -14,17 +14,22 @@ class EarthScreen extends StatefulWidget {
 }
 
 class _EarthScreenState extends State<EarthScreen> {
-  // محدوده‌ی نمونه (تهران): minLon,minLat,maxLon,maxLat
-  static const _bbox = '50.5,35.0,52.0,36.5';
-  final _professionCtrl = TextEditingController();
+  final _countryCtrl = TextEditingController();
   String _entityType = '';
   List<NearbyPerson> _results = const [];
   bool _loading = false;
   String? _error;
 
   @override
+  void initState() {
+    super.initState();
+    // نمایشِ اولیهٔ کاربران بدونِ نیاز به فشردنِ دکمه.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _search());
+  }
+
+  @override
   void dispose() {
-    _professionCtrl.dispose();
+    _countryCtrl.dispose();
     super.dispose();
   }
 
@@ -34,16 +39,32 @@ class _EarthScreenState extends State<EarthScreen> {
       _error = null;
     });
     try {
-      final res = await ApiScope.of(context).nearby(
-        bbox: _bbox,
-        entityType: _entityType,
-        profession: _professionCtrl.text,
+      final res = await ApiScope.of(context).earthUsers(
+        type: _entityType,
+        country: _countryCtrl.text.trim(),
       );
+      if (!mounted) return;
       setState(() => _results = res);
     } catch (e) {
+      if (!mounted) return;
       setState(() => _error = 'جست‌وجو ممکن نشد: $e');
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _startChat(NearbyPerson p) async {
+    try {
+      await ApiScope.of(context).createDirectRoom(p.earthId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('گفتگو با ${p.displayName ?? p.earthId} در تبِ پیام‌ها باز شد.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('شروعِ گفتگو ممکن نشد.')),
+      );
     }
   }
 
@@ -84,15 +105,16 @@ class _EarthScreenState extends State<EarthScreen> {
                     decoration: const InputDecoration(labelText: 'نوع'),
                     items: const [
                       DropdownMenuItem(value: '', child: Text('همه')),
-                      DropdownMenuItem(value: 'individual', child: Text('افراد')),
+                      DropdownMenuItem(value: 'person', child: Text('افراد')),
+                      DropdownMenuItem(value: 'driver', child: Text('راننده')),
                       DropdownMenuItem(value: 'business', child: Text('کسب‌وکار')),
                     ],
                     onChanged: (v) => setState(() => _entityType = v ?? ''),
                   ),
                   const SizedBox(height: 8),
                   TextField(
-                    controller: _professionCtrl,
-                    decoration: const InputDecoration(labelText: 'شغل (اختیاری)'),
+                    controller: _countryCtrl,
+                    decoration: const InputDecoration(labelText: 'کشور (کدِ ISO-3، اختیاری)'),
                   ),
                   const SizedBox(height: 12),
                   SizedBox(
@@ -109,13 +131,18 @@ class _EarthScreenState extends State<EarthScreen> {
           ),
           if (_loading) const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator())),
           if (_error != null) Card(color: Theme.of(context).colorScheme.errorContainer, child: Padding(padding: const EdgeInsets.all(16), child: Text(_error!))),
+          if (!_loading && _results.isEmpty && _error == null)
+            const Padding(
+              padding: EdgeInsets.all(24),
+              child: Text('کاربری برای نمایش یافت نشد.', textAlign: TextAlign.center),
+            ),
           ..._results.map(
             (p) => Card(
               child: ListTile(
                 title: Text(p.displayName ?? 'کاربر'),
-                subtitle: Text('${p.profession ?? '—'} · دقت موقعیت: ${p.geoPrecision}'),
+                subtitle: Text('${p.entityType} · ${p.profession ?? '—'}'),
                 trailing: FilledButton.tonal(
-                  onPressed: () => ApiScope.of(context).contactRequest(p.earthId, 'سلام'),
+                  onPressed: () => _startChat(p),
                   child: const Text('گفتگو'),
                 ),
               ),

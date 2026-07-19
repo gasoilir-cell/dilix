@@ -165,9 +165,8 @@ class _ReelPageState extends State<_ReelPage> {
 
   Future<void> _like() async {
     try {
-      final updated =
-          await ApiScope.of(context).reactToPost(widget.post.id, reaction: 'like');
-      if (mounted) setState(() => _likes = updated.reactionCounts['like'] ?? _likes);
+      final likeCount = await ApiScope.of(context).likePost(widget.post.id);
+      if (mounted) setState(() => _likes = likeCount);
     } catch (_) {
       _snack('ثبتِ واکنش ممکن نشد. ابتدا وارد شوید.');
     }

@@ -103,6 +103,18 @@ class ApiClient {
     return res.body.isEmpty ? null : jsonDecode(res.body);
   }
 
+  /// POST با بدنهٔ `application/x-www-form-urlencoded` (کتابخانهٔ http وقتی
+  /// body یک `Map<String,String>` باشد خودکار این نوع را تنظیم می‌کند).
+  Future<dynamic> _postForm(String path, Map<String, String> fields) async {
+    final res = await _client.post(
+      Uri.parse('$_base$path'),
+      headers: _headers(),
+      body: fields,
+    );
+    if (res.statusCode >= 400) _raise(res);
+    return res.body.isEmpty ? null : jsonDecode(res.body);
+  }
+
   // ─────────────── Auth ───────────────
   Future<TokenPair> login(String identifier, String password) async {
     final j = await _post('/api/v1/auth/login', {
@@ -185,60 +197,67 @@ class ApiClient {
         'visible_fields': visibleFields,
       });
 
-  // ─────────────── Social ───────────────
+  // ─────────────── Social (پست‌ها) ───────────────
+  /// فیدِ پست‌ها. dilix-api پاسخِ `{items:[PostOut], next_cursor}` می‌دهد.
   Future<List<Post>> feed({int limit = 30, String? postType}) async {
-    final q = postType == null ? '' : '&post_type=$postType';
-    final list = await _get('/v1/social/feed?limit=$limit$q') as List;
+    final j = await _get('/api/v1/posts/feed') as Map<String, dynamic>;
+    final list = (j['items'] ?? const []) as List;
     return list.map((e) => Post.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  /// فیدِ ریلز: فقط پست‌های `post_type=reel` از همان endpoint فید.
-  Future<List<Post>> reelsFeed({int limit = 30}) =>
-      feed(limit: limit, postType: 'reel');
-
-  /// ثبتِ واکنش روی یک پست؛ پستِ به‌روزشده را برمی‌گرداند.
-  Future<Post> reactToPost(String postId, {String reaction = 'like'}) async {
-    final j = await _post('/v1/social/posts/$postId/reactions', {'reaction': reaction});
-    return Post.fromJson(j as Map<String, dynamic>);
+  /// فیدِ ریلز؛ dilix-api endpointِ جدا دارد (`ReelOut` هم‌شکلِ PostOut است).
+  Future<List<Post>> reelsFeed({int limit = 30}) async {
+    final j = await _get('/api/v1/reels/feed') as Map<String, dynamic>;
+    final list = (j['items'] ?? const []) as List;
+    return list.map((e) => Post.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  /// ثبتِ نظر روی یک پست.
+  /// toggleِ لایکِ یک پست؛ شمارِ جدیدِ لایک را برمی‌گرداند.
+  Future<int> likePost(String postId) async {
+    final j = await _post('/api/v1/posts/$postId/like', null);
+    return ((j as Map)['like_count'] as num?)?.toInt() ?? 0;
+  }
+
+  /// ثبتِ نظر روی یک پست (بدنه به‌صورتِ form با کلیدِ `body`).
   Future<void> commentOnPost(String postId, String content) =>
-      _post('/v1/social/posts/$postId/comments', {'content': content});
+      _postForm('/api/v1/posts/$postId/comments', {'body': content});
 
-  /// ساختِ پستِ جدید (متن + رسانه). `media` آرایه‌ای از `{url, type}`.
+  /// ساختِ پستِ جدید با آپلودِ فایلِ رسانه از گوشی (multipart).
   Future<Post> createPost({
-    required String postType,
-    String? content,
-    List<Map<String, dynamic>> media = const [],
-    String visibility = 'public',
+    required String filePath,
+    String? caption,
+    double? lat,
+    double? lng,
+    String? placeName,
   }) async {
-    final j = await _post('/v1/social/posts', {
-      'post_type': postType,
-      if (content != null) 'content': content,
-      'media': media,
-      'visibility': visibility,
-    });
-    return Post.fromJson(j as Map<String, dynamic>);
+    final req = http.MultipartRequest('POST', Uri.parse('$_base/api/v1/posts'));
+    req.headers.addAll(_headers());
+    req.files.add(await http.MultipartFile.fromPath('file', filePath));
+    if (caption != null && caption.isNotEmpty) req.fields['caption'] = caption;
+    if (lat != null) req.fields['lat'] = '$lat';
+    if (lng != null) req.fields['lng'] = '$lng';
+    if (placeName != null && placeName.isNotEmpty) req.fields['place_name'] = placeName;
+    final res = await http.Response.fromStream(await _client.send(req));
+    if (res.statusCode >= 400) _raise(res);
+    return Post.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
 
-  // ─────────────── Discovery ───────────────
-  Future<List<NearbyPerson>> nearby({
-    required String bbox,
-    String? entityType,
-    String? profession,
-    int limit = 50,
+  // ─────────────── Discovery (کره) ───────────────
+  /// کاربرانِ روی کره؛ dilix-api پاسخِ `{count, users:[...]}` می‌دهد.
+  /// [type] یکی از `driver|person|business`، [country] کدِ ISO-3.
+  Future<List<NearbyPerson>> earthUsers({
+    String? type,
+    String? country,
+    int limit = 200,
   }) async {
-    final params = <String, String>{'bbox': bbox, 'limit': '$limit'};
-    if (entityType != null && entityType.isNotEmpty) params['entity_type'] = entityType;
-    if (profession != null && profession.isNotEmpty) params['profession'] = profession;
+    final params = <String, String>{'limit': '$limit'};
+    if (type != null && type.isNotEmpty) params['type'] = type;
+    if (country != null && country.isNotEmpty) params['country'] = country;
     final query = Uri(queryParameters: params).query;
-    final list = await _get('/v1/discovery/nearby?$query') as List;
+    final j = await _get('/api/v1/earth/users?$query') as Map<String, dynamic>;
+    final list = (j['users'] ?? const []) as List;
     return list.map((e) => NearbyPerson.fromJson(e as Map<String, dynamic>)).toList();
   }
-
-  Future<void> contactRequest(String earthId, String message) =>
-      _post('/v1/discovery/$earthId/contact-request', {'message': message});
 
   // ─────────────── Freight ───────────────
   Future<List<CargoPost>> listCargo() async {
@@ -631,39 +650,15 @@ class ApiClient {
   }
 
   // ─────────────── AI ───────────────
-  /// ساختِ مکالمهٔ جدید با agent (پیش‌فرض personal) و دریافتِ شناسهٔ واقعی.
-  Future<AiConversation> createAiConversation({
-    String agentType = 'personal',
-    String? title,
-  }) async {
-    final j = await _post('/v1/ai/conversations', {
-      'agent_type': agentType,
-      if (title != null) 'title': title,
-    });
-    return AiConversation.fromJson(j as Map<String, dynamic>);
-  }
-
-  /// مکالمه‌های کاربرِ فعلی، جدیدترین اول.
-  Future<List<AiConversation>> aiConversations() async {
-    final list = await _get('/v1/ai/conversations') as List;
-    return list
-        .map((e) => AiConversation.fromJson(e as Map<String, dynamic>))
-        .toList();
-  }
-
-  /// تاریخچهٔ پیام‌های یک مکالمه (قدیمی → جدید).
-  Future<List<AiMessage>> aiHistory(String conversationId, {int limit = 50}) async {
-    final list =
-        await _get('/v1/ai/conversations/$conversationId/history?limit=$limit') as List;
+  /// تاریخچهٔ گفتگو با دستیار (dilix-api مفهومِ conversation ندارد؛ یک نخِ واحد).
+  Future<List<AiMessage>> aiHistory() async {
+    final list = await _get('/api/v1/ai/history') as List;
     return list.map((e) => AiMessage.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  /// ارسالِ پیام؛ پاسخِ assistant را برمی‌گرداند.
-  Future<AiMessage> aiChat(String conversationId, String message) async {
-    final j = await _post(
-      '/v1/ai/conversations/$conversationId/chat',
-      {'message': message},
-    );
+  /// ارسالِ پیام به دستیار؛ پاسخِ assistant را برمی‌گرداند (`ChatResponse`).
+  Future<AiMessage> aiChat(String message) async {
+    final j = await _post('/api/v1/ai/chat', {'message': message});
     return AiMessage.fromJson(j as Map<String, dynamic>);
   }
 }

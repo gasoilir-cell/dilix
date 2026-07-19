@@ -21,6 +21,8 @@ dependencies:
   flutter_webrtc: ^0.12.3
   # پخشِ ویدیو برای فیدِ Reels
   video_player: ^2.9.2
+  # انتخابِ تصویر/ویدیو از گالریِ گوشی برای انتشارِ پستِ فید
+  image_picker: ^1.1.2
 
 dev_dependencies:
   flutter_test:

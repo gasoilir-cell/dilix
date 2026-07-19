@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import '../../app.dart';
 import '../../models/models.dart';
 
-/// دستیارِ هوشمندِ سراسری (سند ۸). مکالمهٔ پایدار در Core ساخته می‌شود و به
-/// dilix-ai-service (LangGraph) وصل می‌شود. کاربر می‌تواند agent متخصص را انتخاب کند.
+/// دستیارِ هوشمندِ سراسری (سند ۸). به dilix-api `/api/v1/ai/chat` وصل می‌شود؛
+/// یک نخِ گفتگوی واحد (بدونِ مفهومِ conversation). کاربر می‌تواند تخصص را انتخاب
+/// کند تا به‌صورتِ سرنخ به ابتدای پیام افزوده شود.
 class AssistantSheet extends StatefulWidget {
   const AssistantSheet({super.key});
 
@@ -28,11 +29,16 @@ class _AssistantSheetState extends State<AssistantSheet> {
   final _scroll = ScrollController();
 
   String _agentType = 'personal';
-  AiConversation? _conversation;
   final List<AiMessage> _messages = [];
   bool _busy = false;
-  bool _starting = false;
+  bool _loadingHistory = true;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory();
+  }
 
   @override
   void dispose() {
@@ -41,22 +47,20 @@ class _AssistantSheetState extends State<AssistantSheet> {
     super.dispose();
   }
 
-  Future<void> _ensureConversation() async {
-    if (_conversation != null) return;
-    setState(() {
-      _starting = true;
-      _error = null;
-    });
+  Future<void> _loadHistory() async {
     try {
-      final conv =
-          await ApiScope.of(context).createAiConversation(agentType: _agentType);
+      final history = await ApiScope.of(context).aiHistory();
       if (!mounted) return;
-      setState(() => _conversation = conv);
+      setState(() {
+        _messages
+          ..clear()
+          ..addAll(history);
+        _loadingHistory = false;
+      });
+      _scrollToEnd();
     } catch (_) {
-      if (!mounted) return;
-      setState(() => _error = 'ساختِ مکالمه با دستیار ناموفق بود.');
-    } finally {
-      if (mounted) setState(() => _starting = false);
+      // تاریخچهٔ خالی/در دسترس‌نبودن مانعِ گفتگوی جدید نیست.
+      if (mounted) setState(() => _loadingHistory = false);
     }
   }
 
@@ -74,16 +78,18 @@ class _AssistantSheetState extends State<AssistantSheet> {
 
   Future<void> _send() async {
     final text = _ctrl.text.trim();
-    if (text.isEmpty || _busy || _starting) return;
-    await _ensureConversation();
-    final conv = _conversation;
-    if (conv == null) return; // خطای ساختِ مکالمه در _error نمایش داده می‌شود.
+    if (text.isEmpty || _busy) return;
+
+    // تخصصِ انتخاب‌شده به‌صورتِ سرنخ به پیام افزوده می‌شود (dilix-api routing ندارد).
+    final payload = _agentType == 'personal'
+        ? text
+        : '[تخصص: ${_agents[_agentType]}] $text';
 
     _ctrl.clear();
     setState(() {
       _messages.add(AiMessage(
         id: 'local-${DateTime.now().microsecondsSinceEpoch}',
-        conversationId: conv.id,
+        conversationId: '',
         role: 'user',
         content: text,
         sentAt: DateTime.now(),
@@ -93,7 +99,7 @@ class _AssistantSheetState extends State<AssistantSheet> {
     });
     _scrollToEnd();
     try {
-      final reply = await ApiScope.of(context).aiChat(conv.id, text);
+      final reply = await ApiScope.of(context).aiChat(payload);
       if (!mounted) return;
       setState(() => _messages.add(reply));
       _scrollToEnd();
@@ -107,13 +113,7 @@ class _AssistantSheetState extends State<AssistantSheet> {
 
   void _onAgentChanged(String? value) {
     if (value == null || value == _agentType) return;
-    // تغییرِ agent → مکالمهٔ تازه (مکالمهٔ فعلی به agent قبلی گره خورده).
-    setState(() {
-      _agentType = value;
-      _conversation = null;
-      _messages.clear();
-      _error = null;
-    });
+    setState(() => _agentType = value);
   }
 
   @override
@@ -179,8 +179,8 @@ class _AssistantSheetState extends State<AssistantSheet> {
                   ),
                   const SizedBox(width: 8),
                   FilledButton(
-                    onPressed: (_busy || _starting) ? null : _send,
-                    child: (_busy || _starting)
+                    onPressed: _busy ? null : _send,
+                    child: _busy
                         ? const SizedBox(
                             width: 16,
                             height: 16,
@@ -198,6 +198,9 @@ class _AssistantSheetState extends State<AssistantSheet> {
   }
 
   Widget _body(ColorScheme scheme) {
+    if (_loadingHistory) {
+      return const Center(child: CircularProgressIndicator());
+    }
     if (_messages.isEmpty) {
       return const Center(
         child: Padding(

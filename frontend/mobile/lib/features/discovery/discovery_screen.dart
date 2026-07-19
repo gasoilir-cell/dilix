@@ -13,10 +13,6 @@ class DiscoveryScreen extends StatefulWidget {
 }
 
 class _DiscoveryScreenState extends State<DiscoveryScreen> {
-  // bbox = min_lat,min_lon,max_lat,max_lon (پیش‌فرض: محدودهٔ تهران)
-  static const _defaultBbox = '35.5,51.2,35.85,51.6';
-
-  final _bboxCtrl = TextEditingController(text: _defaultBbox);
   final _professionCtrl = TextEditingController();
   final List<NearbyPerson> _people = [];
   final Set<String> _sentTo = {};
@@ -26,27 +22,27 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
 
   @override
   void dispose() {
-    _bboxCtrl.dispose();
     _professionCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _search() async {
-    final bbox = _bboxCtrl.text.trim();
-    if (bbox.isEmpty) {
-      setState(() => _error = 'محدودهٔ bbox را وارد کنید.');
-      return;
-    }
     setState(() {
       _loading = true;
       _error = null;
       _searched = true;
     });
     try {
-      final people = await ApiScope.of(context).nearby(
-        bbox: bbox,
-        profession: _professionCtrl.text.trim(),
-      );
+      var people = await ApiScope.of(context).earthUsers();
+      // فیلترِ محلیِ اختیاری بر پایهٔ متنِ واردشده (شهر/نام).
+      final q = _professionCtrl.text.trim();
+      if (q.isNotEmpty) {
+        people = people
+            .where((p) =>
+                (p.profession ?? '').contains(q) ||
+                (p.displayName ?? '').contains(q))
+            .toList();
+      }
       if (!mounted) return;
       setState(() {
         _people
@@ -65,13 +61,12 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
 
   Future<void> _contact(NearbyPerson person) async {
     try {
-      await ApiScope.of(context)
-          .contactRequest(person.earthId, 'سلام، مایلم در ارتباط باشیم.');
+      await ApiScope.of(context).createDirectRoom(person.earthId);
       if (!mounted) return;
       setState(() => _sentTo.add(person.earthId));
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = 'ارسالِ درخواستِ ارتباط ناموفق بود.');
+      setState(() => _error = 'شروعِ گفتگو ناموفق بود.');
     }
   }
 
@@ -118,15 +113,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             TextField(
-              controller: _bboxCtrl,
-              decoration: const InputDecoration(
-                labelText: 'bbox: min_lat,min_lon,max_lat,max_lon',
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
               controller: _professionCtrl,
-              decoration: const InputDecoration(labelText: 'حرفه (اختیاری)'),
+              decoration: const InputDecoration(labelText: 'نام یا شهر (اختیاری)'),
             ),
             const SizedBox(height: 12),
             SizedBox(
@@ -173,7 +161,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             const SizedBox(height: 8),
             OutlinedButton(
               onPressed: sent ? null : () => _contact(p),
-              child: Text(sent ? 'درخواست ارسال شد' : 'درخواستِ ارتباط'),
+              child: Text(sent ? 'گفتگو باز شد' : 'گفتگو'),
             ),
           ],
         ),

@@ -56,15 +56,22 @@ class Post {
   Post({
     required this.id,
     required this.authorEarthId,
+    this.authorName,
+    this.authorAvatar,
     required this.postType,
     required this.content,
     required this.media,
     required this.reactionCounts,
     required this.commentCount,
+    this.likedByMe = false,
+    this.savedByMe = false,
+    this.isMine = false,
   });
 
   final String id;
   final String authorEarthId;
+  final String? authorName;
+  final String? authorAvatar;
   final String postType;
   final String? content;
 
@@ -72,41 +79,97 @@ class Post {
   final List<Map<String, dynamic>> media;
   final Map<String, int> reactionCounts;
   final int commentCount;
+  final bool likedByMe;
+  final bool savedByMe;
+  final bool isMine;
 
   /// اولین نشانیِ ویدیوی پست (برای ریلز). اگر ویدیویی نباشد null.
   String? get videoUrl {
     for (final m in media) {
       final url = (m['url'] ?? m['media_url']) as String?;
       final kind = (m['type'] ?? m['media_type'] ?? '') as String;
-      if (url != null && (kind.isEmpty || kind.startsWith('video'))) return url;
+      if (url != null && kind.startsWith('video')) return url;
+    }
+    return null;
+  }
+
+  /// اولین نشانیِ تصویرِ پست (رسانهٔ غیرِویدیویی).
+  String? get imageUrl {
+    for (final m in media) {
+      final url = (m['url'] ?? m['media_url']) as String?;
+      final kind = (m['type'] ?? m['media_type'] ?? '') as String;
+      if (url != null && !kind.startsWith('video')) return url;
     }
     return null;
   }
 
   /// کپیِ سبک با شمارِ نظرِ به‌روزشده (برای افزایشِ خوش‌بینانه پس از ثبتِ نظر).
-  Post copyWithCommentCount(int count) => Post(
+  Post copyWithCommentCount(int count) => _copy(commentCount: count);
+
+  /// کپی با وضعیتِ لایکِ به‌روزشده (پس از toggleِ لایک).
+  Post copyWithLike({required bool liked, required int likeCount}) => _copy(
+        likedByMe: liked,
+        reactionCounts: {...reactionCounts, 'like': likeCount},
+      );
+
+  Post _copy({
+    int? commentCount,
+    bool? likedByMe,
+    Map<String, int>? reactionCounts,
+  }) =>
+      Post(
         id: id,
         authorEarthId: authorEarthId,
+        authorName: authorName,
+        authorAvatar: authorAvatar,
         postType: postType,
         content: content,
         media: media,
-        reactionCounts: reactionCounts,
-        commentCount: count,
+        reactionCounts: reactionCounts ?? this.reactionCounts,
+        commentCount: commentCount ?? this.commentCount,
+        likedByMe: likedByMe ?? this.likedByMe,
+        savedByMe: savedByMe,
+        isMine: isMine,
       );
 
-  factory Post.fromJson(Map<String, dynamic> j) => Post(
-        id: j['id'] as String,
-        authorEarthId: j['author_earth_id'] as String,
-        postType: (j['post_type'] ?? 'text') as String,
-        content: j['content'] as String?,
-        media: ((j['media'] ?? const []) as List)
-            .whereType<Map>()
-            .map((e) => e.cast<String, dynamic>())
-            .toList(),
-        reactionCounts: ((j['reaction_counts'] ?? {}) as Map)
-            .map((k, v) => MapEntry(k as String, (v as num).toInt())),
-        commentCount: (j['comment_count'] ?? 0) as int,
-      );
+  /// سازگار با هر دو قرارداد: dilix-api (`PostOut`/`ReelOut`: تک `media_url`،
+  /// `caption`، `like_count`) و شکلِ قدیمیِ Core (`media[]`, `content`).
+  factory Post.fromJson(Map<String, dynamic> j) {
+    final List<Map<String, dynamic>> media;
+    if (j['media_url'] != null) {
+      media = [
+        {'url': j['media_url'], 'type': (j['media_type'] ?? 'image')},
+      ];
+    } else if (j['media'] is List) {
+      media = (j['media'] as List)
+          .whereType<Map>()
+          .map((e) => e.cast<String, dynamic>())
+          .toList();
+    } else {
+      media = const [];
+    }
+    final Map<String, int> reactions;
+    if (j['reaction_counts'] is Map) {
+      reactions = (j['reaction_counts'] as Map)
+          .map((k, v) => MapEntry(k as String, (v as num).toInt()));
+    } else {
+      reactions = {'like': (j['like_count'] as num?)?.toInt() ?? 0};
+    }
+    return Post(
+      id: j['id'] as String,
+      authorEarthId: (j['author_earth_id'] ?? '') as String,
+      authorName: j['author_name'] as String?,
+      authorAvatar: j['author_avatar'] as String?,
+      postType: (j['media_type'] ?? j['post_type'] ?? 'text') as String,
+      content: (j['caption'] ?? j['content']) as String?,
+      media: media,
+      reactionCounts: reactions,
+      commentCount: (j['comment_count'] ?? 0) as int,
+      likedByMe: (j['liked_by_me'] ?? false) as bool,
+      savedByMe: (j['saved_by_me'] ?? false) as bool,
+      isMine: (j['is_mine'] ?? false) as bool,
+    );
+  }
 }
 
 class NearbyPerson {
@@ -132,16 +195,19 @@ class NearbyPerson {
   final double lat;
   final double lon;
 
+  /// سازگار با dilix-api (`earth/users`: `name`/`role`/`city`/`lat`/`lng`) و
+  /// شکلِ قدیمیِ Core (`display_name`/`entity_type`/`profession`/`lon`).
   factory NearbyPerson.fromJson(Map<String, dynamic> j) => NearbyPerson(
         earthId: j['earth_id'] as String,
-        entityType: (j['entity_type'] ?? 'individual') as String,
-        displayName: j['display_name'] as String?,
+        entityType: (j['entity_type'] ?? j['role'] ?? 'individual') as String,
+        displayName: (j['display_name'] ?? j['name']) as String?,
         geoPrecision: (j['geo_precision'] ?? 'region') as String,
-        profession: j['profession'] as String?,
+        // dilix-api موقعیت را تا سطحِ شهر می‌دهد؛ آن را به‌عنوان توضیح نشان می‌دهیم.
+        profession: (j['profession'] ?? j['city']) as String?,
         ageRange: j['age_range'] as String?,
         languages: ((j['languages'] ?? const []) as List).whereType<String>().toList(),
         lat: (j['lat'] as num).toDouble(),
-        lon: (j['lon'] as num).toDouble(),
+        lon: ((j['lon'] ?? j['lng']) as num).toDouble(),
       );
 }
 
@@ -293,6 +359,7 @@ class ChatMessage {
     required this.content,
     required this.sentAt,
     required this.deleted,
+    this.mediaUrl,
   });
 
   final String id;
@@ -302,6 +369,7 @@ class ChatMessage {
   final String content;
   final DateTime sentAt;
   final bool deleted;
+  final String? mediaUrl;
 
   factory ChatMessage.fromJson(Map<String, dynamic> j) => ChatMessage(
         id: j['id'] as String,
@@ -309,6 +377,7 @@ class ChatMessage {
         senderEarthId: (j['sender_earth_id'] ?? '') as String,
         msgType: (j['msg_type'] ?? j['media_type'] ?? 'text') as String,
         content: (j['content'] ?? '') as String,
+        mediaUrl: j['media_url'] as String?,
         // dilix-api: `created_at`؛ Core: `sent_at`.
         sentAt: DateTime.tryParse((j['created_at'] ?? j['sent_at'] ?? '') as String) ??
             DateTime.fromMillisecondsSinceEpoch(0),
@@ -384,12 +453,13 @@ class AiMessage {
   final String content;
   final DateTime sentAt;
 
+  /// سازگار با dilix-api (`ChatResponse`: `id`/`role`/`content`/`created_at`).
   factory AiMessage.fromJson(Map<String, dynamic> j) => AiMessage(
         id: (j['id'] ?? '') as String,
         conversationId: (j['conversation_id'] ?? '') as String,
         role: (j['role'] ?? 'assistant') as String,
         content: (j['content'] ?? '') as String,
-        sentAt: DateTime.tryParse((j['sent_at'] ?? '') as String) ??
+        sentAt: DateTime.tryParse((j['created_at'] ?? j['sent_at'] ?? '') as String) ??
             DateTime.fromMillisecondsSinceEpoch(0),
       );
 }

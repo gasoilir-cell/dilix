@@ -405,11 +405,53 @@ class _ChatViewState extends State<ChatView> {
                   : Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Text(m.deleted ? '(پیام حذف شد)' : m.content),
+            child: _messageBody(m),
           ),
         );
       },
     );
+  }
+
+  /// محتوایِ حباب بر پایهٔ نوعِ پیام (متن/تماس/رسانه) — پیام‌های بدونِ متن
+  /// (مثلِ لاگِ تماس یا رسانه) دیگر خالی نمایش داده نمی‌شوند.
+  Widget _messageBody(ChatMessage m) {
+    if (m.deleted) return const Text('(پیام حذف شد)');
+    if (m.msgType == 'call') {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.call, size: 16),
+          const SizedBox(width: 6),
+          Text(m.content.isNotEmpty ? m.content : 'تماس'),
+        ],
+      );
+    }
+    if (m.msgType == 'image' && m.mediaUrl != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.network(
+          m.mediaUrl!,
+          width: 180,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [Icon(Icons.image, size: 16), SizedBox(width: 6), Text('تصویر')],
+          ),
+        ),
+      );
+    }
+    if (m.mediaUrl != null && m.content.isEmpty) {
+      final icon = m.msgType == 'video'
+          ? Icons.videocam
+          : m.msgType == 'audio'
+              ? Icons.mic
+              : Icons.attach_file;
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [Icon(icon, size: 16), const SizedBox(width: 6), Text(m.msgType)],
+      );
+    }
+    return Text(m.content);
   }
 
   Widget _composer() {
