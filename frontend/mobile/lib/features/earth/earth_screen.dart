@@ -1,14 +1,15 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../app.dart';
-import '../../core/config.dart';
 import '../../models/models.dart';
 
 /// کشفِ افراد/کسب‌وکار روی کره (امضای محصول، سند ۷ §۳).
-/// کره‌ی سه‌بعدیِ واقعی داخلِ [WebView] از `dilix.ir/earth` بارگذاری می‌شود
-/// (رندرِ روی دستگاه، نه اتوماسیونِ مرورگر). نتایجِ opt-in با حریمِ خصوصی
-/// (مختصاتِ fuzzed، فقط سطحِ منطقه) در یک شیتِ کشویی نمایش داده می‌شوند.
+/// کره‌ی سه‌بعدیِ واقعی روی خودِ دستگاه با `globe.gl` رندر می‌شود (HTMLِ
+/// خودبسنده داخلِ [WebView]، نه بارگذاریِ اپِ وب). پین‌های کاربرانِ opt-in با
+/// حریمِ خصوصی (مختصاتِ fuzzed، فقط سطحِ منطقه) روی کره و در شیتِ کشویی می‌آیند.
 class EarthScreen extends StatefulWidget {
   const EarthScreen({super.key});
 
@@ -34,17 +35,80 @@ class _EarthScreenState extends State<EarthScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _search());
   }
 
-  /// ساختِ کنترلرِ WebView؛ در محیطِ تست یا پلتفرمِ بدونِ WebView به‌آرامی
-  /// شکست می‌خورد و نمایِ جایگزین (کره‌ی گرادیانی) استفاده می‌شود.
+  /// ساختِ کنترلرِ WebView و بارگذاریِ کره‌ی خودبسنده؛ در محیطِ تست یا پلتفرمِ
+  /// بدونِ WebView به‌آرامی شکست می‌خورد و نمایِ جایگزین (کره‌ی گرادیانی) می‌ماند.
   void _initWebView() {
     try {
-      _web = WebViewController()
+      final c = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
         ..setBackgroundColor(const Color(0xFF0B1026))
-        ..loadRequest(Uri.parse(AppConfig.earthWebUrl));
+        ..addJavaScriptChannel('DilixGlobe',
+            onMessageReceived: (m) => _startChatByEarthId(m.message))
+        ..loadHtmlString(_globeHtml(const []));
+      _web = c;
     } catch (_) {
       _web = null;
     }
+  }
+
+  /// چاپِ دوبارهٔ کره با پین‌های به‌روزشده (بدونِ reloadِ کاملِ HTML، از طریقِ
+  /// تابعِ `dilixSetPoints` که در HTML تعریف شده است).
+  void _renderGlobe() {
+    final w = _web;
+    if (w == null) return;
+    final data = jsonEncode([
+      for (final p in _results)
+        {
+          'lat': p.lat,
+          'lng': p.lon,
+          'name': p.displayName ?? p.earthId,
+          'earthId': p.earthId,
+        }
+    ]);
+    // اگر تابع هنوز آماده نبود (بارگذاریِ globe.gl)، خطا نادیده گرفته می‌شود.
+    w.runJavaScript('window.dilixSetPoints && window.dilixSetPoints($data);');
+  }
+
+  void _startChatByEarthId(String earthId) {
+    final match = _results.where((p) => p.earthId == earthId);
+    if (match.isEmpty) return;
+    _startChat(match.first);
+  }
+
+  /// HTMLِ خودبسنده‌ی کره با `globe.gl` (بارگذاریِ three از CDN). نقاط از طریقِ
+  /// `dilixSetPoints` تزریق می‌شوند و کلیک روی هر پین earthId را به Flutter
+  /// (کانالِ `DilixGlobe`) می‌فرستد.
+  String _globeHtml(List<Map<String, dynamic>> points) {
+    final initial = jsonEncode(points);
+    return '''
+<!DOCTYPE html><html><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<style>html,body{margin:0;height:100%;background:#0B1026;overflow:hidden}#globe{width:100vw;height:100vh}</style>
+<script src="https://unpkg.com/globe.gl"></script>
+</head><body>
+<div id="globe"></div>
+<script>
+  var world = null;
+  function build(points){
+    if(!window.Globe){ setTimeout(function(){build(points)}, 300); return; }
+    world = Globe()(document.getElementById('globe'))
+      .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
+      .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
+      .backgroundColor('#0B1026')
+      .pointsData(points)
+      .pointLat('lat').pointLng('lng')
+      .pointColor(function(){return '#FF7A00'})
+      .pointAltitude(0.03).pointRadius(0.5)
+      .pointLabel(function(d){return d.name})
+      .onPointClick(function(d){ if(window.DilixGlobe){ DilixGlobe.postMessage(d.earthId);} });
+    var c = world.controls(); if(c){ c.autoRotate=true; c.autoRotateSpeed=0.6; }
+  }
+  window.dilixSetPoints = function(points){
+    if(world){ world.pointsData(points); } else { build(points); }
+  };
+  build($initial);
+</script>
+</body></html>''';
   }
 
   @override
@@ -66,6 +130,7 @@ class _EarthScreenState extends State<EarthScreen> {
       );
       if (!mounted) return;
       setState(() => _results = res);
+      _renderGlobe();
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = 'جست‌وجو ممکن نشد: $e');

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../app.dart';
+import '../../core/config.dart';
 import '../../core/preferences.dart';
 import '../../core/social_auth.dart';
 import '../../models/models.dart';
@@ -10,6 +12,29 @@ import '../legal/legal_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../support/support_screen.dart';
 import '../wallet/wallet_screen.dart';
+import 'kyc_screen.dart';
+import 'marketing_network_screen.dart';
+import 'security_screen.dart';
+
+/// برچسبِ فارسیِ نقش‌های خودسرویسِ dilix-api (`SELF_SERVICE_ROLES`).
+const Map<String, String> kRoleLabels = {
+  'user': 'کاربر',
+  'driver': 'راننده',
+  'cargo_owner': 'صاحبِ بار',
+  'freight_broker': 'کارگزار / شرکتِ حمل',
+  'insurance_agent': 'نمایندهٔ بیمه',
+  'banker': 'بانکدار',
+  'creator': 'تولیدکنندهٔ محتوا',
+};
+
+/// برچسبِ فارسیِ مخاطبِ داستان (`AUDIENCES` در dilix-api).
+const Map<String, String> kAudienceLabels = {
+  'public': 'عمومی',
+  'followers': 'دنبال‌کننده‌ها',
+  'colleagues': 'همکاران',
+  'family': 'خانواده',
+  'friends': 'دوستان',
+};
 
 const _socialProviders = <({String id, String label})>[
   (id: 'google', label: 'Google'),
@@ -35,7 +60,6 @@ class _MeScreenState extends State<MeScreen> {
   Identity? _me;
   ReferralLink? _referral;
   RewardWallet? _wallet;
-  int? _points;
   List<NotificationItem> _notifications = const [];
   String? _error;
   bool _busy = false;
@@ -57,7 +81,6 @@ class _MeScreenState extends State<MeScreen> {
     final me = await api.me();
     ReferralLink? referral;
     RewardWallet? wallet;
-    int? points;
     List<NotificationItem> notifications = const [];
     // این‌ها اختیاری‌اند؛ نبودشان نباید نمایشِ حساب را بشکند.
     try {
@@ -67,18 +90,28 @@ class _MeScreenState extends State<MeScreen> {
       wallet = await api.rewardWallet();
     } catch (_) {}
     try {
-      points = await api.rewardPoints();
-    } catch (_) {}
-    try {
       notifications = await api.notifications(limit: 20);
     } catch (_) {}
     setState(() {
       _me = me;
       _referral = referral;
       _wallet = wallet;
-      _points = points;
+      _discoverable = me.privacyOnMap == false; // دیده‌شدن = عکسِ privacy_on_map
       _notifications = notifications;
     });
+  }
+
+  /// تازه‌سازیِ پروفایل پس از ویرایش/آواتار/نقش.
+  Future<void> _refreshMe() async {
+    try {
+      final me = await ApiScope.of(context).me();
+      if (mounted) {
+        setState(() {
+          _me = me;
+          _discoverable = me.privacyOnMap == false;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _logout() async {
@@ -87,7 +120,6 @@ class _MeScreenState extends State<MeScreen> {
       _me = null;
       _referral = null;
       _wallet = null;
-      _points = null;
       _discoverable = false;
       _notifications = const [];
       _idCtrl.clear();
@@ -162,44 +194,211 @@ class _MeScreenState extends State<MeScreen> {
     }
   }
 
+  void _snack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
   Future<void> _setDiscoverable(bool value) async {
     setState(() => _discoverable = value);
     try {
       await ApiScope.of(context).setVisibility(discoverable: value);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(value
-                ? 'اکنون در سطحِ منطقه (fuzzed) روی کره دیده می‌شوید.'
-                : 'دیگر روی کره دیده نمی‌شوید.'),
-          ),
-        );
-      }
-    } catch (_) {
-      // endpointِ حریمِ خصوصی در بک‌اند فعلی موجود نیست؛ سوییچ را برمی‌گردانیم.
-      if (mounted) {
-        setState(() => _discoverable = !value);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('به‌روزرسانیِ حریمِ خصوصی فعلاً ممکن نیست.')),
-        );
-      }
+      _snack(value
+          ? 'اکنون در سطحِ منطقه (fuzzed) روی کره دیده می‌شوید.'
+          : 'دیگر روی کره دیده نمی‌شوید.');
+    } catch (e) {
+      if (mounted) setState(() => _discoverable = !value);
+      _snack('به‌روزرسانیِ حریمِ خصوصی ممکن نشد: $e');
     }
   }
 
   Future<void> _copy(String label, String value) async {
     if (value.isEmpty) return;
     await Clipboard.setData(ClipboardData(text: value));
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$label کپی شد.')),
+    _snack('$label کپی شد.');
+  }
+
+  /// انتخابِ تصویر از گالری و آپلود به‌عنوانِ عکسِ پروفایل.
+  Future<void> _changeAvatar() async {
+    try {
+      final img = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        imageQuality: 85,
       );
+      if (img == null) return;
+      await ApiScope.of(context).uploadAvatar(img.path);
+      await _refreshMe();
+      _snack('عکسِ پروفایل به‌روزرسانی شد.');
+    } catch (e) {
+      _snack('آپلودِ عکس ممکن نشد: $e');
     }
   }
 
-  void _todo(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$feature به‌زودی در دسترس قرار می‌گیرد.')),
+  /// فرمِ ویرایشِ نام/نامِ‌کاربری/بیو (اطلاعاتِ شخصی).
+  Future<void> _editProfile() async {
+    final nameCtrl = TextEditingController(text: _me?.displayName ?? '');
+    final userCtrl = TextEditingController(text: _me?.username ?? '');
+    final bioCtrl = TextEditingController(text: _me?.bio ?? '');
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('اطلاعاتِ شخصی',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: nameCtrl,
+              decoration: const InputDecoration(labelText: 'نامِ نمایشی'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: userCtrl,
+              decoration: const InputDecoration(
+                labelText: 'نامِ کاربری',
+                helperText: 'حروفِ کوچک، اعداد، _ و .',
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: bioCtrl,
+              maxLines: 3,
+              decoration: const InputDecoration(labelText: 'دربارهٔ من'),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('ذخیره'),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
+    if (saved != true) return;
+    try {
+      await ApiScope.of(context).updateProfile(
+        fullName: nameCtrl.text.trim(),
+        username: userCtrl.text.trim().isEmpty ? null : userCtrl.text.trim(),
+        bio: bioCtrl.text.trim(),
+      );
+      await _refreshMe();
+      _snack('پروفایل ذخیره شد.');
+    } catch (e) {
+      _snack('ذخیرهٔ پروفایل ممکن نشد: $e');
+    }
+  }
+
+  /// انتخابِ نقشِ خودسرویس و ذخیره روی پروفایل.
+  Future<void> _pickRole() async {
+    final chosen = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('نقشِ من',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            for (final e in kRoleLabels.entries)
+              ListTile(
+                title: Text(e.value),
+                trailing: _me?.role == e.key ? const Icon(Icons.check) : null,
+                onTap: () => Navigator.of(ctx).pop(e.key),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (chosen == null) return;
+    try {
+      await ApiScope.of(context).updateProfile(role: chosen);
+      await _refreshMe();
+      _snack('نقشِ شما به «${kRoleLabels[chosen]}» تغییر کرد.');
+    } catch (e) {
+      _snack('تغییرِ نقش ممکن نشد: $e');
+    }
+  }
+
+  /// انتخابِ مخاطبِ پیش‌فرضِ داستان (`stories/settings`).
+  Future<void> _pickStoryAudience() async {
+    StorySettings? current;
+    try {
+      current = await ApiScope.of(context).storySettings();
+    } catch (_) {}
+    if (!mounted) return;
+    final chosen = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('مخاطبِ پیش‌فرضِ داستان',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            for (final e in kAudienceLabels.entries)
+              ListTile(
+                title: Text(e.value),
+                trailing: current?.defaultAudience == e.key
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () => Navigator.of(ctx).pop(e.key),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (chosen == null) return;
+    try {
+      await ApiScope.of(context).setStorySettings(chosen);
+      _snack('مخاطبِ داستان روی «${kAudienceLabels[chosen]}» تنظیم شد.');
+    } catch (e) {
+      _snack('تنظیمِ مخاطب ممکن نشد: $e');
+    }
+  }
+
+  /// دکمهٔ «جدید»: ثبتِ داستانِ تازه با انتخابِ تصویر از گالری.
+  Future<void> _createStory() async {
+    try {
+      final img = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1440,
+        imageQuality: 85,
+      );
+      if (img == null) return;
+      String audience = 'public';
+      try {
+        audience = (await ApiScope.of(context).storySettings()).defaultAudience;
+      } catch (_) {}
+      await ApiScope.of(context).createStory(filePath: img.path, audience: audience);
+      _snack('داستانِ شما منتشر شد.');
+    } catch (e) {
+      _snack('انتشارِ داستان ممکن نشد: $e');
+    }
+  }
+
+  /// نشانیِ کاملِ آواتار (اگر تنظیم شده)؛ dilix-api مسیرِ نسبی می‌دهد.
+  String? get _avatarUrl {
+    final u = _me?.avatarUrl;
+    if (u == null || u.isEmpty) return null;
+    if (u.startsWith('http')) return u;
+    return '${AppConfig.apiBaseUrl}$u';
   }
 
   /// مجموعِ موجودیِ پاداش به تومان (بزرگ‌ترین واحد؛ dilix-api ریال/تومان تخت می‌دهد).
@@ -462,14 +661,19 @@ class _MeScreenState extends State<MeScreen> {
                     CircleAvatar(
                       radius: 34,
                       backgroundColor: theme.colorScheme.primaryContainer,
-                      child: Text(
-                        initials,
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          color: theme.colorScheme.onPrimaryContainer,
-                        ),
-                      ),
+                      backgroundImage: _avatarUrl != null
+                          ? NetworkImage(_avatarUrl!)
+                          : null,
+                      child: _avatarUrl != null
+                          ? null
+                          : Text(
+                              initials,
+                              style: TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.onPrimaryContainer,
+                              ),
+                            ),
                     ),
                     Positioned(
                       bottom: -4,
@@ -479,7 +683,7 @@ class _MeScreenState extends State<MeScreen> {
                         shape: const CircleBorder(),
                         child: InkWell(
                           customBorder: const CircleBorder(),
-                          onTap: () => _todo('تغییرِ عکسِ پروفایل'),
+                          onTap: _changeAvatar,
                           child: Padding(
                             padding: const EdgeInsets.all(6),
                             child: Icon(Icons.photo_camera,
@@ -523,7 +727,7 @@ class _MeScreenState extends State<MeScreen> {
                 ),
                 IconButton(
                   tooltip: 'ویرایشِ پروفایل',
-                  onPressed: () => _todo('ویرایشِ پروفایل'),
+                  onPressed: _editProfile,
                   icon: const Icon(Icons.edit_outlined),
                 ),
               ],
@@ -531,17 +735,17 @@ class _MeScreenState extends State<MeScreen> {
             const SizedBox(height: 16),
             Row(
               children: [
-                _stat('اعتماد', 'L${_me?.kycLevel ?? 0}'),
+                _stat('اعتماد', '${_me?.trustScore ?? 0}'),
                 const SizedBox(width: 8),
-                _stat('امتیاز', '${_points ?? _rewardToman}'),
+                _stat('امتیاز', (_me?.avgRating ?? 0).toStringAsFixed(1)),
                 const SizedBox(width: 8),
-                _stat('سفر', '${_referral?.totalReferred ?? 0}'),
+                _stat('سفر', '${_me?.totalTrips ?? 0}'),
               ],
             ),
             const SizedBox(height: 16),
             InkWell(
               customBorder: const CircleBorder(),
-              onTap: () => _todo('ایجادِ موردِ جدید'),
+              onTap: _createStory,
               child: CustomPaint(
                 painter: _DashedCirclePainter(
                   color: theme.colorScheme.outline,
@@ -617,7 +821,12 @@ class _MeScreenState extends State<MeScreen> {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(
-                onPressed: () => _todo('ارتقای سطحِ تأیید'),
+                onPressed: () async {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute<void>(builder: (_) => const KycScreen()),
+                  );
+                  await _refreshMe();
+                },
                 child: const Text('ارتقای سطحِ تأیید'),
               ),
             ),
@@ -686,7 +895,10 @@ class _MeScreenState extends State<MeScreen> {
                   backgroundColor: const Color(0xFF6A3DE8),
                   foregroundColor: Colors.white,
                 ),
-                onPressed: () => _todo('شبکه و درآمد'),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                      builder: (_) => const MarketingNetworkScreen()),
+                ),
                 child: const Text('مشاهدهٔ شبکه و درآمد'),
               ),
             ),
@@ -790,16 +1002,16 @@ class _MeScreenState extends State<MeScreen> {
           ListTile(
             leading: const Icon(Icons.badge_outlined),
             title: const Text('نقشِ من'),
-            subtitle: Text(_me?.entityType ?? '—'),
+            subtitle: Text(kRoleLabels[_me?.role] ?? _me?.entityType ?? '—'),
             trailing: const Icon(Icons.chevron_left),
-            onTap: () => _todo('تغییرِ نقش'),
+            onTap: _pickRole,
           ),
           const Divider(height: 1),
           ListTile(
             leading: const Icon(Icons.person_outline),
             title: const Text('اطلاعاتِ شخصی'),
             trailing: const Icon(Icons.chevron_left),
-            onTap: () => _todo('ویرایشِ اطلاعاتِ شخصی'),
+            onTap: _editProfile,
           ),
           const Divider(height: 1),
           ListTile(
@@ -823,14 +1035,16 @@ class _MeScreenState extends State<MeScreen> {
             leading: const Icon(Icons.auto_stories_outlined),
             title: const Text('مخاطبِ داستان'),
             trailing: const Icon(Icons.chevron_left),
-            onTap: () => _todo('تنظیمِ مخاطبِ داستان'),
+            onTap: _pickStoryAudience,
           ),
           const Divider(height: 1),
           ListTile(
             leading: const Icon(Icons.shield_outlined),
             title: const Text('امنیت'),
             trailing: const Icon(Icons.chevron_left),
-            onTap: () => _todo('تنظیماتِ امنیت'),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const SecurityScreen()),
+            ),
           ),
           const Divider(height: 1),
           ListTile(

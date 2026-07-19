@@ -29,6 +29,18 @@ class Identity {
     required this.kycLevel,
     required this.homeRegion,
     required this.displayName,
+    this.role,
+    this.username,
+    this.bio,
+    this.email,
+    this.phone,
+    this.avatarUrl,
+    this.kycStatus = 'pending',
+    this.nationalIdSet = false,
+    this.privacyOnMap = false,
+    this.trustScore = 0,
+    this.avgRating = 0,
+    this.totalTrips = 0,
   });
 
   final String earthId;
@@ -37,17 +49,42 @@ class Identity {
   final int kycLevel;
   final String homeRegion;
   final String? displayName;
+  final String? role;
+  final String? username;
+  final String? bio;
+  final String? email;
+  final String? phone;
+  final String? avatarUrl;
+  final String kycStatus;
+  final bool nationalIdSet;
+  final bool privacyOnMap;
+  final num trustScore;
+  final num avgRating;
+  final int totalTrips;
 
   factory Identity.fromJson(Map<String, dynamic> j) {
     // dilix-api پاسخِ تخت (UserResponse) می‌دهد؛ نامِ نمایشی در `full_name`.
     final profile = j['profile'] as Map<String, dynamic>?;
     return Identity(
       earthId: j['earth_id'] as String,
-      entityType: (j['entity_type'] ?? 'individual') as String,
+      // dilix-api نقش را در `role` می‌دهد (نه entity_type).
+      entityType: (j['role'] ?? j['entity_type'] ?? 'user') as String,
       status: (j['status'] ?? 'active') as String,
       kycLevel: (j['kyc_level'] ?? 0) as int,
       homeRegion: (j['home_region'] ?? j['country_code'] ?? 'IR') as String,
       displayName: (j['full_name'] ?? profile?['display_name']) as String?,
+      role: j['role'] as String?,
+      username: j['username'] as String?,
+      bio: j['bio'] as String?,
+      email: j['email'] as String?,
+      phone: j['phone'] as String?,
+      avatarUrl: j['avatar_url'] as String?,
+      kycStatus: (j['kyc_status'] ?? 'pending') as String,
+      nationalIdSet: (j['national_id_set'] ?? false) as bool,
+      privacyOnMap: (j['privacy_on_map'] ?? false) as bool,
+      trustScore: (j['trust_score'] ?? 0) as num,
+      avgRating: (j['avg_rating'] ?? 0) as num,
+      totalTrips: (j['total_trips'] ?? 0) as int,
     );
   }
 }
@@ -317,15 +354,94 @@ class MarketOrder {
 }
 
 class ReferralLink {
-  ReferralLink({required this.code, required this.url, this.totalReferred = 0});
+  ReferralLink({
+    required this.code,
+    required this.url,
+    this.totalReferred = 0,
+    this.totalNetwork = 0,
+    this.totalRewardToman = 0,
+  });
   final String code;
   final String url;
   final int totalReferred;
+  final int totalNetwork;
+  final int totalRewardToman;
   factory ReferralLink.fromJson(Map<String, dynamic> j) => ReferralLink(
         code: (j['code'] ?? '') as String,
         // dilix-api: `link`؛ Core: `url`.
         url: (j['url'] ?? j['link'] ?? '') as String,
         totalReferred: (j['total_referred'] ?? 0) as int,
+        totalNetwork: (j['total_network'] ?? 0) as int,
+        totalRewardToman: (j['total_reward_toman'] ?? 0) as int,
+      );
+}
+
+/// وضعیتِ احرازِ هویت (KYC) — `GET /api/v1/auth/me/kyc`.
+class KycStatus {
+  KycStatus({required this.status, this.level = 0, this.message});
+  final String status; // none | pending | approved | rejected
+  final int level;
+  final String? message;
+  factory KycStatus.fromJson(Map<String, dynamic> j) => KycStatus(
+        status: (j['status'] ?? 'none') as String,
+        level: (j['level'] ?? 0) as int,
+        message: j['message'] as String?,
+      );
+}
+
+/// تنظیمِ مخاطبِ پیش‌فرضِ داستان — `GET/PUT /api/v1/stories/settings`.
+class StorySettings {
+  StorySettings({required this.defaultAudience, this.isSet = false});
+  final String defaultAudience; // public|followers|colleagues|family|friends
+  final bool isSet;
+  factory StorySettings.fromJson(Map<String, dynamic> j) => StorySettings(
+        defaultAudience: (j['default_audience'] ?? 'public') as String,
+        isSet: (j['is_set'] ?? false) as bool,
+      );
+}
+
+/// شبکهٔ بازاریابیِ چندسطحی — `GET /api/v1/referral/network`.
+class ReferralNetwork {
+  ReferralNetwork({
+    required this.levels,
+    required this.totalNetwork,
+    required this.direct,
+  });
+  final List<ReferralLevel> levels;
+  final int totalNetwork;
+  final List<ReferralMember> direct;
+  factory ReferralNetwork.fromJson(Map<String, dynamic> j) => ReferralNetwork(
+        levels: ((j['levels'] ?? const []) as List)
+            .map((e) => ReferralLevel.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        totalNetwork: (j['total_network'] ?? 0) as int,
+        direct: ((j['direct'] ?? const []) as List)
+            .map((e) => ReferralMember.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+class ReferralLevel {
+  ReferralLevel({required this.level, required this.count, required this.rateBps});
+  final int level;
+  final int count;
+  final int rateBps;
+  factory ReferralLevel.fromJson(Map<String, dynamic> j) => ReferralLevel(
+        level: (j['level'] ?? 0) as int,
+        count: (j['count'] ?? 0) as int,
+        rateBps: (j['rate_bps'] ?? 0) as int,
+      );
+}
+
+class ReferralMember {
+  ReferralMember({required this.earthId, required this.name, this.joinedAt});
+  final String earthId;
+  final String name;
+  final String? joinedAt;
+  factory ReferralMember.fromJson(Map<String, dynamic> j) => ReferralMember(
+        earthId: (j['earth_id'] ?? '') as String,
+        name: (j['name'] ?? j['earth_id'] ?? '') as String,
+        joinedAt: j['joined_at'] as String?,
       );
 }
 

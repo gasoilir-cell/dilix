@@ -115,6 +115,26 @@ class ApiClient {
     return res.body.isEmpty ? null : jsonDecode(res.body);
   }
 
+  Future<dynamic> _patch(String path, Object? body) async {
+    final res = await _client.patch(
+      Uri.parse('$_base$path'),
+      headers: _headers(json: true),
+      body: jsonEncode(body ?? {}),
+    );
+    if (res.statusCode >= 400) _raise(res);
+    return res.body.isEmpty ? null : jsonDecode(res.body);
+  }
+
+  Future<dynamic> _put(String path, Object? body) async {
+    final res = await _client.put(
+      Uri.parse('$_base$path'),
+      headers: _headers(json: true),
+      body: jsonEncode(body ?? {}),
+    );
+    if (res.statusCode >= 400) _raise(res);
+    return res.body.isEmpty ? null : jsonDecode(res.body);
+  }
+
   // ─────────────── Auth ───────────────
   Future<TokenPair> login(String identifier, String password) async {
     final j = await _post('/api/v1/auth/login', {
@@ -184,18 +204,89 @@ class ApiClient {
   Future<Identity> me() async =>
       Identity.fromJson(await _get('/api/v1/auth/me') as Map<String, dynamic>);
 
+  /// به‌روزرسانیِ پروفایل (`PATCH /api/v1/auth/me`). فقط فیلدهای غیرِنال ارسال
+  /// می‌شوند تا سایرِ مقادیر دست‌نخورده بمانند.
+  Future<Identity> updateProfile({
+    String? fullName,
+    String? username,
+    String? bio,
+    String? locale,
+    String? role,
+    bool? privacyOnMap,
+  }) async {
+    final body = <String, dynamic>{};
+    if (fullName != null) body['full_name'] = fullName;
+    if (username != null) body['username'] = username;
+    if (bio != null) body['bio'] = bio;
+    if (locale != null) body['locale'] = locale;
+    if (role != null) body['role'] = role;
+    if (privacyOnMap != null) body['privacy_on_map'] = privacyOnMap;
+    return Identity.fromJson(
+        await _patch('/api/v1/auth/me', body) as Map<String, dynamic>);
+  }
+
+  /// نمایش/عدمِ نمایشِ کاربر روی کره؛ در dilix-api با فیلدِ `privacy_on_map`
+  /// روی پروفایل کنترل می‌شود (`discoverable == !privacy_on_map`).
   Future<void> setVisibility({
     required bool discoverable,
     String audience = 'connections',
     String geoPrecision = 'region',
     List<String> visibleFields = const [],
   }) =>
-      _post('/v1/identity/me/visibility', {
-        'discoverable': discoverable,
-        'audience': audience,
-        'geo_precision': geoPrecision,
-        'visible_fields': visibleFields,
-      });
+      updateProfile(privacyOnMap: !discoverable);
+
+  /// آپلودِ عکسِ پروفایل (multipart، فیلدِ `file`) → نشانیِ آواتار.
+  Future<String> uploadAvatar(String filePath) async {
+    final req =
+        http.MultipartRequest('POST', Uri.parse('$_base/api/v1/auth/me/avatar'));
+    req.headers.addAll(_headers());
+    req.files.add(await http.MultipartFile.fromPath('file', filePath));
+    final res = await http.Response.fromStream(await _client.send(req));
+    if (res.statusCode >= 400) _raise(res);
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    return (j['avatar_url'] ?? '') as String;
+  }
+
+  /// وضعیتِ درخواستِ احرازِ هویت (`GET /api/v1/auth/me/kyc`).
+  Future<KycStatus> myKyc() async =>
+      KycStatus.fromJson(await _get('/api/v1/auth/me/kyc') as Map<String, dynamic>);
+
+  /// ثبتِ مدارکِ احرازِ هویتِ سطح ۲ (multipart: کدِ ملی/نام/تاریخِ تولد + دو تصویر).
+  Future<KycStatus> submitKyc({
+    required String nationalId,
+    required String fullName,
+    required String dateOfBirth,
+    required String frontPath,
+    required String selfiePath,
+  }) async {
+    final req =
+        http.MultipartRequest('POST', Uri.parse('$_base/api/v1/auth/me/kyc'));
+    req.headers.addAll(_headers());
+    req.fields['national_id'] = nationalId;
+    req.fields['full_name'] = fullName;
+    req.fields['date_of_birth'] = dateOfBirth;
+    req.files.add(await http.MultipartFile.fromPath('front', frontPath));
+    req.files.add(await http.MultipartFile.fromPath('selfie', selfiePath));
+    final res = await http.Response.fromStream(await _client.send(req));
+    if (res.statusCode >= 400) _raise(res);
+    return KycStatus.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
+  }
+
+  /// مخاطبِ پیش‌فرضِ داستان (`GET /api/v1/stories/settings`).
+  Future<StorySettings> storySettings() async =>
+      StorySettings.fromJson(
+          await _get('/api/v1/stories/settings') as Map<String, dynamic>);
+
+  /// تنظیمِ مخاطبِ پیش‌فرضِ داستان (`PUT /api/v1/stories/settings`).
+  Future<StorySettings> setStorySettings(String audience) async =>
+      StorySettings.fromJson(await _put(
+              '/api/v1/stories/settings', {'default_audience': audience})
+          as Map<String, dynamic>);
+
+  /// شبکهٔ بازاریابیِ چندسطحی (`GET /api/v1/referral/network`).
+  Future<ReferralNetwork> referralNetwork() async =>
+      ReferralNetwork.fromJson(
+          await _get('/api/v1/referral/network') as Map<String, dynamic>);
 
   // ─────────────── Social (پست‌ها) ───────────────
   /// فیدِ پست‌ها. dilix-api پاسخِ `{items:[PostOut], next_cursor}` می‌دهد.
