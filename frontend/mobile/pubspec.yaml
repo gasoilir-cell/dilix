@@ -23,6 +23,8 @@ dependencies:
   video_player: ^2.9.2
   # انتخابِ تصویر/ویدیو از گالریِ گوشی برای انتشارِ پستِ فید
   image_picker: ^1.1.2
+  # کره‌ی سه‌بعدیِ وب داخلِ تبِ «کره» (رندرِ روی دستگاه، نه اتوماسیونِ مرورگر)
+  webview_flutter: ^4.10.0
 
 dev_dependencies:
   flutter_test:

@@ -15,6 +15,12 @@ class AppConfig {
     defaultValue: 'fa',
   );
 
+  /// آدرسِ کره‌ی سه‌بعدیِ وب که در تبِ «کره» داخلِ WebView بارگذاری می‌شود.
+  static const String earthWebUrl = String.fromEnvironment(
+    'DILIX_EARTH_WEB_URL',
+    defaultValue: 'https://dilix.ir/earth',
+  );
+
   // ── ورودِ اجتماعی (OAuth/OIDC) ──
   static const String googleClientId =
       String.fromEnvironment('DILIX_GOOGLE_CLIENT_ID');

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../app.dart';
+import '../../core/preferences.dart';
 import '../../core/social_auth.dart';
 import '../../models/models.dart';
 import '../dashboard/dashboard_screen.dart';
@@ -32,10 +34,12 @@ class _MeScreenState extends State<MeScreen> {
   final _social = SocialAuth();
   Identity? _me;
   ReferralLink? _referral;
+  RewardWallet? _wallet;
   int? _points;
   List<NotificationItem> _notifications = const [];
   String? _error;
   bool _busy = false;
+  bool _discoverable = false;
   String _otpChannel = 'sms';
   String? _otpChallengeId;
 
@@ -52,11 +56,15 @@ class _MeScreenState extends State<MeScreen> {
     final api = ApiScope.of(context);
     final me = await api.me();
     ReferralLink? referral;
+    RewardWallet? wallet;
     int? points;
     List<NotificationItem> notifications = const [];
     // این‌ها اختیاری‌اند؛ نبودشان نباید نمایشِ حساب را بشکند.
     try {
       referral = await api.referralLink();
+    } catch (_) {}
+    try {
+      wallet = await api.rewardWallet();
     } catch (_) {}
     try {
       points = await api.rewardPoints();
@@ -67,6 +75,7 @@ class _MeScreenState extends State<MeScreen> {
     setState(() {
       _me = me;
       _referral = referral;
+      _wallet = wallet;
       _points = points;
       _notifications = notifications;
     });
@@ -77,7 +86,9 @@ class _MeScreenState extends State<MeScreen> {
     setState(() {
       _me = null;
       _referral = null;
+      _wallet = null;
       _points = null;
+      _discoverable = false;
       _notifications = const [];
       _idCtrl.clear();
       _passCtrl.clear();
@@ -151,17 +162,84 @@ class _MeScreenState extends State<MeScreen> {
     }
   }
 
-  Future<void> _enableVisibility() async {
+  Future<void> _setDiscoverable(bool value) async {
+    setState(() => _discoverable = value);
     try {
-      await ApiScope.of(context).setVisibility(discoverable: true);
+      await ApiScope.of(context).setVisibility(discoverable: value);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('اکنون در سطحِ منطقه (fuzzed) دیده می‌شوید.')),
+          SnackBar(
+            content: Text(value
+                ? 'اکنون در سطحِ منطقه (fuzzed) روی کره دیده می‌شوید.'
+                : 'دیگر روی کره دیده نمی‌شوید.'),
+          ),
         );
       }
-    } catch (e) {
-      setState(() => _error = 'به‌روزرسانیِ حریمِ خصوصی ممکن نشد: $e');
+    } catch (_) {
+      // endpointِ حریمِ خصوصی در بک‌اند فعلی موجود نیست؛ سوییچ را برمی‌گردانیم.
+      if (mounted) {
+        setState(() => _discoverable = !value);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('به‌روزرسانیِ حریمِ خصوصی فعلاً ممکن نیست.')),
+        );
+      }
     }
+  }
+
+  Future<void> _copy(String label, String value) async {
+    if (value.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: value));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$label کپی شد.')),
+      );
+    }
+  }
+
+  void _todo(String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$feature به‌زودی در دسترس قرار می‌گیرد.')),
+    );
+  }
+
+  /// مجموعِ موجودیِ پاداش به تومان (بزرگ‌ترین واحد؛ dilix-api ریال/تومان تخت می‌دهد).
+  int get _rewardToman {
+    final w = _wallet;
+    if (w == null) return 0;
+    return w.balances
+        .where((b) => !b.currency.contains('امانت'))
+        .fold<int>(0, (sum, b) => sum + b.amountMinor);
+  }
+
+  Future<void> _pickLanguage() async {
+    final prefs = PreferencesScope.of(context);
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('زبانِ برنامه', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            for (final lang in PreferencesController.languages)
+              ListTile(
+                leading: Text(lang.flag, style: const TextStyle(fontSize: 22)),
+                title: Text(lang.native),
+                subtitle: Text(lang.english),
+                trailing: prefs.locale?.languageCode == lang.code
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () {
+                  prefs.setLocale(lang.code);
+                  Navigator.of(ctx).pop();
+                },
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -312,14 +390,11 @@ class _MeScreenState extends State<MeScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Card(
-          child: ListTile(
-            title: Text(_me?.displayName ?? 'کاربر'),
-            subtitle: Text('Earth ID: ${_me?.earthId.substring(0, 12)}…'),
-            trailing: Chip(label: Text('KYC L${_me?.kycLevel ?? 0}')),
-          ),
-        ),
-        // نمای کلی (داشبوردِ نقش‌محور) — سلام + نقش + میان‌برهای مخصوصِ نقش.
+        _profileHeader(),
+        const SizedBox(height: 12),
+        _kycCard(),
+        _marketingCard(),
+        // میان‌برها: نمای کلی، کیفِ پول، اعلان‌ها.
         Card(
           child: ListTile(
             leading: const Icon(Icons.dashboard_outlined),
@@ -331,137 +406,452 @@ class _MeScreenState extends State<MeScreen> {
             ),
           ),
         ),
-        // کیفِ پاداش (سکه‌ی دیلیکس) — کارت به صفحهٔ کاملِ کیف پول می‌رود.
         Card(
           child: ListTile(
             leading: const Icon(Icons.account_balance_wallet_outlined),
             title: const Text('کیفِ پول'),
             subtitle: const Text('پاداش، پرداختِ امن و درآمد'),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _points != null ? '$_points' : '—',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const Icon(Icons.chevron_left),
-              ],
-            ),
+            trailing: const Icon(Icons.chevron_left),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const WalletScreen()),
             ),
           ),
         ),
-        // اعلان‌ها — سرصفحه به صفحهٔ کاملِ اعلان‌ها می‌رود.
-        Card(
-          child: Column(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.notifications_outlined),
-                title: const Text('اعلان‌ها'),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (unread > 0)
-                      Chip(
-                        label: Text('$unread جدید'),
-                        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                      ),
-                    const Icon(Icons.chevron_left),
-                  ],
-                ),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(builder: (_) => const NotificationsScreen()),
-                ),
-              ),
-              if (_notifications.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: Text('اعلانی ندارید.'),
-                  ),
-                )
-              else
-                ..._notifications.take(5).map(
-                      (n) => ListTile(
-                        dense: true,
-                        leading: Icon(
-                          n.read ? Icons.circle_outlined : Icons.circle,
-                          size: 12,
-                          color: n.read
-                              ? Theme.of(context).disabledColor
-                              : Theme.of(context).colorScheme.primary,
-                        ),
-                        title: Text(n.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                        subtitle: Text(n.body, maxLines: 2, overflow: TextOverflow.ellipsis),
-                        onTap: n.read ? null : () => _markRead(n),
-                      ),
-                    ),
-            ],
-          ),
-        ),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.link),
-            title: const Text('لینکِ دعوت'),
-            subtitle: Text(_referral?.url ?? 'در دسترس نیست'),
-          ),
-        ),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('حریمِ خصوصی', style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4),
-                Text('پیش‌فرض: روی نقشه دیده نمی‌شوید (ADR-06).',
-                    style: Theme.of(context).textTheme.bodySmall),
-                const SizedBox(height: 8),
-                FilledButton.tonal(
-                  onPressed: _enableVisibility,
-                  child: const Text('فعال‌سازیِ دیده‌شدن (محدود)'),
-                ),
-              ],
-            ),
-          ),
-        ),
-        // پشتیبانی
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.support_agent_outlined),
-            title: const Text('پشتیبانی'),
-            subtitle: const Text('راه‌های ارتباط + سوالاتِ متداول'),
-            trailing: const Icon(Icons.chevron_left),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SupportScreen()),
-            ),
-          ),
-        ),
-        // اسنادِ حقوقی (قوانین و حریمِ خصوصی)
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.gavel_outlined),
-            title: const Text('اسنادِ حقوقی'),
-            subtitle: const Text('قوانین و مقررات + حریمِ خصوصی'),
-            trailing: const Icon(Icons.chevron_left),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const LegalScreen()),
-            ),
-          ),
-        ),
+        _notificationsCard(unread),
+        _settingsCard(),
         if (_error != null) ...[
           const SizedBox(height: 8),
           Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
         ],
         const SizedBox(height: 8),
-        OutlinedButton.icon(
-          onPressed: _logout,
-          icon: const Icon(Icons.logout),
-          label: const Text('خروج از حساب'),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: _logout,
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.errorContainer,
+              foregroundColor: Theme.of(context).colorScheme.onErrorContainer,
+            ),
+            icon: const Icon(Icons.logout),
+            label: const Text('خروج از حساب'),
+          ),
         ),
+        const SizedBox(height: 12),
       ],
+    );
+  }
+
+  // ─────────────── Task 1: سرصفحهٔ پروفایل ───────────────
+  Widget _profileHeader() {
+    final theme = Theme.of(context);
+    final name = _me?.displayName ?? 'کاربر';
+    final initials = name.trim().isNotEmpty ? name.trim().substring(0, 1) : '؟';
+    final code = (_referral?.code.isNotEmpty ?? false)
+        ? 'DLX-${_referral!.code}'
+        : 'Earth ID: ${_me?.earthId.substring(0, 8) ?? ''}';
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    CircleAvatar(
+                      radius: 34,
+                      backgroundColor: theme.colorScheme.primaryContainer,
+                      child: Text(
+                        initials,
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: -4,
+                      left: -4,
+                      child: Material(
+                        color: theme.colorScheme.primary,
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: () => _todo('تغییرِ عکسِ پروفایل'),
+                          child: Padding(
+                            padding: const EdgeInsets.all(6),
+                            child: Icon(Icons.photo_camera,
+                                size: 16, color: theme.colorScheme.onPrimary),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(name,
+                          style: theme.textTheme.titleLarge,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                      const SizedBox(height: 4),
+                      InkWell(
+                        onTap: () => _copy('کدِ دعوت', code),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(code,
+                                  style: theme.textTheme.bodySmall
+                                      ?.copyWith(color: theme.colorScheme.primary),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(Icons.copy,
+                                size: 14, color: theme.colorScheme.primary),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'ویرایشِ پروفایل',
+                  onPressed: () => _todo('ویرایشِ پروفایل'),
+                  icon: const Icon(Icons.edit_outlined),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                _stat('اعتماد', 'L${_me?.kycLevel ?? 0}'),
+                const SizedBox(width: 8),
+                _stat('امتیاز', '${_points ?? _rewardToman}'),
+                const SizedBox(width: 8),
+                _stat('سفر', '${_referral?.totalReferred ?? 0}'),
+              ],
+            ),
+            const SizedBox(height: 16),
+            InkWell(
+              customBorder: const CircleBorder(),
+              onTap: () => _todo('ایجادِ موردِ جدید'),
+              child: CustomPaint(
+                painter: _DashedCirclePainter(
+                  color: theme.colorScheme.outline,
+                ),
+                child: SizedBox(
+                  width: 72,
+                  height: 72,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.add, color: theme.colorScheme.primary),
+                      Text('جدید', style: theme.textTheme.bodySmall),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _stat(String label, String value) {
+    final theme = Theme.of(context);
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Text(value, style: theme.textTheme.titleMedium),
+            const SizedBox(height: 2),
+            Text(label, style: theme.textTheme.bodySmall),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─────────────── Task 2: سطحِ تأیید + شبکهٔ بازاریابی ───────────────
+  Widget _kycCard() {
+    final theme = Theme.of(context);
+    final level = _me?.kycLevel ?? 0;
+    final progress = (level / 3).clamp(0.0, 1.0);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.verified_user_outlined),
+                const SizedBox(width: 8),
+                Text('سطحِ تأیید', style: theme.textTheme.titleMedium),
+                const Spacer(),
+                Text('L$level از ۳', style: theme.textTheme.bodySmall),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 8,
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () => _todo('ارتقای سطحِ تأیید'),
+                child: const Text('ارتقای سطحِ تأیید'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _marketingCard() {
+    final theme = Theme.of(context);
+    final referred = _referral?.totalReferred ?? 0;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.groups_outlined),
+                const SizedBox(width: 8),
+                Text('شبکهٔ بازاریابی', style: theme.textTheme.titleMedium),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _metricBox('$_rewardToman', 'تومان پاداش',
+                    theme.colorScheme.primaryContainer),
+                const SizedBox(width: 8),
+                _metricBox('$referred', 'دعوت‌شده',
+                    theme.colorScheme.secondaryContainer),
+              ],
+            ),
+            const SizedBox(height: 12),
+            InkWell(
+              onTap: () => _copy('لینکِ دعوت', _referral?.url ?? ''),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  border: Border.all(color: theme.colorScheme.outlineVariant),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _referral?.url ?? 'لینکِ دعوت در دسترس نیست',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.copy, size: 16),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF6A3DE8),
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () => _todo('شبکه و درآمد'),
+                child: const Text('مشاهدهٔ شبکه و درآمد'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _metricBox(String value, String label, Color bg) {
+    final theme = Theme.of(context);
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Text(value, style: theme.textTheme.titleLarge),
+            const SizedBox(height: 4),
+            Text(label, style: theme.textTheme.bodySmall),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _notificationsCard(int unread) {
+    return Card(
+      child: Column(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.notifications_outlined),
+            title: const Text('اعلان‌ها'),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (unread > 0)
+                  Chip(
+                    label: Text('$unread جدید'),
+                    backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                  ),
+                const Icon(Icons.chevron_left),
+              ],
+            ),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const NotificationsScreen()),
+            ),
+          ),
+          if (_notifications.isEmpty)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Text('اعلانی ندارید.'),
+              ),
+            )
+          else
+            ..._notifications.take(5).map(
+                  (n) => ListTile(
+                    dense: true,
+                    leading: Icon(
+                      n.read ? Icons.circle_outlined : Icons.circle,
+                      size: 12,
+                      color: n.read
+                          ? Theme.of(context).disabledColor
+                          : Theme.of(context).colorScheme.primary,
+                    ),
+                    title: Text(n.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    subtitle: Text(n.body, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    onTap: n.read ? null : () => _markRead(n),
+                  ),
+                ),
+        ],
+      ),
+    );
+  }
+
+  // ─────────────── Task 3: تنظیمات ───────────────
+  Widget _settingsCard() {
+    final prefs = PreferencesScope.of(context);
+    final isDark = prefs.themeMode == ThemeMode.dark;
+    final langCode = prefs.locale?.languageCode ?? 'fa';
+    final lang = PreferencesController.languages.firstWhere(
+      (l) => l.code == langCode,
+      orElse: () => PreferencesController.languages.first,
+    );
+    return Card(
+      child: Column(
+        children: [
+          SwitchListTile(
+            secondary: const Icon(Icons.public_outlined),
+            title: const Text('نمایش روی کره زمین'),
+            subtitle: const Text('در سطحِ منطقه و به‌صورتِ محدود (ADR-06)'),
+            value: _discoverable,
+            onChanged: _setDiscoverable,
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.badge_outlined),
+            title: const Text('نقشِ من'),
+            subtitle: Text(_me?.entityType ?? '—'),
+            trailing: const Icon(Icons.chevron_left),
+            onTap: () => _todo('تغییرِ نقش'),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.person_outline),
+            title: const Text('اطلاعاتِ شخصی'),
+            trailing: const Icon(Icons.chevron_left),
+            onTap: () => _todo('ویرایشِ اطلاعاتِ شخصی'),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.language),
+            title: const Text('زبانِ برنامه'),
+            subtitle: Text('${lang.flag} ${lang.native}'),
+            trailing: const Icon(Icons.chevron_left),
+            onTap: _pickLanguage,
+          ),
+          const Divider(height: 1),
+          SwitchListTile(
+            secondary: const Icon(Icons.dark_mode_outlined),
+            title: const Text('پوستهٔ برنامه'),
+            subtitle: Text(isDark ? 'تیره' : 'روشن'),
+            value: isDark,
+            onChanged: (v) =>
+                prefs.setThemeMode(v ? ThemeMode.dark : ThemeMode.light),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.auto_stories_outlined),
+            title: const Text('مخاطبِ داستان'),
+            trailing: const Icon(Icons.chevron_left),
+            onTap: () => _todo('تنظیمِ مخاطبِ داستان'),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.shield_outlined),
+            title: const Text('امنیت'),
+            trailing: const Icon(Icons.chevron_left),
+            onTap: () => _todo('تنظیماتِ امنیت'),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.support_agent_outlined),
+            title: const Text('پشتیبانی'),
+            trailing: const Icon(Icons.chevron_left),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const SupportScreen()),
+            ),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.gavel_outlined),
+            title: const Text('اسنادِ حقوقی'),
+            trailing: const Icon(Icons.chevron_left),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const LegalScreen()),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -488,4 +878,37 @@ class _MeScreenState extends State<MeScreen> {
       // خطای علامت‌گذاری بحرانی نیست؛ نادیده گرفته می‌شود.
     }
   }
+}
+
+/// دایرهٔ نقطه‌چینِ دکمهٔ «جدید» زیرِ سرصفحهٔ پروفایل.
+class _DashedCirclePainter extends CustomPainter {
+  _DashedCirclePainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    final center = size.center(Offset.zero);
+    final radius = size.shortestSide / 2 - 1;
+    const dashCount = 24;
+    const sweep = 3.141592653589793 * 2 / dashCount;
+    for (var i = 0; i < dashCount; i++) {
+      final start = i * sweep;
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        start,
+        sweep * 0.6,
+        false,
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedCirclePainter oldDelegate) =>
+      oldDelegate.color != color;
 }
