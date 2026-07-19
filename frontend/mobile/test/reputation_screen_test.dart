@@ -14,11 +14,12 @@ import 'package:dilix_mobile/features/reputation/reputation_screen.dart';
 /// آرایه‌ی خالی پاسخ می‌دهد (بدونِ شبکه).
 ApiClient _fakeApi() {
   final identity = jsonEncode({
-    'earth_id': '33333333-3333-3333-3333-333333333333',
+    'earth_id': 'DLX-TEST0003',
     'entity_type': 'individual',
     'status': 'active',
     'kyc_level': 0,
-    'home_region': 'IR',
+    'country_code': 'IR',
+    'full_name': 'کاربرِ آزمایشی',
   });
   final scores = jsonEncode([
     {
@@ -42,7 +43,7 @@ ApiClient _fakeApi() {
 
   final mock = MockClient((http.Request req) async {
     final path = req.url.path;
-    if (path.contains('/v1/identity/me')) {
+    if (path.contains('/auth/me')) {
       return http.Response(identity, 200,
           headers: {'content-type': 'application/json'});
     }
