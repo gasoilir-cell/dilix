@@ -14,7 +14,7 @@ on:
       api_base_url:
         description: "Base URL سرویسِ Core که APK به آن وصل می‌شود"
         required: true
-        default: "https://api.dilix.ir"
+        default: "http://185.55.226.250:8010"
         type: string
 
 jobs:
@@ -83,6 +83,11 @@ jobs:
                   ">\n    <uses-permission android:name=\"android.permission.INTERNET\"/>",
                   1,
               )
+          # سرورِ Coreِ فعلی روی http (بدونِ TLS) سرویس می‌دهد؛ Android از targetSdk 28
+          # ترافیکِ cleartext را پیش‌فرض مسدود می‌کند، پس باید صریحاً مجاز شود وگرنه
+          # login/register با خطای cleartext-not-permitted شکست می‌خورد.
+          if "usesCleartextTraffic" not in m:
+              m = m.replace("<application", "<application\n        android:usesCleartextTraffic=\"true\"", 1)
           manifest.write_text(m)
 
           # پکیج‌هایی مثلِ flutter_appauth ماژولِ Androidِ خودشان را (داخلِ pub cache) با
@@ -123,7 +128,7 @@ jobs:
       - name: Build release APK
         run: |
           flutter build apk --release \
-            --dart-define=DILIX_API_BASE_URL=${{ github.event.inputs.api_base_url || 'https://api.dilix.ir' }}
+            --dart-define=DILIX_API_BASE_URL=${{ github.event.inputs.api_base_url || 'http://185.55.226.250:8010' }}
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
