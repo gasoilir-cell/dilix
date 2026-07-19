@@ -3,10 +3,12 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/api_client.dart';
 import 'core/config.dart';
+import 'core/preferences.dart';
 import 'core/theme.dart';
 import 'features/auth/login_screen.dart';
 import 'features/call/call_screen.dart';
 import 'features/call/call_service.dart';
+import 'features/onboarding/onboarding_flow.dart';
 import 'features/shell/home_shell.dart';
 
 /// در دسترس‌گذاریِ ApiClient به کلِ درختِ ویجت (بدونِ وابستگیِ state-management اضافی).
@@ -53,57 +55,71 @@ class DilixApp extends StatefulWidget {
 class _DilixAppState extends State<DilixApp> {
   final ApiClient _api = ApiClient();
   late final CallService _call = CallService(_api);
+  final PreferencesController _prefs = PreferencesController();
+
+  @override
+  void initState() {
+    super.initState();
+    _prefs.load();
+  }
 
   @override
   void dispose() {
     _call.dispose();
+    _prefs.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return ApiScope(
-      api: _api,
-      child: CallScope(
-        call: _call,
-        child: MaterialApp(
-          title: AppConfig.appName,
-          debugShowCheckedModeBanner: false,
-          theme: DilixTheme.light(),
-          darkTheme: DilixTheme.dark(),
-          locale: Locale(AppConfig.defaultLocale),
-          supportedLocales: const [
-            Locale('fa'),
-            Locale('ar'),
-            Locale('en'),
-            Locale('ru'),
-            Locale('tr'),
-          ],
-          localizationsDelegates: const [
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
-          // overlayِ سراسریِ تماس: هر صفحه‌ای که فعال باشد، وقتی فازِ تماس از
-          // idle خارج شود (ورودی/خروجی/برقرار) صفحهٔ تماس روی کلِ اپ نمایش داده
-          // می‌شود؛ با idle دوباره پنهان می‌شود.
-          builder: (context, child) {
-            return ListenableBuilder(
-              listenable: _call,
-              builder: (context, _) {
-                return Stack(
-                  children: [
-                    if (child != null) child,
-                    if (_call.phase != CallPhase.idle)
-                      Positioned.fill(
-                        child: CallScreen(service: _call),
-                      ),
-                  ],
-                );
-              },
-            );
-          },
-          home: const RootGate(),
+    return PreferencesScope(
+      controller: _prefs,
+      child: ApiScope(
+        api: _api,
+        child: CallScope(
+          call: _call,
+          // با تغییرِ زبان/تم توسطِ کاربر، MaterialApp دوباره ساخته می‌شود.
+          child: ListenableBuilder(
+            listenable: _prefs,
+            builder: (context, _) {
+              return MaterialApp(
+                title: AppConfig.appName,
+                debugShowCheckedModeBanner: false,
+                theme: DilixTheme.light(),
+                darkTheme: DilixTheme.dark(),
+                themeMode: _prefs.themeMode,
+                locale: _prefs.locale,
+                supportedLocales: PreferencesController.languages
+                    .map((l) => Locale(l.code))
+                    .toList(),
+                localizationsDelegates: const [
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                ],
+                // overlayِ سراسریِ تماس: هر صفحه‌ای که فعال باشد، وقتی فازِ تماس
+                // از idle خارج شود (ورودی/خروجی/برقرار) صفحهٔ تماس روی کلِ اپ
+                // نمایش داده می‌شود؛ با idle دوباره پنهان می‌شود.
+                builder: (context, child) {
+                  return ListenableBuilder(
+                    listenable: _call,
+                    builder: (context, _) {
+                      return Stack(
+                        children: [
+                          if (child != null) child,
+                          if (_call.phase != CallPhase.idle)
+                            Positioned.fill(
+                              child: CallScreen(service: _call),
+                            ),
+                        ],
+                      );
+                    },
+                  );
+                },
+                home: const RootGate(),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -139,13 +155,19 @@ class _RootGateState extends State<RootGate> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_sessionLoaded) {
+    final prefs = PreferencesScope.of(context);
+    if (!_sessionLoaded || !prefs.loaded) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
     final api = ApiScope.of(context);
     if (!api.isAuthenticated) {
+      // ورودِ اول: جریانِ ۴ مرحله‌ای (زبان/قوانین/ورود/تم). پس از تکمیلِ یک‌بارِ
+      // آنبوردینگ، دفعاتِ بعدی فقط صفحهٔ ورود نمایش داده می‌شود.
+      if (!prefs.onboardingComplete) {
+        return OnboardingFlow(onFinished: () => setState(() {}));
+      }
       return LoginScreen(onAuthenticated: () => setState(() {}));
     }
     // پس از احرازِ هویت، سرویسِ تماس را یک‌بار راه‌اندازی می‌کنیم تا WebSocketِ
