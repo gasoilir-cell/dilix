@@ -232,14 +232,18 @@ class CargoPost {
   final int? budgetMinor;
   final String currency;
 
+  /// سازگار با dilix-api (`CargoPostOut`: `cargo_type`/`weight_kg`/`price`) و
+  /// شکلِ قدیمیِ Core (`title`/`weight_grams`/`budget_minor`).
   factory CargoPost.fromJson(Map<String, dynamic> j) => CargoPost(
         id: j['id'] as String,
-        title: j['title'] as String,
+        title: (j['title'] ?? j['cargo_type'] ?? j['description'] ?? 'بار') as String,
         origin: j['origin'] as String,
         destination: j['destination'] as String,
         status: (j['status'] ?? 'open') as String,
-        weightGrams: (j['weight_grams'] as num?)?.toInt() ?? 0,
-        budgetMinor: (j['budget_minor'] as num?)?.toInt(),
+        weightGrams: (j['weight_grams'] as num?)?.toInt() ??
+            (((j['weight_kg'] as num?) ?? 0) * 1000).round(),
+        budgetMinor: (j['budget_minor'] as num?)?.toInt() ??
+            (j['price'] as num?)?.toInt(),
         currency: (j['currency'] ?? 'IRR') as String,
       );
 }
@@ -318,8 +322,9 @@ class ReferralLink {
   final String url;
   final int totalReferred;
   factory ReferralLink.fromJson(Map<String, dynamic> j) => ReferralLink(
-        code: j['code'] as String,
-        url: j['url'] as String,
+        code: (j['code'] ?? '') as String,
+        // dilix-api: `link`؛ Core: `url`.
+        url: (j['url'] ?? j['link'] ?? '') as String,
         totalReferred: (j['total_referred'] ?? 0) as int,
       );
 }
@@ -481,7 +486,7 @@ class StoryRing {
   final DateTime latestAt;
 
   factory StoryRing.fromJson(Map<String, dynamic> j) => StoryRing(
-        authorEarthId: j['author_earth_id'] as String,
+        authorEarthId: (j['earth_id'] ?? j['author_earth_id']) as String,
         storyCount: (j['story_count'] ?? 0) as int,
         hasUnseen: (j['has_unseen'] ?? false) as bool,
         isMe: (j['is_me'] ?? false) as bool,
@@ -557,12 +562,33 @@ class RewardWallet {
   final List<RewardBalance> balances;
   final int pendingCount;
 
-  factory RewardWallet.fromJson(Map<String, dynamic> j) => RewardWallet(
-        balances: ((j['balances'] ?? const []) as List)
+  factory RewardWallet.fromJson(Map<String, dynamic> j) {
+    // شکلِ قدیمیِ Core: {balances:[...], pending_count}
+    if (j['balances'] != null) {
+      return RewardWallet(
+        balances: (j['balances'] as List)
             .map((e) => RewardBalance.fromJson(e as Map<String, dynamic>))
             .toList(),
         pendingCount: (j['pending_count'] ?? 0) as int,
       );
+    }
+    // dilix-api `WalletResponse`: {currency, balance_available, balance_escrow,
+    // balance_bonus}. موجودیِ در دسترس + پاداش در یک ردیف؛ امانت جدا.
+    final currency = (j['currency'] ?? 'IRR') as String;
+    final available = (j['balance_available'] as num?)?.toInt() ?? 0;
+    final bonus = (j['balance_bonus'] as num?)?.toInt() ?? 0;
+    final escrow = (j['balance_escrow'] as num?)?.toInt() ?? 0;
+    return RewardWallet(
+      balances: [
+        RewardBalance(
+            currency: currency, amountMinor: available + bonus, rewardCount: 0),
+        if (escrow > 0)
+          RewardBalance(
+              currency: '$currency · امانت', amountMinor: escrow, rewardCount: 0),
+      ],
+      pendingCount: 0,
+    );
+  }
 }
 
 /// سهم از درآمد (`RevenueShare`).

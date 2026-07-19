@@ -10,8 +10,8 @@ import 'package:dilix_mobile/app.dart';
 import 'package:dilix_mobile/core/api_client.dart';
 import 'package:dilix_mobile/features/dashboard/dashboard_screen.dart';
 
-/// کلاینتِ ساختگی: هویت را برای `/api/v1/auth/me` و کیفِ پاداشِ خالی را برای
-/// `/v1/growth/rewards` پاسخ می‌دهد؛ سایرِ مسیرها آرایه‌ی خالی (بدونِ شبکه).
+/// کلاینتِ ساختگی: هویت را برای `/api/v1/auth/me` و کیفِ پول را برای
+/// `/api/v1/wallet/` پاسخ می‌دهد؛ سایرِ مسیرها آرایه‌ی خالی (بدونِ شبکه).
 ApiClient _fakeApi() {
   final me = jsonEncode({
     'earth_id': 'DLX-TEST0001',
@@ -21,7 +21,14 @@ ApiClient _fakeApi() {
     'country_code': 'IR',
     'full_name': 'کاربرِ آزمایشی',
   });
-  final wallet = jsonEncode({'balances': [], 'pending_count': 0});
+  final wallet = jsonEncode({
+    'id': 'w1',
+    'currency': 'IRR',
+    'balance_available': 0,
+    'balance_escrow': 0,
+    'balance_bonus': 0,
+    'is_frozen': false,
+  });
 
   final mock = MockClient((http.Request req) async {
     final path = req.url.path;
@@ -29,7 +36,7 @@ ApiClient _fakeApi() {
       return http.Response(me, 200,
           headers: {'content-type': 'application/json'});
     }
-    if (path.contains('/v1/growth/rewards')) {
+    if (path.contains('/api/v1/wallet/')) {
       return http.Response(wallet, 200,
           headers: {'content-type': 'application/json'});
     }

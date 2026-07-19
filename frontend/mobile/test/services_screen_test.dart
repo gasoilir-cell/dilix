@@ -16,18 +16,18 @@ ApiClient _fakeApi() {
   final cargo = jsonEncode([
     {
       'id': '11111111-1111-1111-1111-111111111111',
-      'title': 'بارِ تهران',
+      'cargo_type': 'بارِ تهران',
       'origin': 'تهران',
       'destination': 'اصفهان',
       'status': 'open',
-      'weight_grams': 5000,
-      'currency': 'IRR',
+      'weight_kg': 5,
+      'price': 500000,
     },
   ]);
 
   final mock = MockClient((http.Request req) async {
     final path = req.url.path;
-    if (path.contains('/v1/freight/cargo')) {
+    if (path.contains('/api/v1/freight/posts')) {
       return http.Response(cargo, 200,
           headers: {'content-type': 'application/json'});
     }

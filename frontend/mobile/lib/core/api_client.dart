@@ -259,13 +259,14 @@ class ApiClient {
     return list.map((e) => NearbyPerson.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  // ─────────────── Freight ───────────────
+  // ─────────────── Freight (اسنپِ بار) ───────────────
   Future<List<CargoPost>> listCargo() async {
-    final list = await _get('/v1/freight/cargo') as List;
+    final list = await _get('/api/v1/freight/posts') as List;
     return list.map((e) => CargoPost.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  /// ثبتِ آگهیِ بارِ جدید (اسنپِ بار). وزن به گرم و بودجهٔ اختیاری به amount_minor.
+  /// ثبتِ آگهیِ بارِ جدید. dilix-api `weight_kg` (کیلوگرم) و `price` (تومان) و
+  /// `cargo_type` می‌گیرد؛ عنوانِ واردشده به‌عنوانِ نوعِ بار ارسال می‌شود.
   Future<CargoPost> createCargo({
     required String title,
     required String origin,
@@ -274,13 +275,12 @@ class ApiClient {
     int? budgetMinor,
     String currency = 'IRR',
   }) async {
-    final j = await _post('/v1/freight/cargo', {
-      'title': title,
+    final j = await _post('/api/v1/freight/posts', {
       'origin': origin,
       'destination': destination,
-      'weight_grams': weightGrams,
-      if (budgetMinor != null) 'budget_minor': budgetMinor,
-      'currency': currency,
+      'cargo_type': title,
+      'weight_kg': weightGrams / 1000.0,
+      'price': budgetMinor ?? 0,
     });
     return CargoPost.fromJson(j as Map<String, dynamic>);
   }
@@ -405,45 +405,47 @@ class ApiClient {
   // ─────────────── Stories ───────────────
   /// فیدِ حلقه‌های داستان (هر نویسنده یک حلقه، مرتب: خودم/دیده‌نشده/جدیدتر).
   Future<List<StoryRing>> storiesFeed() async {
-    final list = await _get('/v1/stories/feed') as List;
+    final list = await _get('/api/v1/stories/feed') as List;
     return list.map((e) => StoryRing.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   /// داستان‌های فعالِ یک نویسنده (به‌ترتیبِ زمانی).
   Future<List<Story>> userStories(String earthId) async {
-    final list = await _get('/v1/stories/user/$earthId') as List;
+    final list = await _get('/api/v1/stories/user/$earthId') as List;
     return list.map((e) => Story.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   /// ثبتِ بازدیدِ یک داستان (idempotent؛ بازدیدِ خودِ نویسنده شمرده نمی‌شود).
   Future<void> viewStory(String storyId) =>
-      _post('/v1/stories/$storyId/view', null);
+      _post('/api/v1/stories/$storyId/view', null);
 
-  /// ثبتِ داستانِ جدید با آدرسِ رسانه.
+  /// ثبتِ داستانِ جدید با آپلودِ رسانه از حافظهٔ گوشی (multipart).
   Future<Story> createStory({
-    required String mediaUrl,
-    String mediaType = 'image',
+    required String filePath,
     String? caption,
     String audience = 'public',
   }) async {
-    final j = await _post('/v1/stories', {
-      'media_url': mediaUrl,
-      'media_type': mediaType,
-      'audience': audience,
-      if (caption != null) 'caption': caption,
-    });
-    return Story.fromJson(j as Map<String, dynamic>);
+    final req = http.MultipartRequest('POST', Uri.parse('$_base/api/v1/stories'));
+    req.headers.addAll(_headers());
+    req.files.add(await http.MultipartFile.fromPath('file', filePath));
+    req.fields['audience'] = audience;
+    if (caption != null && caption.isNotEmpty) req.fields['caption'] = caption;
+    final res = await http.Response.fromStream(await _client.send(req));
+    if (res.statusCode >= 400) _raise(res);
+    return Story.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
 
-  // ─────────────── Growth ───────────────
+  // ─────────────── Referral / Wallet ───────────────
+  /// آمارِ ارجاع؛ dilix-api `/referral/stats` پاسخِ {code, link, total_referred}.
   Future<ReferralLink> referralLink() async =>
-      ReferralLink.fromJson(await _get('/v1/growth/referrals/link') as Map<String, dynamic>);
+      ReferralLink.fromJson(await _get('/api/v1/referral/stats') as Map<String, dynamic>);
 
-  /// کیفِ پاداش: موجودی‌ها به‌تفکیکِ ارز + شمارِ پاداش‌های در انتظار.
+  /// کیفِ پول؛ dilix-api `WalletResponse` (موجودیِ در دسترس/پاداش/امانت).
   Future<RewardWallet> rewardWallet() async =>
-      RewardWallet.fromJson(await _get('/v1/growth/rewards') as Map<String, dynamic>);
+      RewardWallet.fromJson(await _get('/api/v1/wallet/') as Map<String, dynamic>);
 
-  /// وضعیتِ سهم از درآمد (پلن، سهمِ bps، واحدهای سرمایه‌گذاری).
+  /// سهم از درآمد در dilix-api معادل ندارد؛ فراخوان 404 می‌دهد و مصرف‌کننده
+  /// آن را اختیاری گرفته و کارت را پنهان می‌کند.
   Future<RevenueShare> revenueShare() async =>
       RevenueShare.fromJson(await _get('/v1/growth/revenue-share') as Map<String, dynamic>);
 

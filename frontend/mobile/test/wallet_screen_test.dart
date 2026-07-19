@@ -15,16 +15,24 @@ import 'package:dilix_mobile/features/wallet/wallet_screen.dart';
 /// در همان try/catch صفحه هندل می‌شود.
 ApiClient _fakeApi() {
   final wallet = jsonEncode({
-    'balances': [
-      {'currency': 'IRR', 'amount_minor': 50000, 'reward_count': 2},
-    ],
-    'pending_count': 1,
+    'id': 'w1',
+    'currency': 'IRR',
+    'balance_available': 50000,
+    'balance_escrow': 0,
+    'balance_bonus': 0,
+    'is_frozen': false,
   });
 
   final mock = MockClient((http.Request req) async {
     final path = req.url.path;
-    if (path.contains('/v1/growth/rewards')) {
+    if (path.contains('/api/v1/wallet/')) {
       return http.Response(wallet, 200,
+          headers: {'content-type': 'application/json'});
+    }
+    if (path.contains('/api/v1/referral/stats')) {
+      return http.Response(
+          jsonEncode({'code': 'DLX-TEST', 'link': 'https://d.lix/DLX-TEST', 'total_referred': 3}),
+          200,
           headers: {'content-type': 'application/json'});
     }
     return http.Response('[]', 200,
