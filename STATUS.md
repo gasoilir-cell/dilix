@@ -4,6 +4,17 @@
 
 ---
 
+## [2026-07-19] تستِ کره‌ی موبایل + رگرسیونِ بک‌اند
+
+پس از بازطراحیِ `earth_screen.dart` (کره‌ی کامل هم‌راستا با نمای وب، حذفِ شیتِ کشویی، FABِ دستیار):
+
+- **تستِ جدیدِ موبایل:** `frontend/mobile/test/earth_screen_test.dart` ساخته شد. دو widget test: (۱) رندرِ بدونِ کرشِ `EarthScreen` در مسیرِ fallback بدونِ WebView (نمایشِ 🌍) و وجودِ فیلدِ جستجو؛ (۲) حضورِ دکمه‌های `Icons.image`/`Icons.tune` و FABِ `Icons.smart_toy` و نبودِ `DraggableScrollableSheet` (شیتِ حذف‌شده). کلاینتِ ساختگی `{"users": []}` برمی‌گرداند (قراردادِ `earthUsers`). اجرای واقعیِ flutter به CI (`mobile.yml`) موکول است چون SDK در کانتینر نیست.
+- **قراردادِ earth ↔ بک‌اند:** `NearbyPerson.fromJson` هر دو شکلِ dilix-api (`name`/`role`/`city`/`lng`) و Core (`display_name`/`entity_type`/`lon`) را می‌پذیرد و `earthUsers` کلیدِ `users` را می‌خواند — هماهنگ، بدونِ نیاز به تغییر.
+- **رگرسیونِ بک‌اند:** پس از نصبِ dev deps (`dilix-shared` سپس `.[dev]`)، خروجیِ واقعیِ pytest: **`200 passed`** (تست‌ها روی SQLite درون‌حافظه، بدونِ Postgres).
+  دستور: `cd backend/services/core && PYTHONPATH=".:/project/backend/libs/shared" python3 -m pytest -q`.
+
+---
+
 ## [2026-07-19] اعتبارسنجیِ end-to-end پیش از انتشار
 
 اجرای واقعیِ کاملِ سه لایه در همین کانتینر (بجز موبایل که به CI موکول است).
