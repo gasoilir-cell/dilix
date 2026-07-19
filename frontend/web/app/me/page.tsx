@@ -160,11 +160,11 @@ export default function MePage() {
 
       <div className="card">
         <strong>{tr.wallet}</strong>
-        {wallet && Object.keys(wallet.total_by_currency).length > 0 ? (
+        {wallet && wallet.balances.length > 0 ? (
           <ul className="plain-list">
-            {Object.entries(wallet.total_by_currency).map(([cur, amount]) => (
-              <li key={cur}>
-                {amount.toLocaleString("fa-IR")} <span className="muted">{cur}</span>
+            {wallet.balances.map((b) => (
+              <li key={b.currency}>
+                {b.amount_minor.toLocaleString("fa-IR")} <span className="muted">{b.currency}</span>
               </li>
             ))}
           </ul>

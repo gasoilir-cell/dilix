@@ -29,6 +29,7 @@ dev = [
     "aiosqlite>=0.20",
     "ruff>=0.7",
 ]
+mfa = ["pyotp>=2.9"]
 
 [tool.uv.sources]
 dilix-shared = { path = "../../libs/shared" }
@@ -47,6 +48,3 @@ pythonpath = ["."]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-
-[project.optional-dependencies.mfa]
-deps = ["pyotp>=2.9"]

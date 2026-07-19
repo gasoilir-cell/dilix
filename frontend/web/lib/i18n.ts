@@ -40,7 +40,7 @@ const fa = {
   membership: "عضویت",
   privacy_settings: "تنظیماتِ حریمِ خصوصی",
   provider_portal: "پورتالِ ارائه‌دهنده",
-} as const;
+};
 
 export type Dict = typeof fa;
 

@@ -4,6 +4,32 @@
 
 ---
 
+## [2026-07-19] اعتبارسنجیِ end-to-end پیش از انتشار
+
+اجرای واقعیِ کاملِ سه لایه در همین کانتینر (بجز موبایل که به CI موکول است).
+
+### بک‌اند (Core) — بلاک‌کننده
+- نصبِ وابستگی‌ها: `pip install -e '.[dev]'` ابتدا با خطای متادیتا شکست خورد. **باگِ واقعیِ packaging** در `backend/services/core/pyproject.toml`: بلاکِ `[project.optional-dependencies.mfa]` با کلیدِ `deps = [...]` نوشته شده بود (dict به‌جای array) و hatchling آن را رد می‌کرد. ریشه‌ای اصلاح شد به `mfa = ["pyotp>=2.9"]` داخلِ جدولِ `[project.optional-dependencies]`.
+- خروجیِ واقعیِ pytest: **`200 passed, 4 warnings in 6.89s`** (فقط DeprecationWarningهای بی‌ضررِ passlib/jwt).
+  دستور: `cd backend/services/core && PYTHONPATH=".:/project/backend/libs/shared" pytest tests -q`.
+
+### فرانت‌اندِ وب (Next.js 15) — سبز
+- `npx tsc --noEmit`: در آغاز **۲۰۹ خطا در ۲ فایل**؛ هر دو ریشه‌ای اصلاح شد (بدونِ تغییرِ قراردادِ API):
+  1. `lib/i18n.ts` — `const fa = {…} as const` باعث می‌شد `type Dict = typeof fa` به literalهای فارسی narrow شود و همهٔ localeهای دیگر (en/ar/…/ur/ps) با TS2322 بشکنند. `as const` حذف شد تا مقادیر به `string` گشاد شوند (۲۰۶ خطا رفع).
+  2. `app/me/page.tsx` — به `wallet.total_by_currency` ارجاع می‌داد که روی `RewardWallet` (که `balances: RewardBalance[]` دارد) وجود ندارد. به همان شکلِ صفحهٔ `wallet` اصلاح شد: map روی `wallet.balances` با `amount_minor`/`currency` (۳ خطا رفع).
+  - نتیجهٔ نهایی: **`No errors found`**.
+- `npx next build`: **موفق** — هر ۳۰ روت به‌صورتِ static prerender شد، بدونِ خطا.
+- `node --test tests/*.test.mjs`: **13/13 pass**.
+
+### موبایل (Flutter) — موکول به CI
+- `flutter`/`dart` در کانتینر نصب نیست (SDK سنگین؛ طبقِ سیاستِ بیلد، محلی اجرا نمی‌شود). اعتبارسنجی به CI (`mobile.yml`) موکول است.
+- HEADِ فعلیِ موبایل کامیت `5dbbdb8` (مهاجرتِ freight/stories/wallet/referral به dilix-api) است که همین اجرا workflowِ «Mobile — Build Android APK» را **سبز** گذراند (تست‌های بلاک‌کننده pass) و APK روی سرور تازه شد.
+
+### جمع‌بندی
+هر سه لایه سبز: بک‌اند 200/200، وب tsc+build+tests سبز، موبایل CI-سبز. **آماده انتشار.**
+
+---
+
 ## Task 1 — تست‌های Core (بلاک‌کننده)
 
 **نتیجه آخرین اجرای کامل ثبت‌شده: ✅ 200 passed / 0 failed** (2026-07-18)
