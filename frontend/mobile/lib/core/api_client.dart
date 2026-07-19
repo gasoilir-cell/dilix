@@ -458,16 +458,18 @@ class ApiClient {
   }
 
   // ─────────────── Notifications ───────────────
+  /// dilix-api پاسخِ `{unread, items:[...]}` می‌دهد؛ فقط آرایهٔ `items` استخراج می‌شود.
   Future<List<NotificationItem>> notifications({
     bool unreadOnly = false,
     int limit = 50,
   }) async {
-    final list = await _get('/v1/notifications?unread_only=$unreadOnly&limit=$limit') as List;
+    final j = await _get('/api/v1/notifications') as Map<String, dynamic>;
+    final list = (j['items'] ?? const []) as List;
     return list.map((e) => NotificationItem.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<void> markNotificationRead(String id) =>
-      _post('/v1/notifications/$id/read', null);
+      _post('/api/v1/notifications/$id/read', null);
 
   // ─────────────── Gamification (کیفِ پاداش) ───────────────
   /// موجودیِ امتیازِ پاداش (سکه‌ی دیلیکس).
@@ -599,34 +601,31 @@ class ApiClient {
     return Esim.fromJson(j as Map<String, dynamic>);
   }
 
-  // ─────────────── Messaging ───────────────
+  // ─────────────── Messages ───────────────
   /// فهرستِ گفتگوهایِ کاربرِ فعلی (مرتب بر اساسِ جدیدترین فعالیت).
   Future<List<ChatRoom>> listRooms({int limit = 100}) async {
-    final list = await _get('/v1/messaging/rooms?limit=$limit') as List;
+    final list = await _get('/api/v1/messages/rooms') as List;
     return list.map((e) => ChatRoom.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   /// ساختِ (یا بازکردنِ) گفتگویِ مستقیم با یک کاربر به کمکِ Earth ID او.
   Future<ChatRoom> createDirectRoom(String peerEarthId, {String? title}) async {
-    final j = await _post('/v1/messaging/rooms', {
-      'room_type': 'direct',
-      if (title != null) 'title': title,
-      'member_ids': [peerEarthId],
+    final j = await _post('/api/v1/messages/rooms', {
+      'earth_id': peerEarthId,
     });
     return ChatRoom.fromJson(j as Map<String, dynamic>);
   }
 
   /// پیام‌هایِ یک اتاق (جدیدترین در انتها؛ مرتب‌سازی در UI انجام می‌شود).
   Future<List<ChatMessage>> roomMessages(String roomId, {int limit = 50}) async {
-    final list = await _get('/v1/messaging/rooms/$roomId/messages?limit=$limit') as List;
+    final list = await _get('/api/v1/messages/rooms/$roomId/messages?limit=$limit') as List;
     return list.map((e) => ChatMessage.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   /// ارسالِ پیامِ متنی به یک اتاق.
   Future<ChatMessage> sendMessage(String roomId, String content) async {
-    final j = await _post('/v1/messaging/rooms/$roomId/messages', {
+    final j = await _post('/api/v1/messages/rooms/$roomId/messages', {
       'content': content,
-      'msg_type': 'text',
     });
     return ChatMessage.fromJson(j as Map<String, dynamic>);
   }

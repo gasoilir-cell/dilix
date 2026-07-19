@@ -13,16 +13,19 @@ import 'package:dilix_mobile/features/notifications/notifications_screen.dart';
 /// کلاینتِ ساختگی: فهرستِ اعلان‌ها را با JSON حداقلی (یک خوانده‌نشده) پاسخ
 /// می‌دهد و مسیرِ علامت‌گذاری را ۲۰۴ برمی‌گرداند (بدونِ شبکه).
 ApiClient _fakeApi() {
-  final items = jsonEncode([
-    {
-      'id': '11111111-1111-1111-1111-111111111111',
-      'channel': 'system',
-      'title': 'سفارشِ جدید',
-      'body': 'یک سفارشِ تازه ثبت شد',
-      'read': false,
-      'created_at': '2026-07-18T10:00:00Z',
-    },
-  ]);
+  final items = jsonEncode({
+    'unread': 1,
+    'items': [
+      {
+        'id': '11111111-1111-1111-1111-111111111111',
+        'type': 'system',
+        'title': 'سفارشِ جدید',
+        'body': 'یک سفارشِ تازه ثبت شد',
+        'is_read': false,
+        'created_at': '2026-07-18T10:00:00Z',
+      },
+    ],
+  });
 
   final mock = MockClient((http.Request req) async {
     final path = req.url.path;

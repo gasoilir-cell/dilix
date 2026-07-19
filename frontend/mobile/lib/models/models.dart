@@ -275,8 +275,10 @@ class ChatRoom {
 
   factory ChatRoom.fromJson(Map<String, dynamic> j) => ChatRoom(
         id: j['id'] as String,
-        roomType: (j['room_type'] ?? 'direct') as String,
-        title: j['title'] as String?,
+        // dilix-api: `type`؛ Core: `room_type`.
+        roomType: (j['type'] ?? j['room_type'] ?? 'direct') as String,
+        // dilix-api: `name`/`partner_name`؛ Core: `title`.
+        title: (j['name'] ?? j['title'] ?? j['partner_name']) as String?,
         isE2ee: (j['is_e2ee'] ?? false) as bool,
         createdBy: (j['created_by'] ?? '') as String,
       );
@@ -305,11 +307,13 @@ class ChatMessage {
         id: j['id'] as String,
         roomId: (j['room_id'] ?? '') as String,
         senderEarthId: (j['sender_earth_id'] ?? '') as String,
-        msgType: (j['msg_type'] ?? 'text') as String,
+        msgType: (j['msg_type'] ?? j['media_type'] ?? 'text') as String,
         content: (j['content'] ?? '') as String,
-        sentAt: DateTime.tryParse((j['sent_at'] ?? '') as String) ??
+        // dilix-api: `created_at`؛ Core: `sent_at`.
+        sentAt: DateTime.tryParse((j['created_at'] ?? j['sent_at'] ?? '') as String) ??
             DateTime.fromMillisecondsSinceEpoch(0),
-        deleted: (j['deleted'] ?? false) as bool,
+        // dilix-api: `is_deleted`؛ Core: `deleted`.
+        deleted: (j['is_deleted'] ?? j['deleted'] ?? false) as bool,
       );
 }
 
@@ -332,10 +336,12 @@ class NotificationItem {
 
   factory NotificationItem.fromJson(Map<String, dynamic> j) => NotificationItem(
         id: j['id'] as String,
-        channel: (j['channel'] ?? 'system') as String,
+        // dilix-api: `type`؛ Core: `channel`.
+        channel: (j['type'] ?? j['channel'] ?? 'system') as String,
         title: (j['title'] ?? '') as String,
         body: (j['body'] ?? '') as String,
-        read: (j['read'] ?? false) as bool,
+        // dilix-api: `is_read`؛ Core: `read`.
+        read: (j['is_read'] ?? j['read'] ?? false) as bool,
         createdAt: DateTime.tryParse((j['created_at'] ?? '') as String) ??
             DateTime.fromMillisecondsSinceEpoch(0),
       );

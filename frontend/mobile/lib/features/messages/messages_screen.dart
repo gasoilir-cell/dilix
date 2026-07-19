@@ -7,9 +7,9 @@ import '../../models/models.dart';
 import '../call/call_screen.dart';
 import '../call/call_service.dart';
 
-/// پیام‌ها (سند ۷ §۴). Core هنوز endpointِ «لیستِ گفتگوها» ندارد، پس این صفحه
-/// گفتگویِ مستقیم را با Earth ID طرفِ مقابل باز می‌کند (ساختِ اتاق + چتِ زنده)
-/// روی endpointهایِ واقعیِ `/v1/messaging/...`.
+/// پیام‌ها (سند ۷ §۴). فهرستِ گفتگوها را نشان می‌دهد و گفتگویِ مستقیم را با
+/// Earth ID طرفِ مقابل باز می‌کند (ساختِ اتاق + چتِ زنده) روی endpointهایِ
+/// dilix-api `/api/v1/messages/...`.
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
 
@@ -214,14 +214,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 ],
               ],
             ),
-          ),
-        ),
-        const Padding(
-          padding: EdgeInsets.all(8),
-          child: Text(
-            'نکته: لیستِ گفتگوهای گذشته وقتی در دسترس می‌شود که سرویسِ Core '
-            'endpointِ فهرستِ اتاق‌ها را ارائه دهد.',
-            style: TextStyle(fontSize: 12),
           ),
         ),
       ],
