@@ -779,38 +779,99 @@ class Review {
       );
 }
 
-/// بیمه‌نامه (`PolicyOut`): استعلام/صدور.
-class InsurancePolicy {
-  InsurancePolicy({
+/// محصولِ بیمه در کاتالوگ (`ProductOut`).
+class InsuranceProduct {
+  InsuranceProduct({
     required this.id,
-    required this.holderEarthId,
-    required this.providerCode,
-    required this.productCode,
-    required this.coverageMinor,
-    required this.premiumMinor,
-    required this.currency,
-    required this.externalRef,
-    required this.status,
+    required this.label,
+    required this.emoji,
+    required this.needsRoute,
+    required this.needsCargoType,
+    required this.valueLabel,
+    this.baseRatePct,
   });
   final String id;
-  final String holderEarthId;
-  final String providerCode;
-  final String productCode;
-  final int coverageMinor;
-  final int premiumMinor;
-  final String currency;
-  final String? externalRef;
-  final String status;
-  factory InsurancePolicy.fromJson(Map<String, dynamic> j) => InsurancePolicy(
+  final String label;
+  final String emoji;
+  final bool needsRoute;
+  final bool needsCargoType;
+  final String valueLabel;
+  final double? baseRatePct;
+  factory InsuranceProduct.fromJson(Map<String, dynamic> j) => InsuranceProduct(
         id: j['id'] as String,
-        holderEarthId: (j['holder_earth_id'] ?? '') as String,
-        providerCode: (j['provider_code'] ?? '') as String,
-        productCode: (j['product_code'] ?? '') as String,
-        coverageMinor: (j['coverage_minor'] ?? 0) as int,
-        premiumMinor: (j['premium_minor'] ?? 0) as int,
-        currency: (j['currency'] ?? 'IRR') as String,
-        externalRef: j['external_ref'] as String?,
+        label: (j['label'] ?? '') as String,
+        emoji: (j['emoji'] ?? '') as String,
+        needsRoute: (j['needs_route'] ?? false) as bool,
+        needsCargoType: (j['needs_cargo_type'] ?? false) as bool,
+        valueLabel: (j['value_label'] ?? 'ارزش') as String,
+        baseRatePct: (j['base_rate_pct'] as num?)?.toDouble(),
+      );
+}
+
+/// نتیجهٔ استعلامِ نرخ (`QuoteResponse`). مبالغ به تومان‌اند.
+class InsuranceQuote {
+  InsuranceQuote({
+    required this.product,
+    required this.productLabel,
+    required this.cargoValue,
+    required this.coverageType,
+    required this.coverageLabel,
+    required this.baseRatePct,
+    required this.premium,
+    this.providerName,
+  });
+  final String product;
+  final String productLabel;
+  final int cargoValue;
+  final String coverageType;
+  final String coverageLabel;
+  final double baseRatePct;
+  final int premium;
+  final String? providerName;
+  factory InsuranceQuote.fromJson(Map<String, dynamic> j) => InsuranceQuote(
+        product: (j['product'] ?? '') as String,
+        productLabel: (j['product_label'] ?? '') as String,
+        cargoValue: (j['cargo_value'] ?? 0) as int,
+        coverageType: (j['coverage_type'] ?? '') as String,
+        coverageLabel: (j['coverage_label'] ?? '') as String,
+        baseRatePct: (j['base_rate_pct'] as num?)?.toDouble() ?? 0,
+        premium: (j['premium'] ?? 0) as int,
+        providerName: j['provider_name'] as String?,
+      );
+}
+
+/// درخواستِ بیمهٔ ثبت‌شده (`RequestOut`). مبالغ به تومان‌اند.
+class InsuranceRequest {
+  InsuranceRequest({
+    required this.id,
+    required this.ref,
+    required this.product,
+    required this.productLabel,
+    required this.cargoValue,
+    required this.coverageType,
+    required this.premium,
+    required this.status,
+    this.providerName,
+  });
+  final String id;
+  final String ref;
+  final String product;
+  final String productLabel;
+  final int cargoValue;
+  final String coverageType;
+  final int premium;
+  final String status;
+  final String? providerName;
+  factory InsuranceRequest.fromJson(Map<String, dynamic> j) => InsuranceRequest(
+        id: j['id'] as String,
+        ref: (j['ref'] ?? '') as String,
+        product: (j['product'] ?? '') as String,
+        productLabel: (j['product_label'] ?? '') as String,
+        cargoValue: (j['cargo_value'] ?? 0) as int,
+        coverageType: (j['coverage_type'] ?? '') as String,
+        premium: (j['premium'] ?? 0) as int,
         status: (j['status'] ?? '') as String,
+        providerName: j['provider_name'] as String?,
       );
 }
 
@@ -888,44 +949,31 @@ class Provider {
       );
 }
 
-/// APIِ ثبت‌شدهٔ ارائه‌دهنده (`ProviderApiOut`).
+/// APIِ ثبت‌شدهٔ ارائه‌دهنده (`APIOut`). `status`: registered/tested/failed.
 class ProviderApi {
   ProviderApi({
     required this.id,
     required this.name,
+    required this.baseUrl,
     required this.env,
     required this.status,
+    this.specUrl,
   });
 
   final String id;
   final String name;
+  final String baseUrl;
   final String env;
   final String status;
+  final String? specUrl;
 
   factory ProviderApi.fromJson(Map<String, dynamic> j) => ProviderApi(
         id: j['id'] as String,
         name: (j['name'] ?? '') as String,
+        baseUrl: (j['base_url'] ?? '') as String,
         env: (j['env'] ?? '') as String,
         status: (j['status'] ?? '') as String,
-      );
-}
-
-/// نتیجهٔ تستِ sandbox (`SandboxTestResult`).
-class SandboxResult {
-  SandboxResult({
-    required this.reachable,
-    required this.detail,
-    this.latencyMs,
-  });
-
-  final bool reachable;
-  final String detail;
-  final int? latencyMs;
-
-  factory SandboxResult.fromJson(Map<String, dynamic> j) => SandboxResult(
-        reachable: (j['reachable'] ?? false) as bool,
-        detail: (j['detail'] ?? '') as String,
-        latencyMs: (j['latency_ms'] as num?)?.toInt(),
+        specUrl: j['spec_url'] as String?,
       );
 }
 
@@ -951,27 +999,28 @@ class Webhook {
       );
 }
 
-/// کلیدِ صادرشده (`CredentialOut`)؛ `apiKey` فقط هنگامِ ساخت.
+/// رازِ ثبت‌شده برای فراخوانیِ API خدمات‌دهنده (`CredentialOut`).
+/// رازِ خام هرگز برنمی‌گردد؛ فقط `keyPrefix` برای شناسایی نمایش داده می‌شود.
 class Credential {
   Credential({
     required this.id,
+    required this.label,
     required this.env,
     required this.keyPrefix,
     required this.status,
-    this.apiKey,
   });
 
   final String id;
+  final String label;
   final String env;
   final String keyPrefix;
   final String status;
-  final String? apiKey;
 
   factory Credential.fromJson(Map<String, dynamic> j) => Credential(
         id: j['id'] as String,
+        label: (j['label'] ?? '') as String,
         env: (j['env'] ?? '') as String,
         keyPrefix: (j['key_prefix'] ?? '') as String,
         status: (j['status'] ?? '') as String,
-        apiKey: j['api_key'] as String?,
       );
 }

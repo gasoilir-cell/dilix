@@ -286,15 +286,20 @@ class ApiClient {
   }
 
   // ─────────────── Provider (پورتالِ خودسرویس) ───────────────
-  /// ثبت‌نامِ ارائه‌دهنده (KYB). `providerType`: insurer/carrier/psp/telecom/third_party.
+  /// ثبت‌نامِ ارائه‌دهنده (KYB). `providerType`: insurer/bank/broker/psp/other.
+  /// dilix-api کدِ مجوز (`license_no`) و پذیرشِ توافق‌نامه را الزامی می‌کند.
   Future<Provider> registerProvider({
     required String legalName,
     required String providerType,
+    required String licenseNo,
+    bool agreementAccepted = true,
     String country = 'IR',
   }) async {
-    final j = await _post('/v1/providers/register', {
+    final j = await _post('/api/v1/providers/register', {
       'legal_name': legalName,
       'provider_type': providerType,
+      'license_no': licenseNo,
+      'agreement_accepted': agreementAccepted,
       'country': country,
     });
     return Provider.fromJson(j as Map<String, dynamic>);
@@ -302,27 +307,31 @@ class ApiClient {
 
   /// فهرستِ APIهای ثبت‌شدهٔ ارائه‌دهنده.
   Future<List<ProviderApi>> providerApis(String providerId) async {
-    final list = await _get('/v1/providers/$providerId/apis') as List;
+    final list = await _get('/api/v1/providers/$providerId/apis') as List;
     return list.map((e) => ProviderApi.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  /// ثبتِ یک API/سرویسِ جدید برای ارائه‌دهنده.
+  /// ثبتِ یک API/سرویسِ جدید؛ dilix-api آدرسِ پایه (`base_url`) را الزامی می‌کند.
   Future<ProviderApi> registerProviderApi(
     String providerId, {
     required String name,
+    required String baseUrl,
     String? specUrl,
+    String env = 'sandbox',
   }) async {
-    final j = await _post('/v1/providers/$providerId/apis', {
+    final j = await _post('/api/v1/providers/$providerId/apis', {
       'name': name,
+      'base_url': baseUrl,
       if (specUrl != null && specUrl.isNotEmpty) 'spec_url': specUrl,
+      'env': env,
     });
     return ProviderApi.fromJson(j as Map<String, dynamic>);
   }
 
-  /// تستِ دسترس‌پذیریِ sandbox روی یک API.
-  Future<SandboxResult> providerSandboxTest(String providerId, String apiId) async {
-    final j = await _post('/v1/providers/$providerId/apis/$apiId/sandbox-test', null);
-    return SandboxResult.fromJson(j as Map<String, dynamic>);
+  /// تستِ اتصالِ sandbox؛ APIِ به‌روزشده (status: tested/failed) را برمی‌گرداند.
+  Future<ProviderApi> providerSandboxTest(String providerId, String apiId) async {
+    final j = await _post('/api/v1/providers/$providerId/apis/$apiId/sandbox-test', null);
+    return ProviderApi.fromJson(j as Map<String, dynamic>);
   }
 
   /// ثبتِ webhook؛ `secret` فقط در همین پاسخ برمی‌گردد.
@@ -331,16 +340,28 @@ class ApiClient {
     required String url,
     List<String> eventTypes = const ['*'],
   }) async {
-    final j = await _post('/v1/providers/$providerId/webhooks', {
+    final j = await _post('/api/v1/providers/$providerId/webhooks', {
       'url': url,
       'event_types': eventTypes,
     });
     return Webhook.fromJson(j as Map<String, dynamic>);
   }
 
-  /// صدورِ کلیدِ sandbox/production؛ کلیدِ خام فقط در همین پاسخ برمی‌گردد.
-  Future<Credential> issueProviderCredential(String providerId, String env) async {
-    final j = await _post('/v1/providers/$providerId/credentials', {'env': env});
+  /// ثبتِ رازِ فراخوانیِ API خدمات‌دهنده (Dilix→Provider). رازِ خام را خودِ
+  /// ارائه‌دهنده تعیین می‌کند؛ پس از ذخیره فقط `keyPrefix` نمایش داده می‌شود.
+  Future<Credential> addProviderCredential(
+    String providerId, {
+    required String label,
+    required String secret,
+    String env = 'sandbox',
+    String authType = 'api_key',
+  }) async {
+    final j = await _post('/api/v1/providers/$providerId/credentials', {
+      'label': label,
+      'secret': secret,
+      'env': env,
+      'auth_type': authType,
+    });
     return Credential.fromJson(j as Map<String, dynamic>);
   }
 
@@ -565,28 +586,62 @@ class ApiClient {
   }
 
   // ─────────────── Insurance ───────────────
-  /// استعلامِ بیمه (ساختِ بیمه‌نامهٔ در وضعیتِ استعلام).
-  Future<InsurancePolicy> createInsuranceQuote({
-    required String productCode,
-    required int coverageMinor,
-    String currency = 'IRR',
-    String providerCode = 'sandbox',
-    Map<String, dynamic> attributes = const {},
-  }) async {
-    final j = await _post('/v1/insurance/quotes', {
-      'product_code': productCode,
-      'coverage_minor': coverageMinor,
-      'currency': currency,
-      'provider_code': providerCode,
-      'attributes': attributes,
-    });
-    return InsurancePolicy.fromJson(j as Map<String, dynamic>);
+  /// کاتالوگِ محصولاتِ بیمه.
+  Future<List<InsuranceProduct>> insuranceProducts() async {
+    final list = await _get('/api/v1/insurance/products') as List;
+    return list.map((e) => InsuranceProduct.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  /// صدورِ نهاییِ بیمه‌نامه.
-  Future<InsurancePolicy> issuePolicy(String policyId) async {
-    final j = await _post('/v1/insurance/$policyId/issue', null);
-    return InsurancePolicy.fromJson(j as Map<String, dynamic>);
+  /// استعلامِ نرخِ بیمه؛ `cargoValue` به تومان است. حقِ بیمه را برمی‌گرداند.
+  Future<InsuranceQuote> insuranceQuote({
+    required String product,
+    required int cargoValue,
+    String coverageType = 'basic',
+    String? cargoType,
+    String? origin,
+    String? destination,
+    String? subject,
+  }) async {
+    final j = await _post('/api/v1/insurance/quote', {
+      'product': product,
+      'cargo_value': cargoValue,
+      'coverage_type': coverageType,
+      if (cargoType != null && cargoType.isNotEmpty) 'cargo_type': cargoType,
+      if (origin != null && origin.isNotEmpty) 'origin': origin,
+      if (destination != null && destination.isNotEmpty) 'destination': destination,
+      if (subject != null && subject.isNotEmpty) 'subject': subject,
+    });
+    return InsuranceQuote.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// ثبتِ درخواستِ بیمه (معادلِ «صدور» در جریانِ dilix-api). `cargoValue` تومان.
+  Future<InsuranceRequest> createInsuranceRequest({
+    required String product,
+    required int cargoValue,
+    String coverageType = 'basic',
+    String? cargoType,
+    String? origin,
+    String? destination,
+    String? subject,
+    String? notes,
+  }) async {
+    final j = await _post('/api/v1/insurance/requests', {
+      'product': product,
+      'cargo_value': cargoValue,
+      'coverage_type': coverageType,
+      if (cargoType != null && cargoType.isNotEmpty) 'cargo_type': cargoType,
+      if (origin != null && origin.isNotEmpty) 'origin': origin,
+      if (destination != null && destination.isNotEmpty) 'destination': destination,
+      if (subject != null && subject.isNotEmpty) 'subject': subject,
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+    });
+    return InsuranceRequest.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// فهرستِ درخواست‌های بیمهٔ کاربر.
+  Future<List<InsuranceRequest>> insuranceRequests() async {
+    final list = await _get('/api/v1/insurance/requests') as List;
+    return list.map((e) => InsuranceRequest.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   // ─────────────── Telecom ───────────────
