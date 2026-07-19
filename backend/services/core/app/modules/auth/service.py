@@ -32,13 +32,20 @@ from app.modules.identity import service as identity_service
 
 
 async def register(db: AsyncSession, data: RegisterRequest) -> tuple[str, TokenPair]:
-    existing = await db.execute(
-        select(Credential).where(
-            or_(Credential.email == data.email, Credential.phone == data.phone)
+    # فقط شناسه‌های ارائه‌شده را بررسی کن؛ در غیر این صورت `field == None` توسط
+    # SQLAlchemy به `IS NULL` ترجمه می‌شود و با هر ردیفِ فاقدِ آن فیلد تطبیق
+    # می‌خورد (باگِ «همیشه ۴۰۹»).
+    identifier_filters = []
+    if data.email:
+        identifier_filters.append(Credential.email == data.email)
+    if data.phone:
+        identifier_filters.append(Credential.phone == data.phone)
+    if identifier_filters:
+        existing = await db.execute(
+            select(Credential).where(or_(*identifier_filters))
         )
-    )
-    if existing.scalar_one_or_none() is not None:
-        raise ConflictError("کاربری با این ایمیل/تلفن وجود دارد.")
+        if existing.scalar_one_or_none() is not None:
+            raise ConflictError("کاربری با این ایمیل/تلفن وجود دارد.")
 
     identity = await identity_service.create_identity(
         db,
