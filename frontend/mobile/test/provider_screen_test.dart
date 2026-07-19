@@ -47,16 +47,16 @@ void main() {
     expect(find.text('نامِ حقوقی'), findsOneWidget);
 
     // مقدارِ پیش‌فرضِ نوع (psp) در دراپ‌داون نمایش داده می‌شود
-    expect(find.text('PSP (پرداخت)'), findsWidgets);
+    expect(find.text('شرکتِ پرداخت (PSP)'), findsWidgets);
 
-    // بازکردنِ دراپ‌داون → سایرِ گزینه‌های نوع باید ظاهر شوند
+    // بازکردنِ دراپ‌داون → سایرِ گزینه‌های نوعِ مجازِ dilix-api باید ظاهر شوند
     await tester.tap(find.byType(DropdownButtonFormField<String>));
     await tester.pumpAndSettle();
 
-    expect(find.text('بیمه‌گر'), findsOneWidget);
-    expect(find.text('حمل‌کننده / راهداری'), findsOneWidget);
-    expect(find.text('اپراتورِ ارتباطات'), findsOneWidget);
-    expect(find.text('شخصِ ثالث'), findsOneWidget);
+    expect(find.text('شرکتِ بیمه'), findsOneWidget);
+    expect(find.text('بانک'), findsOneWidget);
+    expect(find.text('کارگزاری'), findsOneWidget);
+    expect(find.text('سایرِ خدمات‌دهنده'), findsOneWidget);
   });
 
   testWidgets('دکمهٔ ثبت‌نام و فیلدِ ورودی و دراپ‌داون وجود دارند',
@@ -68,8 +68,8 @@ void main() {
     expect(find.byType(FilledButton), findsOneWidget);
     expect(find.text('ثبت‌نام'), findsOneWidget);
 
-    // یک فیلدِ متنی (نامِ حقوقی) + یک دراپ‌داونِ نوع
-    expect(find.byType(TextField), findsOneWidget);
+    // دو فیلدِ متنی (نامِ حقوقی + کدِ مجوز) + یک دراپ‌داونِ نوع
+    expect(find.byType(TextField), findsNWidgets(2));
     expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
   });
 }
