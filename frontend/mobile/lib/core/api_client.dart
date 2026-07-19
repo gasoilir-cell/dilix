@@ -113,6 +113,28 @@ class ApiClient {
     return tokens;
   }
 
+  /// ثبت‌نامِ کاربرِ جدید. حداقل یکی از [email] یا [phone] الزامی است.
+  /// در موفقیت توکن‌ها ذخیره شده و کاربر واردِ حساب می‌شود.
+  Future<TokenPair> register({
+    required String displayName,
+    String? email,
+    String? phone,
+    required String password,
+    String homeRegion = 'IR',
+  }) async {
+    final j = await _post('/v1/auth/register', {
+      'display_name': displayName,
+      if (email != null && email.isNotEmpty) 'email': email,
+      if (phone != null && phone.isNotEmpty) 'phone': phone,
+      'password': password,
+      'home_region': homeRegion,
+    });
+    final tokens =
+        TokenPair.fromJson((j as Map<String, dynamic>)['tokens'] as Map<String, dynamic>);
+    await _persistTokens(tokens);
+    return tokens;
+  }
+
   /// ورود/ثبت‌نام با Google/Microsoft/Apple/Facebook.
   /// [credential] برای google/microsoft/apple همان id_token و برای facebook
   /// همان access_token است.

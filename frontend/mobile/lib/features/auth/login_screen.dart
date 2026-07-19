@@ -19,17 +19,20 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-enum _Mode { password, otp }
+enum _Mode { login, register }
 
 class _LoginScreenState extends State<LoginScreen> {
-  _Mode _mode = _Mode.password;
+  _Mode _mode = _Mode.login;
 
   final _identifierCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
-  final _destinationCtrl = TextEditingController();
-  final _codeCtrl = TextEditingController();
 
-  String? _challengeId; // پس از ارسالِ کد پر می‌شود
+  // فیلدهای ثبت‌نام
+  final _nameCtrl = TextEditingController();
+  final _regEmailCtrl = TextEditingController();
+  final _regPhoneCtrl = TextEditingController();
+  final _regPasswordCtrl = TextEditingController();
+
   bool _busy = false;
   String? _error;
 
@@ -39,8 +42,10 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _identifierCtrl.dispose();
     _passwordCtrl.dispose();
-    _destinationCtrl.dispose();
-    _codeCtrl.dispose();
+    _nameCtrl.dispose();
+    _regEmailCtrl.dispose();
+    _regPhoneCtrl.dispose();
+    _regPasswordCtrl.dispose();
     super.dispose();
   }
 
@@ -70,15 +75,31 @@ class _LoginScreenState extends State<LoginScreen> {
         widget.onAuthenticated();
       });
 
-  Future<void> _requestOtp() => _run(() async {
-        final id = await _api.otpRequest('sms', _destinationCtrl.text.trim());
-        setState(() => _challengeId = id);
-      });
-
-  Future<void> _verifyOtp() => _run(() async {
-        await _api.otpVerify(_challengeId!, _codeCtrl.text.trim());
-        widget.onAuthenticated();
-      });
+  Future<void> _register() {
+    final email = _regEmailCtrl.text.trim();
+    final phone = _regPhoneCtrl.text.trim();
+    if (_nameCtrl.text.trim().length < 2) {
+      setState(() => _error = 'نامِ نمایشی باید حداقل ۲ نویسه باشد.');
+      return Future.value();
+    }
+    if (email.isEmpty && phone.isEmpty) {
+      setState(() => _error = 'ایمیل یا شمارهٔ موبایل را وارد کنید.');
+      return Future.value();
+    }
+    if (_regPasswordCtrl.text.length < 8) {
+      setState(() => _error = 'رمز عبور باید حداقل ۸ نویسه باشد.');
+      return Future.value();
+    }
+    return _run(() async {
+      await _api.register(
+        displayName: _nameCtrl.text.trim(),
+        email: email.isEmpty ? null : email,
+        phone: phone.isEmpty ? null : phone,
+        password: _regPasswordCtrl.text,
+      );
+      widget.onAuthenticated();
+    });
+  }
 
   Future<void> _oauth(String provider) => _run(() async {
         final credential = await _social.credentialFor(provider);
@@ -118,10 +139,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 28),
                   _modeSwitch(scheme),
                   const SizedBox(height: 20),
-                  if (_mode == _Mode.password)
+                  if (_mode == _Mode.login)
                     ..._passwordFields()
                   else
-                    ..._otpFields(),
+                    ..._registerFields(),
                   if (_error != null) ...[
                     const SizedBox(height: 12),
                     Text(
@@ -149,8 +170,8 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _modeSwitch(ColorScheme scheme) {
     return SegmentedButton<_Mode>(
       segments: const [
-        ButtonSegment(value: _Mode.password, label: Text('رمز عبور'), icon: Icon(Icons.lock_outline)),
-        ButtonSegment(value: _Mode.otp, label: Text('کد پیامکی'), icon: Icon(Icons.sms_outlined)),
+        ButtonSegment(value: _Mode.login, label: Text('ورود'), icon: Icon(Icons.lock_outline)),
+        ButtonSegment(value: _Mode.register, label: Text('ثبت‌نام'), icon: Icon(Icons.person_add_alt_1)),
       ],
       selected: {_mode},
       onSelectionChanged: _busy
@@ -158,7 +179,6 @@ class _LoginScreenState extends State<LoginScreen> {
           : (s) => setState(() {
                 _mode = s.first;
                 _error = null;
-                _challengeId = null;
               }),
     );
   }
@@ -196,62 +216,64 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ];
 
-  List<Widget> _otpFields() {
-    if (_challengeId == null) {
-      return [
+  List<Widget> _registerFields() => [
         TextField(
-          controller: _destinationCtrl,
+          controller: _nameCtrl,
+          enabled: !_busy,
+          decoration: const InputDecoration(
+            labelText: 'نامِ نمایشی',
+            prefixIcon: Icon(Icons.badge_outlined),
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _regEmailCtrl,
+          enabled: !_busy,
+          keyboardType: TextInputType.emailAddress,
+          textDirection: TextDirection.ltr,
+          decoration: const InputDecoration(
+            labelText: 'ایمیل (اختیاری)',
+            prefixIcon: Icon(Icons.email_outlined),
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _regPhoneCtrl,
           enabled: !_busy,
           keyboardType: TextInputType.phone,
           textDirection: TextDirection.ltr,
           decoration: const InputDecoration(
-            labelText: 'شمارهٔ موبایل',
+            labelText: 'شمارهٔ موبایل (اختیاری)',
             hintText: '+98...',
             prefixIcon: Icon(Icons.phone_iphone),
           ),
         ),
+        const SizedBox(height: 4),
+        Text(
+          'حداقل یکی از ایمیل یا موبایل الزامی است.',
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _regPasswordCtrl,
+          enabled: !_busy,
+          obscureText: true,
+          textDirection: TextDirection.ltr,
+          onSubmitted: (_) => _busy ? null : _register(),
+          decoration: const InputDecoration(
+            labelText: 'رمز عبور (حداقل ۸ نویسه)',
+            prefixIcon: Icon(Icons.lock_outline),
+          ),
+        ),
         const SizedBox(height: 16),
         FilledButton(
-          onPressed: _busy ? null : _requestOtp,
+          onPressed: _busy ? null : _register,
           child: const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
-            child: Text('ارسال کد'),
+            child: Text('ثبت‌نام'),
           ),
         ),
       ];
-    }
-    return [
-      Text(
-        'کدِ ارسال‌شده به ${_destinationCtrl.text.trim()} را وارد کنید',
-        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
-      ),
-      const SizedBox(height: 12),
-      TextField(
-        controller: _codeCtrl,
-        enabled: !_busy,
-        keyboardType: TextInputType.number,
-        textAlign: TextAlign.center,
-        textDirection: TextDirection.ltr,
-        onSubmitted: (_) => _busy ? null : _verifyOtp(),
-        decoration: const InputDecoration(
-          labelText: 'کد تأیید',
-          prefixIcon: Icon(Icons.pin_outlined),
-        ),
-      ),
-      const SizedBox(height: 16),
-      FilledButton(
-        onPressed: _busy ? null : _verifyOtp,
-        child: const Padding(
-          padding: EdgeInsets.symmetric(vertical: 12),
-          child: Text('تأیید و ورود'),
-        ),
-      ),
-      TextButton(
-        onPressed: _busy ? null : () => setState(() => _challengeId = null),
-        child: const Text('تغییر شماره / ارسال دوباره'),
-      ),
-    ];
-  }
 
   List<Widget> _socialButtons(ColorScheme scheme) {
     final providers = <MapEntry<String, String>>[
