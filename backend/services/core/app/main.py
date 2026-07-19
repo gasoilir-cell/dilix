@@ -6,10 +6,12 @@
 from __future__ import annotations
 
 import logging
+import os
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from dilix_shared.errors import DilixError
 
@@ -122,6 +124,28 @@ async def health() -> dict:
         "region": settings.region,
         "environment": settings.environment,
     }
+
+
+# ── دانلودِ APK موبایل ──
+# مسیرِ پیش‌فرض: <repo_root>/outputs/app-release.apk (روی سرور:
+# /var/www/dilix-core/outputs/app-release.apk). با env قابلِ override است.
+_DEFAULT_APK_PATH = Path(__file__).resolve().parents[4] / "outputs" / "app-release.apk"
+APK_PATH = Path(os.environ.get("DILIX_APK_PATH", str(_DEFAULT_APK_PATH)))
+
+
+@app.get("/download/app-release.apk", tags=["system"])
+async def download_apk() -> FileResponse:
+    """سرو کردنِ آخرین APK اندروید برای دانلودِ مستقیم."""
+    if not APK_PATH.is_file():
+        return JSONResponse(
+            status_code=404,
+            content={"detail": "APK فعلاً در دسترس نیست."},
+        )
+    return FileResponse(
+        APK_PATH,
+        media_type="application/vnd.android.package-archive",
+        filename="app-release.apk",
+    )
 
 
 @app.get("/health/ready", tags=["system"])
