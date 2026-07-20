@@ -44,6 +44,8 @@ class _DilixWebViewState extends State<DilixWebView> {
   WebViewController? _controller;
   bool _loading = true;
   bool _failed = false;
+  // آیا reloadِ یک‌بارهٔ «بوت با توکن» انجام شده است؟ جلوگیری از حلقهٔ reload.
+  bool _sessionApplied = false;
 
   String get _url => '${AppConfig.webBaseUrl}${widget.path}';
 
@@ -64,9 +66,7 @@ class _DilixWebViewState extends State<DilixWebView> {
         ..setNavigationDelegate(
           NavigationDelegate(
             onPageStarted: (_) => _injectSession(),
-            onPageFinished: (_) {
-              if (mounted) setState(() => _loading = false);
-            },
+            onPageFinished: (_) => _onFinished(),
             onWebResourceError: (err) {
               // فقط خطایِ فریمِ اصلی نمایِ جایگزین را روشن می‌کند.
               if (err.isForMainFrame ?? true) {
@@ -82,6 +82,21 @@ class _DilixWebViewState extends State<DilixWebView> {
       _controller = null;
       _failed = true;
     }
+  }
+
+  /// پس از پایانِ بارگذاری: توکن حالا قطعاً در `localStorage` هست (در
+  /// `onPageStarted` نشانده شد و ماندگار است). یک‌بار reload می‌کنیم تا اپِ وب
+  /// از همان بوتِ اول با نشستِ معتبر بالا بیاید و فرمِ ورود نشان ندهد (رفعِ ریسِ
+  /// زمان‌بندی که باعث می‌شد SPA توکنِ null بخواند).
+  void _onFinished() {
+    final c = _controller;
+    if (!_sessionApplied && c != null && widget.api.accessToken != null) {
+      _sessionApplied = true;
+      _injectSession();
+      c.reload();
+      return;
+    }
+    if (mounted) setState(() => _loading = false);
   }
 
   /// تزریقِ توکنِ نشستِ موبایل به `localStorage`ِ اپِ وب پیش از بوت‌شدنِ آن.
