@@ -4,6 +4,18 @@
 
 ---
 
+## [2026-07-20] موبایل: کره و پیام‌رسانِ وبِ واقعی داخلِ اپ (WebView + تزریقِ توکن)
+
+خواستهٔ کاربر: (۱) به‌جای globe.glِ ناقص، صفحهٔ واقعیِ نقشهٔ وبِ Dilix داخلِ اپ لود شود و نوارِ جستجو و دکمه‌ها حفظ شوند؛ (۲) پیام‌رسانِ موبایل «واقعاً» تمامِ امکاناتِ پیام‌رسانِ وب را داشته باشد (نه نمایشی).
+
+- **ویجتِ مشترکِ جدید `frontend/mobile/lib/core/dilix_webview.dart`:** اپِ وبِ تولیدی (`dilix.ir`) را با تزریقِ توکنِ نشستِ موبایل به `localStorage` (`dilix.access_token`/`dilix.refresh_token` — همان کلیدهایِ `frontend/web/lib/api.ts`) لود می‌کند تا کاربر دوباره وارد نشود. کشفِ ریشه‌ای: علتِ نمایشِ فرمِ ورود در تلاشِ قبلی، تزریق‌نکردنِ توکن بود. روی اندروید مجوزهایِ دوربین/میکروفن (تماس)، موقعیت (کره) و انتخابِ فایل (`image_picker` برای ارسالِ تصویر) به WebView داده می‌شود؛ `setMediaPlaybackRequiresUserGesture(false)`.
+- **earth (`features/earth/earth_screen.dart`):** globe.glِ خودبسنده حذف شد؛ حالا `DilixWebView('/earth')` با نوارِ جستجوی بومی + دکمه‌های `Icons.image`/`Icons.tune` + FABِ دستیار `Icons.smart_toy` به‌صورتِ overlay (طبقِ خواستهٔ کاربر). جستجو/فیلتر مسیر را به `/earth?q=..&type=..&country=..` می‌برد و WebView با `ValueKey` دوباره ناوبری می‌کند. fallbackِ گرادیانیِ 🌍 وقتی WebView نباشد (تست).
+- **messages (`features/messages/messages_screen.dart`):** کدِ بومیِ محدود (`ChatView`) حذف و با `DilixWebView('/messages')` تمام‌صفحه جایگزین شد؛ پرامپتِ ورود در حالتِ ناواردشده می‌ماند.
+- **پیکربندی:** `pubspec.yaml`→`webview_flutter_android: ^4.1.0` (سازگار با `webview_flutter ^4.10.0` که `^4.0.0` می‌خواهد)؛ `AndroidManifest.xml`→CAMERA/RECORD_AUDIO/MODIFY_AUDIO_SETTINGS/ACCESS_FINE|COARSE_LOCATION؛ `config.dart`→`webBaseUrl`+`messagesWebUrl`؛ `api_client.dart`→getterِ `refreshToken`.
+- **تست‌ها:** `earth_screen_test.dart` و `messages_screen_test.dart` بدونِ تغییر سبز می‌مانند (در تست WebView ساخته نمی‌شود → earth به 🌍 و نوارِ جستجو می‌افتد؛ messages بدونِ توکن → پرامپتِ ورود). اجرای واقعیِ flutter به CI (`mobile.yml`) موکول است.
+
+---
+
 ## [2026-07-19] تستِ کره‌ی موبایل + رگرسیونِ بک‌اند
 
 پس از بازطراحیِ `earth_screen.dart` (کره‌ی کامل هم‌راستا با نمای وب، حذفِ شیتِ کشویی، FABِ دستیار):

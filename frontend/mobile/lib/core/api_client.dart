@@ -38,6 +38,9 @@ class ApiClient {
   /// توکنِ دسترسیِ جاری (برای اتصالِ WebSocket تماس).
   String? get accessToken => _accessToken;
 
+  /// توکنِ رفرشِ جاری (برای تزریق به WebViewِ نمای وب).
+  String? get refreshToken => _refreshToken;
+
   /// آدرسِ پایهٔ سرویسِ Core (برای ساختِ URLِ WebSocket).
   String get baseUrl => _base;
 
