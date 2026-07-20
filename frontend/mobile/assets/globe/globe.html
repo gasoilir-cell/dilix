@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #080F22; }
+  #globe { width: 100vw; height: 100vh; }
+  /* مارکرِ کاربر/خوشه: آواتار یا عدد با هالهٔ نور، لنگرِ پایین-وسط روی نقطه */
+  .mk { position: absolute; transform: translate(-50%, -100%); pointer-events: auto; cursor: pointer; }
+  .mk .dot {
+    width: 28px; height: 28px; border-radius: 50%; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; line-height: 1; color: #fff; font-weight: 700;
+    background: #1118; border: 2px solid #38BDF8;
+    box-shadow: 0 0 10px #38BDF8, 0 0 3px #38BDF8;
+  }
+  .mk .dot img { width: 100%; height: 100%; object-fit: cover; }
+</style>
+</head>
+<body>
+<div id="globe"></div>
+<script src="/libs/globe.gl.min.js"></script>
+<script>
+(function () {
+  var globe = null;
+  var users = [];         // آخرین دادهٔ کاربران از native
+  var tileBase = ""; // خالی = هم‌مبدأ (same-origin) تا محدودیتِ CORSِ WebGL پیش نیاید
+  var dark = true;
+  var altitude = 2.2;
+
+  // ── پُلِ ارتباط با Flutter ──
+  function toFlutter(obj) {
+    try { EarthChannel.postMessage(JSON.stringify(obj)); } catch (e) {}
+  }
+
+  // ── متادیتای نقش (هم‌راستا با وب) ──
+  var ROLE_EMOJI = {
+    driver: "🚛", cargo_owner: "📦", freight_broker: "🤝",
+    insurance_agent: "🛡️", creator: "📢", admin: "⚙️", user: "👤"
+  };
+  function roleEmoji(r) { return ROLE_EMOJI[r] || "👤"; }
+
+  // ── خوشه‌بندیِ شبکه‌ای وابسته به زوم (پورتِ منطقِ وب) ──
+  function cellForAltitude(alt) {
+    if (alt > 1.6) return 12;
+    if (alt > 0.8) return 4;
+    if (alt > 0.4) return 1.5;
+    if (alt > 0.2) return 0.5;
+    if (alt > 0.1) return 0.15;
+    if (alt > 0.04) return 0.05;
+    if (alt > 0.015) return 0.015;
+    return 0.005;
+  }
+  var CLUSTER_MIN = 6;
+
+  function buildMarkers() {
+    var cell = cellForAltitude(altitude);
+    var cells = {};
+    for (var i = 0; i < users.length; i++) {
+      var u = users[i];
+      if (typeof u.lat !== "number" || typeof u.lng !== "number") continue;
+      var clat = Math.floor(u.lat / cell) * cell + cell / 2;
+      var clng = Math.floor(u.lng / cell) * cell + cell / 2;
+      var key = clat.toFixed(3) + "," + clng.toFixed(3);
+      (cells[key] = cells[key] || []).push(u);
+    }
+    var markers = [];
+    for (var k in cells) {
+      var members = cells[k];
+      var avgLat = 0, avgLng = 0;
+      for (var j = 0; j < members.length; j++) { avgLat += members[j].lat; avgLng += members[j].lng; }
+      avgLat /= members.length; avgLng /= members.length;
+      if (members.length >= CLUSTER_MIN) {
+        markers.push({ cluster: true, count: members.length, lat: avgLat, lng: avgLng, members: members });
+      } else {
+        // گروهِ کوچک: تک‌به‌تک نمایش
+        for (var m = 0; m < members.length; m++) markers.push({ cluster: false, user: members[m], lat: members[m].lat, lng: members[m].lng });
+      }
+    }
+    return markers;
+  }
+
+  function markerElement(d) {
+    var el = document.createElement("div");
+    el.className = "mk";
+    var dot = document.createElement("div");
+    dot.className = "dot";
+    if (d.cluster) {
+      dot.style.borderColor = "#38BDF8";
+      dot.style.boxShadow = "0 0 10px #38BDF8, 0 0 3px #38BDF8";
+      dot.textContent = String(d.count);
+      el.onclick = function () { toFlutter({ type: "cluster", count: d.count, members: d.members }); };
+    } else {
+      var u = d.user;
+      var online = !!u.online;
+      var glow = online ? "#22C55E" : "#9CA3AF";
+      dot.style.borderColor = glow;
+      dot.style.boxShadow = "0 0 10px " + glow + ", 0 0 3px " + glow;
+      dot.style.background = glow + "26";
+      if (u.avatar_url) {
+        var img = document.createElement("img");
+        img.src = u.avatar_url; img.referrerPolicy = "no-referrer"; img.alt = "";
+        dot.appendChild(img);
+      } else {
+        dot.textContent = roleEmoji(u.role);
+      }
+      el.onclick = function () {
+        toFlutter({ type: "user", earth_id: u.earth_id, name: u.name, role: u.role, city: u.city, rating: u.rating, online: u.online, avatar_url: u.avatar_url });
+      };
+    }
+    el.appendChild(dot);
+    return el;
+  }
+
+  function refresh() {
+    if (!globe) return;
+    globe.htmlElementsData(buildMarkers());
+  }
+
+  // ── راه‌اندازیِ کره ──
+  window.initGlobe = function (cfgJson) {
+    try {
+      var cfg = cfgJson ? JSON.parse(cfgJson) : {};
+      if (cfg.tileBase) tileBase = cfg.tileBase;
+      if (typeof cfg.dark === "boolean") dark = cfg.dark;
+    } catch (e) {}
+
+    globe = Globe()(document.getElementById("globe"))
+      .backgroundColor(dark ? "#080F22" : "#EDEFF3")
+      .globeImageUrl("/libs/earth.jpg")
+      .globeTileEngineUrl(function (x, y, l) { return tileBase + "/globe-tiles/" + l + "/" + x + "/" + y; })
+      .globeTileEngineMaxLevel(18)
+      .atmosphereColor("#3b82f6")
+      .atmosphereAltitude(0.18)
+      .htmlElementsData([])
+      .htmlLat(function (d) { return d.lat; })
+      .htmlLng(function (d) { return d.lng; })
+      .htmlAltitude(0)
+      .htmlElement(markerElement)
+      .onZoom(function (pov) {
+        var q = Math.round(pov.altitude * 1000) / 1000;
+        if (q === altitude) return;
+        altitude = q;
+        refresh(); // خوشه‌بندی با زوم بازساخته می‌شود
+      });
+
+    // زوم عمیق تا محله
+    var controls = globe.controls();
+    controls.minDistance = 100.15;
+    globe.pointOfView({ lat: 32, lng: 53, altitude: 2.2 }, 0);
+
+    refresh();
+    toFlutter({ type: "ready" });
+  };
+
+  // ── دریافتِ کاربران از native ──
+  window.setUsers = function (json) {
+    try { users = JSON.parse(json) || []; } catch (e) { users = []; }
+    refresh();
+  };
+
+  // ── تمرکز روی یک نقطه (اختیاری) ──
+  window.focusOn = function (lat, lng, alt) {
+    if (globe) globe.pointOfView({ lat: lat, lng: lng, altitude: alt || 0.5 }, 800);
+  };
+
+  // ── راه‌اندازیِ خودکار پس از لودِ صفحه (native فقط پاسخِ رویدادِ ready را می‌دهد) ──
+  function boot() { if (!globe) window.initGlobe(); }
+  if (document.readyState === "complete" || document.readyState === "interactive") {
+    setTimeout(boot, 0);
+  } else {
+    window.addEventListener("DOMContentLoaded", boot);
+  }
+})();
+</script>
+</body>
+</html>

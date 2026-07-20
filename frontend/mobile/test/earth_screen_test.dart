@@ -51,14 +51,13 @@ void main() {
     );
   });
 
-  testWidgets('دکمه‌های تصویر/فیلتر و FABِ دستیار حاضرند', (tester) async {
+  testWidgets('آیکونِ کره و FABِ دستیار حاضرند', (tester) async {
     await tester.pumpWidget(_wrap(const EarthScreen(), _fakeApi()));
     await tester.pump();
     await tester.pump();
 
-    // دو دکمهٔ نوارِ جستجو (مثلِ نمای وب) + FABِ دستیارِ هوشمند.
-    expect(find.byIcon(Icons.image), findsOneWidget);
-    expect(find.byIcon(Icons.tune), findsOneWidget);
+    // آیکونِ کره در نوارِ جستجو + FABِ دستیارِ هوشمند.
+    expect(find.byIcon(Icons.public), findsOneWidget);
     expect(find.widgetWithIcon(FloatingActionButton, Icons.smart_toy),
         findsOneWidget);
 

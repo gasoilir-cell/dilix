@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../../app.dart';
-import '../../core/dilix_webview.dart';
 import '../assistant/assistant_sheet.dart';
+import '../messages/chat_screen.dart';
+import 'earth_globe_view.dart';
 
 /// کشفِ افراد/کسب‌وکار روی کره (امضای محصول، سند ۷ §۳).
-/// کره‌ی واقعیِ اپِ وب (dilix.ir/earth) داخلِ [DilixWebView] با توکنِ نشستِ موبایل
-/// بارگذاری می‌شود تا همان تجربهٔ کاملِ وب در دسترس باشد. نوارِ جستجو و دکمه‌های
-/// بومی روی کره باقی می‌مانند و کوئری/فیلتر را به صفحهٔ وب می‌دهند.
+///
+/// کره‌ی سه‌بعدیِ **بومی** است: صفحهٔ خودبسندهٔ globe.gl (همان کاشیِ ماهواره‌ایِ
+/// زندهٔ گوگل که وبِ dilix.ir دارد) داخلِ [EarthGlobeView] لود می‌شود و داده‌ی
+/// کاربران از API با توکنِ بومی تزریق می‌گردد — نه اپِ وبِ احرازشده. نوارِ جستجو و
+/// دکمه‌های بومی روی کره باقی می‌مانند.
 class EarthScreen extends StatefulWidget {
   const EarthScreen({super.key});
 
@@ -16,82 +19,12 @@ class EarthScreen extends StatefulWidget {
 }
 
 class _EarthScreenState extends State<EarthScreen> {
-  final _countryCtrl = TextEditingController();
   final _queryCtrl = TextEditingController();
-  String _entityType = '';
-  // مسیرِ فعلیِ صفحهٔ وب؛ با تغییرِ جستجو/فیلتر عوض می‌شود و WebView دوباره
-  // به آن مسیر می‌رود (کلیدِ ولیو برای بازسازیِ نما).
-  String _path = '/earth';
 
   @override
   void dispose() {
-    _countryCtrl.dispose();
     _queryCtrl.dispose();
     super.dispose();
-  }
-
-  /// ساختِ مسیرِ وب بر پایهٔ کوئری و فیلترها و اعمالِ آن روی WebView.
-  void _search() {
-    final params = <String, String>{};
-    final q = _queryCtrl.text.trim();
-    if (q.isNotEmpty) params['q'] = q;
-    if (_entityType.isNotEmpty) params['type'] = _entityType;
-    final country = _countryCtrl.text.trim();
-    if (country.isNotEmpty) params['country'] = country;
-    final qs = params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
-    setState(() => _path = '/earth$qs');
-  }
-
-  Future<void> _openFilters() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 16,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('فیلترِ کشف',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              value: _entityType,
-              decoration: const InputDecoration(labelText: 'نوع'),
-              items: const [
-                DropdownMenuItem(value: '', child: Text('همه')),
-                DropdownMenuItem(value: 'person', child: Text('افراد')),
-                DropdownMenuItem(value: 'driver', child: Text('راننده')),
-                DropdownMenuItem(value: 'business', child: Text('کسب‌وکار')),
-              ],
-              onChanged: (v) => setState(() => _entityType = v ?? ''),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _countryCtrl,
-              decoration: const InputDecoration(labelText: 'کشور (کدِ ISO-3، اختیاری)'),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-                  _search();
-                },
-                icon: const Icon(Icons.search),
-                label: const Text('اعمالِ فیلتر'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   @override
@@ -101,14 +34,13 @@ class _EarthScreenState extends State<EarthScreen> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: DilixWebView(
-              key: ValueKey(_path),
+            child: EarthGlobeView(
               api: api,
-              path: _path,
+              onTap: _onUserTap,
               fallbackBuilder: _fallbackGlobe,
             ),
           ),
-          // نوارِ جستجوی شناور + دکمهٔ فیلتر.
+          // نوارِ جستجوی شناور روی کره.
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
             left: 12,
@@ -130,6 +62,55 @@ class _EarthScreenState extends State<EarthScreen> {
         ],
       ),
     );
+  }
+
+  /// لمسِ مارکرِ یک کاربر روی کره → شیتِ کنشِ سریع (پیام/پروفایل).
+  void _onUserTap(EarthTap tap) {
+    if (tap.earthId.isEmpty) return;
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: CircleAvatar(
+                backgroundColor:
+                    (tap.online ?? false) ? const Color(0xFF22C55E) : Colors.grey,
+                child: Text(tap.name.isNotEmpty ? tap.name.characters.first : '؟',
+                    style: const TextStyle(color: Colors.white)),
+              ),
+              title: Text(tap.name.isEmpty ? tap.earthId : tap.name),
+              subtitle: Text(tap.earthId),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.chat_bubble_outline),
+              title: const Text('گفتگو'),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _openChat(tap);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// بازکردنِ (یا ساختِ) گفتگویِ مستقیم با کاربرِ انتخاب‌شده و رفتن به صفحهٔ چت.
+  Future<void> _openChat(EarthTap tap) async {
+    final api = ApiScope.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final room = await api.createDirectRoom(tap.earthId, title: tap.name);
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => ChatScreen(room: room)),
+      );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('باز کردنِ گفتگو ناموفق بود: $e')));
+    }
   }
 
   /// گشودنِ دستیارِ هوشمندِ سراسری به‌صورتِ شیتِ پایین.
@@ -179,7 +160,6 @@ class _EarthScreenState extends State<EarthScreen> {
             Expanded(
               child: TextField(
                 controller: _queryCtrl,
-                onSubmitted: (_) => _search(),
                 textInputAction: TextInputAction.search,
                 decoration: const InputDecoration(
                   hintText: 'جستجوی نام یا Earth ID…',
@@ -187,16 +167,8 @@ class _EarthScreenState extends State<EarthScreen> {
                 ),
               ),
             ),
-            IconButton(
-              tooltip: 'تصویر',
-              onPressed: _search,
-              icon: const Icon(Icons.image),
-            ),
-            IconButton(
-              tooltip: 'فیلتر',
-              onPressed: _openFilters,
-              icon: const Icon(Icons.tune),
-            ),
+            const Icon(Icons.public, color: Color(0xFF7C3AED)),
+            const SizedBox(width: 8),
           ],
         ),
       ),

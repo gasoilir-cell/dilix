@@ -353,6 +353,15 @@ class ApiClient {
     return list.map((e) => NearbyPerson.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  /// کاربرانِ کره به‌صورتِ خام (`{earth_id,name,role,city,lat,lng,rating,online,
+  /// avatar_url,...}`) برای تغذیهٔ کره‌ی سه‌بعدیِ globe.gl داخلِ WebView؛ همهٔ
+  /// فیلدها حفظ می‌شوند (برخلافِ [earthUsers] که به مدلِ سبک نگاشت می‌کند).
+  Future<List<Map<String, dynamic>>> earthUsersRaw({int limit = 500}) async {
+    final j = await _get('/api/v1/earth/users?limit=$limit') as Map<String, dynamic>;
+    final list = (j['users'] ?? const []) as List;
+    return list.map((e) => (e as Map).cast<String, dynamic>()).toList();
+  }
+
   // ─────────────── Freight (اسنپِ بار) ───────────────
   Future<List<CargoPost>> listCargo() async {
     final list = await _get('/api/v1/freight/posts') as List;
@@ -798,6 +807,11 @@ class ApiClient {
       'content': content,
     });
     return ChatMessage.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// علامت‌گذاریِ اتاق به‌عنوانِ خوانده‌شده (پاک‌کردنِ شمارندهٔ نخوانده).
+  Future<void> markRoomRead(String roomId) async {
+    await _post('/api/v1/messages/rooms/$roomId/read', const {});
   }
 
   // ─────────────── AI ───────────────

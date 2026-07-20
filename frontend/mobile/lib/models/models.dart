@@ -452,6 +452,15 @@ class ChatRoom {
     required this.title,
     required this.isE2ee,
     required this.createdBy,
+    this.partnerName,
+    this.partnerEarthId,
+    this.partnerRole,
+    this.partnerAvatar,
+    this.lastMessage,
+    this.lastMessageAt,
+    this.unreadCount = 0,
+    this.partnerOnline = false,
+    this.memberCount = 0,
   });
 
   final String id;
@@ -459,15 +468,40 @@ class ChatRoom {
   final String? title;
   final bool isE2ee;
   final String createdBy;
+  // فیلدهایِ dilix-api (`RoomOut`) برای فهرستِ بومیِ گفتگوها.
+  final String? partnerName;
+  final String? partnerEarthId;
+  final String? partnerRole;
+  final String? partnerAvatar;
+  final String? lastMessage;
+  final DateTime? lastMessageAt;
+  final int unreadCount;
+  final bool partnerOnline;
+  final int memberCount;
+
+  /// عنوانِ نمایشیِ گفتگو: نامِ گروه یا نامِ طرفِ مقابل.
+  String get displayTitle =>
+      title ?? partnerName ?? partnerEarthId ?? 'گفتگو';
 
   factory ChatRoom.fromJson(Map<String, dynamic> j) => ChatRoom(
         id: j['id'] as String,
         // dilix-api: `type`؛ Core: `room_type`.
         roomType: (j['type'] ?? j['room_type'] ?? 'direct') as String,
-        // dilix-api: `name`/`partner_name`؛ Core: `title`.
-        title: (j['name'] ?? j['title'] ?? j['partner_name']) as String?,
+        // dilix-api: `name`(گروه)؛ Core: `title`.
+        title: (j['name'] ?? j['title']) as String?,
         isE2ee: (j['is_e2ee'] ?? false) as bool,
         createdBy: (j['created_by'] ?? '') as String,
+        partnerName: j['partner_name'] as String?,
+        partnerEarthId: j['partner_earth_id'] as String?,
+        partnerRole: j['partner_role'] as String?,
+        partnerAvatar: j['partner_avatar'] as String?,
+        lastMessage: j['last_message'] as String?,
+        lastMessageAt: j['last_message_at'] != null
+            ? DateTime.tryParse(j['last_message_at'] as String)
+            : null,
+        unreadCount: (j['unread_count'] ?? 0) as int,
+        partnerOnline: (j['partner_online'] ?? false) as bool,
+        memberCount: (j['member_count'] ?? 0) as int,
       );
 }
 
@@ -481,6 +515,11 @@ class ChatMessage {
     required this.sentAt,
     required this.deleted,
     this.mediaUrl,
+    this.senderName,
+    this.isMine = false,
+    this.mediaType,
+    this.edited = false,
+    this.isRead = false,
   });
 
   final String id;
@@ -491,6 +530,12 @@ class ChatMessage {
   final DateTime sentAt;
   final bool deleted;
   final String? mediaUrl;
+  // فیلدهایِ dilix-api (`MessageOut`) برای نمایِ بومیِ گفتگو.
+  final String? senderName;
+  final bool isMine;
+  final String? mediaType;
+  final bool edited;
+  final bool isRead;
 
   factory ChatMessage.fromJson(Map<String, dynamic> j) => ChatMessage(
         id: j['id'] as String,
@@ -504,6 +549,11 @@ class ChatMessage {
             DateTime.fromMillisecondsSinceEpoch(0),
         // dilix-api: `is_deleted`؛ Core: `deleted`.
         deleted: (j['is_deleted'] ?? j['deleted'] ?? false) as bool,
+        senderName: j['sender_name'] as String?,
+        isMine: (j['is_mine'] ?? false) as bool,
+        mediaType: j['media_type'] as String?,
+        edited: (j['edited'] ?? false) as bool,
+        isRead: (j['is_read'] ?? false) as bool,
       );
 }
 

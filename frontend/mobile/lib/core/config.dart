@@ -34,6 +34,17 @@ class AppConfig {
     defaultValue: 'https://dilix.ir/messages',
   );
 
+  /// آدرسِ کره‌ی سه‌بعدیِ خودبسنده (globe.gl) که در تبِ «کره» داخلِ WebView لود
+  /// می‌شود. این صفحهٔ استاتیکِ **بدونِ احراز** روی مبدأِ خودِ سایت میزبانی می‌شود
+  /// (`/globe-native.html`) تا کاشیِ ماهواره‌ای از `/globe-tiles/...` **هم‌مبدأ**
+  /// (بدونِ خطایِ CORSِ WebGL) بارگذاری شود؛ داده‌ی کاربران از native تزریق و
+  /// لمسِ مارکر از طریقِ پُلِ `EarthChannel` به Flutter برمی‌گردد. کاشی‌ها پس از
+  /// اولین لود در کشِ WebView روی دستگاه می‌مانند.
+  static const String globeUrl = String.fromEnvironment(
+    'DILIX_GLOBE_URL',
+    defaultValue: 'https://dilix.ir/globe-native.html',
+  );
+
   // ── ورودِ اجتماعی (OAuth/OIDC) ──
   static const String googleClientId =
       String.fromEnvironment('DILIX_GOOGLE_CLIENT_ID');
