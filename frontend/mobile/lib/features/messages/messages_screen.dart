@@ -6,6 +6,7 @@ import '../../app.dart';
 import '../../core/api_client.dart';
 import '../../models/models.dart';
 import 'chat_screen.dart';
+import 'group_create_screen.dart';
 
 /// پیام‌ها (سند ۷ §۴) — فهرستِ **بومیِ** گفتگوها.
 ///
@@ -73,6 +74,19 @@ class _MessagesScreenState extends State<MessagesScreen> {
     _load(); // بازگشت از چت: شمارندهٔ نخوانده به‌روز شود.
   }
 
+  Future<void> _newGroup() async {
+    final room = await Navigator.of(context).push<ChatRoom>(
+      MaterialPageRoute(builder: (_) => const GroupCreateScreen()),
+    );
+    if (room == null) {
+      _load();
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _rooms.insert(0, room));
+    await _openRoom(room);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_api.isAuthenticated) {
@@ -84,6 +98,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('پیام‌ها')),
       body: RefreshIndicator(onRefresh: _load, child: _body()),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _newGroup,
+        tooltip: 'گروهِ جدید',
+        child: const Icon(Icons.group_add),
+      ),
     );
   }
 
@@ -134,13 +153,15 @@ class _MessagesScreenState extends State<MessagesScreen> {
             radius: 24,
             backgroundColor: Theme.of(context).colorScheme.primaryContainer,
             backgroundImage: hasAvatar ? NetworkImage(room.partnerAvatar!) : null,
-            child: !hasAvatar
-                ? Text(room.displayTitle.isNotEmpty
-                    ? room.displayTitle.characters.first
-                    : '؟')
-                : null,
+            child: hasAvatar
+                ? null
+                : room.isGroup
+                    ? const Icon(Icons.groups)
+                    : Text(room.displayTitle.isNotEmpty
+                        ? room.displayTitle.characters.first
+                        : '؟'),
           ),
-          if (room.partnerOnline)
+          if (room.partnerOnline && !room.isGroup)
             Positioned(
               right: 0,
               bottom: 0,
@@ -157,8 +178,22 @@ class _MessagesScreenState extends State<MessagesScreen> {
             ),
         ],
       ),
-      title: Text(room.displayTitle,
-          maxLines: 1, overflow: TextOverflow.ellipsis),
+      title: Row(
+        children: [
+          Expanded(
+            child: Text(room.displayTitle,
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+          if (room.isMuted)
+            const Padding(
+              padding: EdgeInsets.only(right: 4),
+              child: Icon(Icons.notifications_off,
+                  size: 15, color: Colors.grey),
+            ),
+          if (room.disappearSeconds > 0)
+            const Icon(Icons.timer, size: 15, color: Colors.grey),
+        ],
+      ),
       subtitle: Text(room.lastMessage ?? 'بدون پیام',
           maxLines: 1, overflow: TextOverflow.ellipsis),
       trailing: Column(

@@ -118,6 +118,13 @@ class ApiClient {
     return res.body.isEmpty ? null : jsonDecode(res.body);
   }
 
+  Future<dynamic> _delete(String path) async {
+    final res =
+        await _client.delete(Uri.parse('$_base$path'), headers: _headers());
+    if (res.statusCode >= 400) _raise(res);
+    return res.body.isEmpty ? null : jsonDecode(res.body);
+  }
+
   Future<dynamic> _patch(String path, Object? body) async {
     final res = await _client.patch(
       Uri.parse('$_base$path'),
@@ -801,10 +808,15 @@ class ApiClient {
     return list.map((e) => ChatMessage.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  /// ارسالِ پیامِ متنی به یک اتاق.
-  Future<ChatMessage> sendMessage(String roomId, String content) async {
+  /// ارسالِ پیامِ متنی به یک اتاق (با پاسخ‌دادن به پیامِ دیگر از طریقِ [replyToId]).
+  Future<ChatMessage> sendMessage(
+    String roomId,
+    String content, {
+    String? replyToId,
+  }) async {
     final j = await _post('/api/v1/messages/rooms/$roomId/messages', {
       'content': content,
+      if (replyToId != null) 'reply_to_id': replyToId,
     });
     return ChatMessage.fromJson(j as Map<String, dynamic>);
   }
@@ -812,6 +824,370 @@ class ApiClient {
   /// علامت‌گذاریِ اتاق به‌عنوانِ خوانده‌شده (پاک‌کردنِ شمارندهٔ نخوانده).
   Future<void> markRoomRead(String roomId) async {
     await _post('/api/v1/messages/rooms/$roomId/read', const {});
+  }
+
+  /// جستجویِ متنی در پیام‌هایِ یک اتاق (حداقل ۲ نویسه).
+  Future<List<ChatMessage>> searchMessages(
+    String roomId,
+    String query, {
+    int limit = 50,
+  }) async {
+    final q = Uri.encodeQueryComponent(query);
+    final list = await _get(
+        '/api/v1/messages/rooms/$roomId/messages/search?q=$q&limit=$limit')
+        as List;
+    return list
+        .map((e) => ChatMessage.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// وضعیتِ لحظه‌ایِ اتاق: حضورِ طرفِ مقابل، فهرستِ در حالِ نوشتن و TTLِ ناپدیدشدن.
+  Future<RoomStatus> roomStatus(String roomId) async => RoomStatus.fromJson(
+      await _get('/api/v1/messages/rooms/$roomId/status')
+          as Map<String, dynamic>);
+
+  /// اعلامِ «در حالِ نوشتن» (اعتبارِ ~۶ ثانیه؛ باید دوره‌ای تکرار شود).
+  Future<void> setTyping(String roomId) async {
+    await _post('/api/v1/messages/rooms/$roomId/typing', const {});
+  }
+
+  // ── رسانه و استیکر ──
+  /// ارسالِ عکس/ویدیو/صوت/فایل در چت (`multipart`، سقفِ ۲۵ مگابایت).
+  /// نوعِ رسانه سمتِ سرور از `content-type` تشخیص داده می‌شود.
+  Future<ChatMessage> sendMedia(
+    String roomId,
+    String filePath, {
+    String? caption,
+    String? replyToId,
+  }) async {
+    final req = http.MultipartRequest(
+        'POST', Uri.parse('$_base/api/v1/messages/rooms/$roomId/media'));
+    req.headers.addAll(_headers());
+    req.files.add(await http.MultipartFile.fromPath('file', filePath));
+    if (caption != null && caption.isNotEmpty) req.fields['caption'] = caption;
+    if (replyToId != null) req.fields['reply_to_id'] = replyToId;
+    final res = await http.Response.fromStream(await _client.send(req));
+    if (res.statusCode >= 400) _raise(res);
+    return ChatMessage.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
+  }
+
+  /// ارسالِ استیکر از کتابخانه.
+  Future<ChatMessage> sendSticker(
+    String roomId,
+    String stickerId, {
+    String? replyToId,
+  }) async {
+    final j = await _post('/api/v1/messages/rooms/$roomId/sticker', {
+      'sticker_id': stickerId,
+      if (replyToId != null) 'reply_to_id': replyToId,
+    });
+    return ChatMessage.fromJson(j as Map<String, dynamic>);
+  }
+
+  // ── ویرایش، حذف، واکنش، بازارسال، سنجاق ──
+  /// ویرایشِ متنِ پیامِ خودم.
+  Future<ChatMessage> editMessage(String messageId, String content) async {
+    final j = await _patch('/api/v1/messages/messages/$messageId', {
+      'content': content,
+    });
+    return ChatMessage.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// حذفِ پیامِ خودم (برایِ همه).
+  Future<void> deleteMessage(String messageId) async {
+    await _delete('/api/v1/messages/messages/$messageId');
+  }
+
+  /// افزودن/برداشتنِ واکنش (toggle). ایموجی‌هایِ مجاز: [allowedReactions].
+  Future<void> reactToMessage(String messageId, String emoji) async {
+    await _post('/api/v1/messages/messages/$messageId/react', {'emoji': emoji});
+  }
+
+  /// برداشتنِ واکنشِ من از یک پیام.
+  Future<void> removeReaction(String messageId) async {
+    await _delete('/api/v1/messages/messages/$messageId/react');
+  }
+
+  /// ایموجی‌هایی که بک‌اند برای واکنش می‌پذیرد.
+  static const List<String> allowedReactions = [
+    '❤️',
+    '👍',
+    '😂',
+    '😮',
+    '😢',
+    '🙏',
+    '🔥',
+    '👏',
+  ];
+
+  /// بازارسالِ پیام به اتاقی دیگر (با گزینهٔ بی‌نام).
+  Future<ChatMessage> forwardMessage(
+    String messageId,
+    String targetRoomId, {
+    bool anonymous = false,
+  }) async {
+    final j = await _post('/api/v1/messages/messages/$messageId/forward', {
+      'room_id': targetRoomId,
+      'anonymous': anonymous,
+    });
+    return ChatMessage.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// سنجاق/برداشتنِ سنجاقِ پیام (toggle)؛ `{is_pinned, pinned_count}`.
+  Future<Map<String, dynamic>> pinMessage(String messageId) async =>
+      (await _post('/api/v1/messages/messages/$messageId/pin', const {}))
+          as Map<String, dynamic>;
+
+  /// پیام‌هایِ سنجاق‌شدهٔ یک اتاق.
+  Future<List<ChatMessage>> roomPins(String roomId) async {
+    final list = await _get('/api/v1/messages/rooms/$roomId/pins') as List;
+    return list
+        .map((e) => ChatMessage.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  // ── نظرسنجی ──
+  /// ساختِ نظرسنجی در اتاق (۲ تا ۱۲ گزینه).
+  Future<ChatMessage> createPoll(
+    String roomId, {
+    required String question,
+    required List<String> options,
+    bool multiple = false,
+    String? replyToId,
+  }) async {
+    final j = await _post('/api/v1/messages/rooms/$roomId/poll', {
+      'question': question,
+      'options': options,
+      'multiple': multiple,
+      if (replyToId != null) 'reply_to_id': replyToId,
+    });
+    return ChatMessage.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// رأی‌دادن به یک گزینهٔ نظرسنجی؛ وضعیتِ به‌روزِ نظرسنجی را برمی‌گرداند.
+  Future<PollInfo> votePoll(String pollId, int optionIndex) async =>
+      PollInfo.fromJson(await _post('/api/v1/messages/polls/$pollId/vote', {
+        'option_index': optionIndex,
+      }) as Map<String, dynamic>);
+
+  // ── هدیهٔ نقدی (Red Packet) ──
+  /// ساختِ هدیهٔ نقدی؛ [totalAmount] به ریال، [mode] یکی از `equal|random`.
+  Future<ChatMessage> createRedPacket(
+    String roomId, {
+    required int totalAmount,
+    int count = 1,
+    String mode = 'equal',
+    String? greeting,
+  }) async {
+    final j = await _post('/api/v1/messages/rooms/$roomId/red-packet', {
+      'total_amount': totalAmount,
+      'count': count,
+      'mode': mode,
+      if (greeting != null && greeting.isNotEmpty) 'greeting': greeting,
+    });
+    return ChatMessage.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// بازکردنِ هدیهٔ نقدی؛ پاسخ شاملِ سهمِ برداشته‌شده است.
+  Future<Map<String, dynamic>> openRedPacket(String packetId) async =>
+      (await _post('/api/v1/messages/red-packets/$packetId/open', const {}))
+          as Map<String, dynamic>;
+
+  /// جزئیاتِ هدیهٔ نقدی (شاملِ فهرستِ برداشت‌کنندگان).
+  Future<RedPacketInfo> redPacketInfo(String packetId) async =>
+      RedPacketInfo.fromJson(
+          await _get('/api/v1/messages/red-packets/$packetId')
+              as Map<String, dynamic>);
+
+  // ── موقعیتِ مکانی ──
+  /// ارسالِ موقعیتِ ثابت.
+  Future<ChatMessage> sendLocation(
+    String roomId, {
+    required double lat,
+    required double lng,
+    String? label,
+    String? replyToId,
+  }) async {
+    final j = await _post('/api/v1/messages/rooms/$roomId/location', {
+      'lat': lat,
+      'lng': lng,
+      if (label != null && label.isNotEmpty) 'label': label,
+      if (replyToId != null) 'reply_to_id': replyToId,
+    });
+    return ChatMessage.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// شروعِ اشتراکِ موقعیتِ زنده برای [durationMinutes] دقیقه (حداکثر ۲۴ ساعت).
+  Future<ChatMessage> startLiveLocation(
+    String roomId, {
+    required double lat,
+    required double lng,
+    int durationMinutes = 60,
+  }) async {
+    final j = await _post('/api/v1/messages/rooms/$roomId/live-location', {
+      'lat': lat,
+      'lng': lng,
+      'duration_minutes': durationMinutes,
+    });
+    return ChatMessage.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// به‌روزرسانیِ مختصاتِ یک موقعیتِ زندهٔ فعال.
+  Future<ChatMessage> updateLiveLocation(
+    String messageId, {
+    required double lat,
+    required double lng,
+  }) async {
+    final j = await _patch('/api/v1/messages/live-location/$messageId', {
+      'lat': lat,
+      'lng': lng,
+    });
+    return ChatMessage.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// توقفِ اشتراکِ موقعیتِ زنده.
+  Future<void> stopLiveLocation(String messageId) async {
+    await _post('/api/v1/messages/live-location/$messageId/stop', const {});
+  }
+
+  // ── ترجمه ──
+  /// ترجمهٔ یک پیامِ چت به [targetLang] (با کشِ سمتِ سرور).
+  Future<TranslationResult> translateMessage(
+    String messageId,
+    String targetLang,
+  ) async =>
+      TranslationResult.fromJson(
+          await _post('/api/v1/messages/messages/$messageId/translate', {
+        'target_lang': targetLang,
+      }) as Map<String, dynamic>);
+
+  /// ترجمهٔ متنِ آزاد (برای پیش‌نمایشِ پیامِ در حالِ نوشتن).
+  Future<TranslationResult> translateText(
+    String text,
+    String targetLang,
+  ) async =>
+      TranslationResult.fromJson(await _post('/api/v1/messages/translate', {
+        'text': text,
+        'target_lang': targetLang,
+      }) as Map<String, dynamic>);
+
+  // ── گروه‌ها و اعضا ──
+  /// ساختِ گروه با نام و فهرستِ Earth IDها.
+  Future<ChatRoom> createGroup(
+    String name, {
+    List<String> memberEarthIds = const [],
+  }) async {
+    final j = await _post('/api/v1/messages/groups', {
+      'name': name,
+      'member_earth_ids': memberEarthIds,
+    });
+    return ChatRoom.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// اعضایِ یک اتاق/گروه.
+  Future<List<RoomMember>> roomMembers(String roomId) async {
+    final list = await _get('/api/v1/messages/rooms/$roomId/members') as List;
+    return list
+        .map((e) => RoomMember.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  /// افزودنِ عضو به گروه.
+  Future<void> addRoomMember(String roomId, String earthId) async {
+    await _post(
+        '/api/v1/messages/rooms/$roomId/members', {'earth_id': earthId});
+  }
+
+  /// حذفِ عضو از گروه (اگر Earth ID خودم باشد یعنی ترکِ گروه).
+  Future<void> removeRoomMember(String roomId, String earthId) async {
+    await _delete('/api/v1/messages/rooms/$roomId/members/$earthId');
+  }
+
+  // ── مخاطب و رویداد ──
+  /// اشتراکِ یک مخاطب در چت.
+  Future<ChatMessage> shareContact(
+    String roomId,
+    String earthId, {
+    String? replyToId,
+  }) async {
+    final j = await _post('/api/v1/messages/rooms/$roomId/contact', {
+      'earth_id': earthId,
+      if (replyToId != null) 'reply_to_id': replyToId,
+    });
+    return ChatMessage.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// ساختِ رویداد در چت.
+  Future<ChatMessage> createChatEvent(
+    String roomId, {
+    required String title,
+    required DateTime startsAt,
+    String? location,
+    String? description,
+  }) async {
+    final j = await _post('/api/v1/messages/rooms/$roomId/event', {
+      'title': title,
+      'starts_at': startsAt.toUtc().toIso8601String(),
+      if (location != null && location.isNotEmpty) 'location': location,
+      if (description != null && description.isNotEmpty)
+        'description': description,
+    });
+    return ChatMessage.fromJson(j as Map<String, dynamic>);
+  }
+
+  // ── مدیریتِ گفتگو ──
+  /// مسدود/رفعِ مسدودیِ کاربر (toggle)؛ `{blocked: bool}`.
+  Future<bool> toggleBlock(String earthId) async {
+    final j = await _post('/api/v1/messages/users/$earthId/block', const {})
+        as Map<String, dynamic>;
+    return (j['blocked'] ?? false) as bool;
+  }
+
+  /// فهرستِ Earth IDهایی که مسدود کرده‌ام.
+  Future<List<String>> blockedUsers() async {
+    final list = await _get('/api/v1/messages/blocks') as List;
+    return list.map((e) => e.toString()).toList();
+  }
+
+  /// بی‌صدا/باصداکردنِ اتاق. [durationMinutes] خالی + [muted] یعنی همیشه.
+  Future<bool> setRoomMute(
+    String roomId, {
+    required bool muted,
+    int? durationMinutes,
+  }) async {
+    final j = await _post('/api/v1/messages/rooms/$roomId/mute', {
+      'muted': muted,
+      if (durationMinutes != null) 'duration_minutes': durationMinutes,
+    }) as Map<String, dynamic>;
+    return (j['muted'] ?? false) as bool;
+  }
+
+  /// پاک‌کردنِ گفتگو فقط برایِ من (طرفِ مقابل دست‌نخورده می‌ماند).
+  Future<void> clearChat(String roomId) async {
+    await _post('/api/v1/messages/rooms/$roomId/clear', const {});
+  }
+
+  /// تنظیمِ TTLِ پیامِ ناپدیدشونده؛ مقادیرِ مجاز: ۰، ۳۶۰۰، ۸۶۴۰۰، ۶۰۴۸۰۰ ثانیه.
+  Future<int> setDisappearing(String roomId, int seconds) async {
+    final j = await _post('/api/v1/messages/rooms/$roomId/disappearing', {
+      'seconds': seconds,
+    }) as Map<String, dynamic>;
+    return (j['disappear_seconds'] ?? 0) as int;
+  }
+
+  /// گزارشِ تخلفِ کاربر. [reason] یکی از
+  /// `spam|harassment|scam|inappropriate|other`.
+  Future<void> reportUser(
+    String earthId, {
+    required String reason,
+    String? note,
+    String? messageId,
+  }) async {
+    await _post('/api/v1/messages/users/$earthId/report', {
+      'reason': reason,
+      if (note != null && note.isNotEmpty) 'note': note,
+      if (messageId != null) 'message_id': messageId,
+    });
   }
 
   // ─────────────── AI ───────────────

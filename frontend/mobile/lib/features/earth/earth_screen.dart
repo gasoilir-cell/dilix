@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app.dart';
+import '../../models/models.dart';
 import '../assistant/assistant_sheet.dart';
 import '../messages/chat_screen.dart';
 import 'earth_globe_view.dart';
@@ -20,6 +21,12 @@ class EarthScreen extends StatefulWidget {
 
 class _EarthScreenState extends State<EarthScreen> {
   final _queryCtrl = TextEditingController();
+  final _globe = EarthGlobeController();
+
+  /// نتایجِ جستجو (روی کره تمرکز می‌دهند) و وضعیتِ آن.
+  List<NearbyPerson>? _results;
+  bool _searching = false;
+  String? _searchError;
 
   @override
   void dispose() {
@@ -36,16 +43,23 @@ class _EarthScreenState extends State<EarthScreen> {
           Positioned.fill(
             child: EarthGlobeView(
               api: api,
+              controller: _globe,
               onTap: _onUserTap,
               fallbackBuilder: _fallbackGlobe,
             ),
           ),
-          // نوارِ جستجوی شناور روی کره.
+          // نوارِ جستجوی شناور روی کره + فهرستِ نتایج.
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
             left: 12,
             right: 12,
-            child: _searchBar(),
+            child: Column(
+              children: [
+                _searchBar(),
+                if (_searching || _searchError != null || _results != null)
+                  _resultsPanel(),
+              ],
+            ),
           ),
           // FABِ دستیارِ هوشمند در پایین‌چپ (مثلِ نمای وب).
           Positioned(
@@ -146,6 +160,61 @@ class _EarthScreenState extends State<EarthScreen> {
     );
   }
 
+  /// جستجو در کاربرانِ کره (نام، Earth ID، شهر/حرفه) و نمایشِ نتایج.
+  Future<void> _search() async {
+    final q = _queryCtrl.text.trim();
+    if (q.isEmpty) {
+      setState(() {
+        _results = null;
+        _searchError = null;
+      });
+      return;
+    }
+    setState(() {
+      _searching = true;
+      _searchError = null;
+    });
+    try {
+      final all = await ApiScope.of(context).earthUsers(limit: 500);
+      final needle = q.toLowerCase();
+      final hits = all
+          .where((u) =>
+              (u.displayName ?? '').toLowerCase().contains(needle) ||
+              u.earthId.toLowerCase().contains(needle) ||
+              (u.profession ?? '').toLowerCase().contains(needle))
+          .take(20)
+          .toList();
+      if (!mounted) return;
+      setState(() {
+        _results = hits;
+        _searching = false;
+      });
+      // اگر تنها یک نتیجه بود، مستقیم روی همان تمرکز کن.
+      if (hits.length == 1) _focusOn(hits.first);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _searching = false;
+        _searchError = '$e';
+      });
+    }
+  }
+
+  void _focusOn(NearbyPerson u) {
+    FocusScope.of(context).unfocus();
+    _globe.focusOn(u.lat, u.lon);
+    setState(() => _results = null);
+  }
+
+  void _clearSearch() {
+    _queryCtrl.clear();
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _results = null;
+      _searchError = null;
+    });
+  }
+
   Widget _searchBar() {
     return Material(
       elevation: 3,
@@ -161,17 +230,88 @@ class _EarthScreenState extends State<EarthScreen> {
               child: TextField(
                 controller: _queryCtrl,
                 textInputAction: TextInputAction.search,
+                onChanged: (_) => setState(() {}),
+                onSubmitted: (_) => _search(),
                 decoration: const InputDecoration(
                   hintText: 'جستجوی نام یا Earth ID…',
                   border: InputBorder.none,
                 ),
               ),
             ),
-            const Icon(Icons.public, color: Color(0xFF7C3AED)),
+            if (_queryCtrl.text.isNotEmpty || _results != null)
+              IconButton(
+                icon: const Icon(Icons.close, size: 20),
+                onPressed: _clearSearch,
+              )
+            else
+              const Icon(Icons.public, color: Color(0xFF7C3AED)),
             const SizedBox(width: 8),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _resultsPanel() {
+    final results = _results;
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      constraints: const BoxConstraints(maxHeight: 280),
+      child: Material(
+        elevation: 3,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: _searching
+            ? const Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            : _searchError != null
+                ? Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Text('جستجو ناموفق بود: $_searchError',
+                        style: const TextStyle(fontSize: 12)),
+                  )
+                : (results == null || results.isEmpty)
+                    ? const Padding(
+                        padding: EdgeInsets.all(14),
+                        child: Text('نتیجه‌ای پیدا نشد.'),
+                      )
+                    : ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: results.length,
+                        separatorBuilder: (_, __) =>
+                            const Divider(height: 1, indent: 56),
+                        itemBuilder: (ctx, i) => _resultTile(results[i]),
+                      ),
+      ),
+    );
+  }
+
+  Widget _resultTile(NearbyPerson u) {
+    final name = (u.displayName ?? '').isEmpty ? u.earthId : u.displayName!;
+    return ListTile(
+      dense: true,
+      leading: CircleAvatar(
+        radius: 16,
+        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+        child: Text(name.isEmpty ? '؟' : name.characters.first),
+      ),
+      title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(
+        [u.earthId, if ((u.profession ?? '').isNotEmpty) u.profession!].join(' • '),
+        style: const TextStyle(fontSize: 11),
+      ),
+      trailing: IconButton(
+        tooltip: 'گفتگو',
+        icon: const Icon(Icons.chat_bubble_outline, size: 18),
+        onPressed: () {
+          FocusScope.of(context).unfocus();
+          setState(() => _results = null);
+          _openChat(EarthTap(earthId: u.earthId, name: name));
+        },
+      ),
+      onTap: () => _focusOn(u),
     );
   }
 }

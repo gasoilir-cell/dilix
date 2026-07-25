@@ -445,6 +445,324 @@ class ReferralMember {
       );
 }
 
+/// پیش‌نمایشِ پیامی که به آن پاسخ داده شده (`ReplyPreview` در dilix-api).
+class ReplyPreview {
+  ReplyPreview({
+    required this.id,
+    required this.content,
+    this.senderName,
+    this.isDeleted = false,
+  });
+
+  final String id;
+  final String content;
+  final String? senderName;
+  final bool isDeleted;
+
+  factory ReplyPreview.fromJson(Map<String, dynamic> j) => ReplyPreview(
+        id: (j['id'] ?? '') as String,
+        content: (j['content'] ?? '') as String,
+        senderName: j['sender_name'] as String?,
+        isDeleted: (j['is_deleted'] ?? false) as bool,
+      );
+}
+
+/// موقعیتِ مکانیِ ثابت یا زنده (`LocationInfo`).
+class LocationInfo {
+  LocationInfo({
+    required this.lat,
+    required this.lng,
+    this.label,
+    this.live = false,
+    this.active = false,
+    this.updatedAt,
+    this.expiresAt,
+  });
+
+  final double lat;
+  final double lng;
+  final String? label;
+  final bool live;
+  final bool active;
+  final DateTime? updatedAt;
+  final DateTime? expiresAt;
+
+  factory LocationInfo.fromJson(Map<String, dynamic> j) => LocationInfo(
+        lat: (j['lat'] as num).toDouble(),
+        lng: (j['lng'] as num).toDouble(),
+        label: j['label'] as String?,
+        live: (j['live'] ?? false) as bool,
+        active: (j['active'] ?? false) as bool,
+        updatedAt: _parseDate(j['updated_at']),
+        expiresAt: _parseDate(j['expires_at']),
+      );
+}
+
+/// یک گزینهٔ نظرسنجی (`PollOption`).
+class PollOption {
+  PollOption({required this.text, this.votes = 0, this.voted = false});
+
+  final String text;
+  final int votes;
+  final bool voted;
+
+  factory PollOption.fromJson(Map<String, dynamic> j) => PollOption(
+        text: (j['text'] ?? '') as String,
+        votes: (j['votes'] ?? 0) as int,
+        voted: (j['voted'] ?? false) as bool,
+      );
+}
+
+/// نظرسنجیِ داخلِ چت (`PollInfo`).
+class PollInfo {
+  PollInfo({
+    required this.id,
+    required this.question,
+    required this.options,
+    this.multiple = false,
+    this.totalVotes = 0,
+  });
+
+  final String id;
+  final String question;
+  final List<PollOption> options;
+  final bool multiple;
+  final int totalVotes;
+
+  factory PollInfo.fromJson(Map<String, dynamic> j) => PollInfo(
+        id: (j['id'] ?? '') as String,
+        question: (j['question'] ?? '') as String,
+        multiple: (j['multiple'] ?? false) as bool,
+        totalVotes: (j['total_votes'] ?? 0) as int,
+        options: ((j['options'] ?? const []) as List)
+            .map((e) => PollOption.fromJson((e as Map).cast<String, dynamic>()))
+            .toList(),
+      );
+}
+
+/// مخاطبِ به‌اشتراک‌گذاشته‌شده (`ContactInfo`).
+class ContactInfo {
+  ContactInfo({required this.earthId, required this.name, this.avatarUrl});
+
+  final String earthId;
+  final String name;
+  final String? avatarUrl;
+
+  factory ContactInfo.fromJson(Map<String, dynamic> j) => ContactInfo(
+        earthId: (j['earth_id'] ?? '') as String,
+        name: (j['name'] ?? '') as String,
+        avatarUrl: j['avatar_url'] as String?,
+      );
+}
+
+/// رویدادِ به‌اشتراک‌گذاشته‌شده در چت (`EventInfo`).
+class EventInfo {
+  EventInfo({
+    required this.id,
+    required this.title,
+    required this.startsAt,
+    this.location,
+    this.description,
+  });
+
+  final String id;
+  final String title;
+  final DateTime startsAt;
+  final String? location;
+  final String? description;
+
+  factory EventInfo.fromJson(Map<String, dynamic> j) => EventInfo(
+        id: (j['id'] ?? '') as String,
+        title: (j['title'] ?? '') as String,
+        startsAt: _parseDate(j['starts_at']) ??
+            DateTime.fromMillisecondsSinceEpoch(0),
+        location: j['location'] as String?,
+        description: j['description'] as String?,
+      );
+}
+
+/// سهمِ برداشته‌شده از هدیهٔ نقدی (`RedPacketClaimOut`).
+class RedPacketClaim {
+  RedPacketClaim({
+    required this.earthId,
+    required this.name,
+    required this.amount,
+    this.avatarUrl,
+    this.createdAt,
+  });
+
+  final String earthId;
+  final String name;
+  final int amount;
+  final String? avatarUrl;
+  final DateTime? createdAt;
+
+  factory RedPacketClaim.fromJson(Map<String, dynamic> j) => RedPacketClaim(
+        earthId: (j['earth_id'] ?? '') as String,
+        name: (j['name'] ?? '') as String,
+        amount: (j['amount'] ?? 0) as int,
+        avatarUrl: j['avatar_url'] as String?,
+        createdAt: _parseDate(j['created_at']),
+      );
+}
+
+/// هدیهٔ نقدیِ داخلِ چت (`RedPacketInfo`).
+class RedPacketInfo {
+  RedPacketInfo({
+    required this.id,
+    required this.senderEarthId,
+    required this.senderName,
+    required this.totalAmount,
+    required this.count,
+    required this.claimedCount,
+    required this.claimedAmount,
+    required this.mode,
+    required this.status,
+    this.greeting,
+    this.expiresAt,
+    this.isMine = false,
+    this.myAmount,
+    this.claimed = false,
+    this.isExhausted = false,
+    this.claims,
+  });
+
+  final String id;
+  final String senderEarthId;
+  final String senderName;
+  final int totalAmount;
+  final int count;
+  final int claimedCount;
+  final int claimedAmount;
+
+  /// `equal` یا `random`.
+  final String mode;
+
+  /// `active` | `finished` | `refunded`.
+  final String status;
+  final String? greeting;
+  final DateTime? expiresAt;
+  final bool isMine;
+  final int? myAmount;
+  final bool claimed;
+  final bool isExhausted;
+  final List<RedPacketClaim>? claims;
+
+  bool get isOpenable =>
+      status == 'active' && !claimed && !isExhausted && !isMine;
+
+  factory RedPacketInfo.fromJson(Map<String, dynamic> j) => RedPacketInfo(
+        id: (j['id'] ?? '') as String,
+        senderEarthId: (j['sender_earth_id'] ?? '') as String,
+        senderName: (j['sender_name'] ?? '') as String,
+        totalAmount: (j['total_amount'] ?? 0) as int,
+        count: (j['count'] ?? 0) as int,
+        claimedCount: (j['claimed_count'] ?? 0) as int,
+        claimedAmount: (j['claimed_amount'] ?? 0) as int,
+        mode: (j['mode'] ?? 'equal') as String,
+        status: (j['status'] ?? 'active') as String,
+        greeting: j['greeting'] as String?,
+        expiresAt: _parseDate(j['expires_at']),
+        isMine: (j['is_mine'] ?? false) as bool,
+        myAmount: j['my_amount'] as int?,
+        claimed: (j['claimed'] ?? false) as bool,
+        isExhausted: (j['is_exhausted'] ?? false) as bool,
+        claims: j['claims'] == null
+            ? null
+            : ((j['claims'] as List)
+                .map((e) =>
+                    RedPacketClaim.fromJson((e as Map).cast<String, dynamic>()))
+                .toList()),
+      );
+}
+
+/// عضوِ یک اتاق/گروه (`MemberOut`).
+class RoomMember {
+  RoomMember({
+    required this.earthId,
+    this.name,
+    this.role,
+    this.avatarUrl,
+    this.isMe = false,
+    this.isAdmin = false,
+  });
+
+  final String earthId;
+  final String? name;
+  final String? role;
+  final String? avatarUrl;
+  final bool isMe;
+  final bool isAdmin;
+
+  String get displayName => name ?? earthId;
+
+  factory RoomMember.fromJson(Map<String, dynamic> j) => RoomMember(
+        earthId: (j['earth_id'] ?? '') as String,
+        name: j['name'] as String?,
+        role: j['role'] as String?,
+        avatarUrl: j['avatar_url'] as String?,
+        isMe: (j['is_me'] ?? false) as bool,
+        isAdmin: (j['is_admin'] ?? false) as bool,
+      );
+}
+
+/// وضعیتِ لحظه‌ایِ اتاق: حضور، تایپینگ و TTLِ پیامِ ناپدیدشونده (`RoomStatusOut`).
+class RoomStatus {
+  RoomStatus({
+    this.partnerOnline = false,
+    this.partnerLastSeen,
+    this.typing = const [],
+    this.disappearSeconds = 0,
+  });
+
+  final bool partnerOnline;
+  final DateTime? partnerLastSeen;
+  final List<String> typing;
+  final int disappearSeconds;
+
+  factory RoomStatus.fromJson(Map<String, dynamic> j) => RoomStatus(
+        partnerOnline: (j['partner_online'] ?? false) as bool,
+        partnerLastSeen: _parseDate(j['partner_last_seen']),
+        typing: ((j['typing'] ?? const []) as List)
+            .map((e) => e.toString())
+            .toList(),
+        disappearSeconds: (j['disappear_seconds'] ?? 0) as int,
+      );
+}
+
+/// نتیجهٔ ترجمه (`TranslationOut`).
+class TranslationResult {
+  TranslationResult({
+    required this.targetLang,
+    required this.original,
+    required this.translatedText,
+    this.messageId,
+    this.detectedLang,
+    this.cached = false,
+  });
+
+  final String targetLang;
+  final String original;
+  final String translatedText;
+  final String? messageId;
+  final String? detectedLang;
+  final bool cached;
+
+  factory TranslationResult.fromJson(Map<String, dynamic> j) =>
+      TranslationResult(
+        targetLang: (j['target_lang'] ?? '') as String,
+        original: (j['original'] ?? '') as String,
+        translatedText: (j['translated_text'] ?? '') as String,
+        messageId: j['message_id'] as String?,
+        detectedLang: j['detected_lang'] as String?,
+        cached: (j['cached'] ?? false) as bool,
+      );
+}
+
+/// تاریخِ ISO را با تحملِ `null` و مقدارِ نامعتبر پارس می‌کند.
+DateTime? _parseDate(Object? v) =>
+    v is String && v.isNotEmpty ? DateTime.tryParse(v) : null;
+
 class ChatRoom {
   ChatRoom({
     required this.id,
@@ -461,6 +779,11 @@ class ChatRoom {
     this.unreadCount = 0,
     this.partnerOnline = false,
     this.memberCount = 0,
+    this.isAdmin = false,
+    this.partnerLastSeen,
+    this.isMuted = false,
+    this.isBlocked = false,
+    this.disappearSeconds = 0,
   });
 
   final String id;
@@ -478,6 +801,16 @@ class ChatRoom {
   final int unreadCount;
   final bool partnerOnline;
   final int memberCount;
+  final bool isAdmin;
+  final DateTime? partnerLastSeen;
+  final bool isMuted;
+  final bool isBlocked;
+
+  /// TTLِ پیامِ ناپدیدشونده به ثانیه (۰ = خاموش).
+  final int disappearSeconds;
+
+  /// آیا این اتاق گروهی است؟
+  bool get isGroup => roomType == 'group';
 
   /// عنوانِ نمایشیِ گفتگو: نامِ گروه یا نامِ طرفِ مقابل.
   String get displayTitle =>
@@ -502,6 +835,11 @@ class ChatRoom {
         unreadCount: (j['unread_count'] ?? 0) as int,
         partnerOnline: (j['partner_online'] ?? false) as bool,
         memberCount: (j['member_count'] ?? 0) as int,
+        isAdmin: (j['is_admin'] ?? false) as bool,
+        partnerLastSeen: _parseDate(j['partner_last_seen']),
+        isMuted: (j['is_muted'] ?? false) as bool,
+        isBlocked: (j['is_blocked'] ?? false) as bool,
+        disappearSeconds: (j['disappear_seconds'] ?? 0) as int,
       );
 }
 
@@ -520,6 +858,20 @@ class ChatMessage {
     this.mediaType,
     this.edited = false,
     this.isRead = false,
+    this.replyTo,
+    this.reactions = const {},
+    this.myReaction,
+    this.mediaName,
+    this.mediaMeta,
+    this.stickerId,
+    this.location,
+    this.poll,
+    this.contact,
+    this.event,
+    this.redPacket,
+    this.isForwarded = false,
+    this.forwardedFrom,
+    this.isPinned = false,
   });
 
   final String id;
@@ -536,6 +888,27 @@ class ChatMessage {
   final String? mediaType;
   final bool edited;
   final bool isRead;
+  final ReplyPreview? replyTo;
+
+  /// شمارشِ واکنش‌ها: ایموجی → تعداد.
+  final Map<String, int> reactions;
+
+  /// ایموجیِ واکنشِ خودم روی این پیام (اگر باشد).
+  final String? myReaction;
+  final String? mediaName;
+  final String? mediaMeta;
+  final String? stickerId;
+  final LocationInfo? location;
+  final PollInfo? poll;
+  final ContactInfo? contact;
+  final EventInfo? event;
+  final RedPacketInfo? redPacket;
+  final bool isForwarded;
+  final String? forwardedFrom;
+  final bool isPinned;
+
+  /// پیامِ صرفاً متنی است (بدونِ رسانه و بدونِ محتوایِ ساختاری).
+  bool get isPlainText => mediaType == null && stickerId == null;
 
   factory ChatMessage.fromJson(Map<String, dynamic> j) => ChatMessage(
         id: j['id'] as String,
@@ -554,6 +927,37 @@ class ChatMessage {
         mediaType: j['media_type'] as String?,
         edited: (j['edited'] ?? false) as bool,
         isRead: (j['is_read'] ?? false) as bool,
+        replyTo: j['reply_to'] == null
+            ? null
+            : ReplyPreview.fromJson(
+                (j['reply_to'] as Map).cast<String, dynamic>()),
+        reactions: ((j['reactions'] ?? const {}) as Map)
+            .map((k, v) => MapEntry(k.toString(), (v ?? 0) as int)),
+        myReaction: j['my_reaction'] as String?,
+        mediaName: j['media_name'] as String?,
+        mediaMeta: j['media_meta'] as String?,
+        stickerId: j['sticker_id'] as String?,
+        location: j['location'] == null
+            ? null
+            : LocationInfo.fromJson(
+                (j['location'] as Map).cast<String, dynamic>()),
+        poll: j['poll'] == null
+            ? null
+            : PollInfo.fromJson((j['poll'] as Map).cast<String, dynamic>()),
+        contact: j['contact'] == null
+            ? null
+            : ContactInfo.fromJson(
+                (j['contact'] as Map).cast<String, dynamic>()),
+        event: j['event'] == null
+            ? null
+            : EventInfo.fromJson((j['event'] as Map).cast<String, dynamic>()),
+        redPacket: j['red_packet'] == null
+            ? null
+            : RedPacketInfo.fromJson(
+                (j['red_packet'] as Map).cast<String, dynamic>()),
+        isForwarded: (j['is_forwarded'] ?? false) as bool,
+        forwardedFrom: j['forwarded_from'] as String?,
+        isPinned: (j['is_pinned'] ?? false) as bool,
       );
 }
 

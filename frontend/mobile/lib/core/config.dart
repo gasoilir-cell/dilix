@@ -60,4 +60,12 @@ class AppConfig {
   /// طرحِ بازگشتِ OAuth (باید با AndroidManifest/Info.plist هم‌خوان باشد).
   static const String oauthRedirectScheme =
       String.fromEnvironment('DILIX_OAUTH_REDIRECT_SCHEME', defaultValue: 'app.dilix');
+
+  /// آدرسِ مطلقِ یک رسانه؛ dilix-api مسیرِ نسبی (مثلِ `/uploads/chat/x.jpg`)
+  /// برمی‌گرداند که باید با میزبانِ API کامل شود.
+  static String? absoluteMedia(String? path) {
+    if (path == null || path.isEmpty) return null;
+    if (path.startsWith('http')) return path;
+    return '$apiBaseUrl$path';
+  }
 }

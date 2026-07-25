@@ -17,6 +17,19 @@ class EarthTap {
   final bool? online;
 }
 
+/// دستهٔ کنترلِ کره: به [EarthGlobeView] وصل می‌شود تا صفحه‌های بیرونی بتوانند
+/// دوربینِ کره را روی یک نقطه ببرند (مثلِ نتیجهٔ جستجو).
+class EarthGlobeController {
+  _EarthGlobeViewState? _state;
+
+  bool get isAttached => _state != null;
+
+  /// بردنِ دوربینِ کره روی مختصاتِ داده‌شده.
+  Future<void> focusOn(double lat, double lng, {double altitude = 0.6}) async {
+    await _state?._focusOn(lat, lng, altitude);
+  }
+}
+
 /// کره‌ی سه‌بعدیِ زندهٔ Dilix به‌صورتِ بومی در اپلیکیشن.
 ///
 /// صفحهٔ استاتیکِ خودبسندهٔ `globe-native.html` (همان globe.gl و کاشیِ ماهواره‌ایِ
@@ -31,11 +44,15 @@ class EarthGlobeView extends StatefulWidget {
     required this.api,
     this.onTap,
     this.fallbackBuilder,
+    this.controller,
   });
 
   final ApiClient api;
   final void Function(EarthTap tap)? onTap;
   final Widget Function(BuildContext context)? fallbackBuilder;
+
+  /// دستهٔ کنترلِ اختیاری برای هدایتِ دوربینِ کره از بیرون.
+  final EarthGlobeController? controller;
 
   @override
   State<EarthGlobeView> createState() => _EarthGlobeViewState();
@@ -51,13 +68,35 @@ class _EarthGlobeViewState extends State<EarthGlobeView> {
   @override
   void initState() {
     super.initState();
+    widget.controller?._state = this;
     _init();
   }
 
   @override
+  void didUpdateWidget(EarthGlobeView old) {
+    super.didUpdateWidget(old);
+    if (old.controller != widget.controller) {
+      if (old.controller?._state == this) old.controller!._state = null;
+      widget.controller?._state = this;
+    }
+  }
+
+  @override
   void dispose() {
+    if (widget.controller?._state == this) widget.controller!._state = null;
     _poll?.cancel();
     super.dispose();
+  }
+
+  /// اجرای `window.focusOn` در صفحهٔ کره.
+  Future<void> _focusOn(double lat, double lng, double altitude) async {
+    final c = _controller;
+    if (c == null || !_ready) return;
+    try {
+      await c.runJavaScript('window.focusOn($lat, $lng, $altitude);');
+    } catch (_) {
+      // صفحه هنوز آماده نیست؛ نادیده گرفته می‌شود.
+    }
   }
 
   void _init() {
