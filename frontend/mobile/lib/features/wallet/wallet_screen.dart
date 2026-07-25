@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../app.dart';
 import '../../models/models.dart';
+import 'holdings_screen.dart';
+import 'topup_screen.dart';
 
 /// کیفِ پول: کیفِ پاداش + پرداختِ امانی (escrow) + سهم از درآمد و لینکِ دعوت.
-/// معادلِ صفحهٔ وبِ `app/wallet/page.tsx`. شارژ/برداشتِ مستقیم در Core فعلی
-/// فعال نیست و به‌صورتِ کاشیِ غیرفعالِ توضیح‌دار نمایش داده می‌شود.
+/// معادلِ صفحهٔ وبِ `app/wallet/page.tsx`. شارژ از درگاهِ پرداخت و جیب‌های ارزی
+/// در صفحه‌های جداگانه (`TopupScreen` / `HoldingsScreen`) باز می‌شوند.
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
 
@@ -214,6 +216,20 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
+  Future<void> _openTopup() async {
+    final done = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const TopupScreen()),
+    );
+    if (done == true && mounted) await _load();
+  }
+
+  Future<void> _openHoldings() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const HoldingsScreen()),
+    );
+    if (mounted) await _load();
+  }
+
   Widget _actionsGrid() {
     return GridView.count(
       crossAxisCount: 2,
@@ -236,10 +252,16 @@ class _WalletScreenState extends State<WalletScreen> {
           onTap: _openTransferSheet,
         ),
         _actionTile(
-          icon: Icons.add,
+          icon: Icons.add_card,
           title: 'شارژِ مستقیم',
-          desc: 'نیازمندِ ماژولِ درگاهِ پرداخت است.',
-          onTap: null,
+          desc: 'افزایشِ موجودی از درگاهِ پرداخت',
+          onTap: _openTopup,
+        ),
+        _actionTile(
+          icon: Icons.account_balance_wallet_outlined,
+          title: 'جیب‌های ارزی',
+          desc: 'تبدیل، دریافت و برداشتِ چندارزی',
+          onTap: _openHoldings,
         ),
         _actionTile(
           icon: Icons.pie_chart_outline,

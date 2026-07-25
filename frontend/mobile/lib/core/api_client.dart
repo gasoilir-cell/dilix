@@ -1518,6 +1518,156 @@ class ApiClient {
     return AiMessage.fromJson(j as Map<String, dynamic>);
   }
 
+  // ─────────────── کیفِ چندارزی (holdings) + FX ───────────────
+  // ⚠ همهٔ مبالغ در واحدِ **خرد** (minor) رد و بدل می‌شوند: IRR بدونِ اعشار،
+  // USD در ۱۰۰، BTC در ۱e۸. هر جیب `scale`ِ خودش را در پاسخ می‌دهد.
+
+  /// نمایِ کاملِ جیب‌ها + ارزشِ کل به ارزِ پایه و دلار.
+  Future<HoldingsSnapshot> holdings() async => HoldingsSnapshot.fromJson(
+      await _get('/api/v1/holdings') as Map<String, dynamic>);
+
+  /// تبدیلِ ارز بینِ دو جیبِ خودم. پاسخ شاملِ نمایِ تازهٔ جیب‌هاست.
+  Future<HoldingsSnapshot> exchangeHolding({
+    required String from,
+    required String to,
+    required int amount,
+  }) async {
+    final j = await _post('/api/v1/holdings/exchange', {
+      'from_currency': from,
+      'to_currency': to,
+      'amount': amount,
+    }) as Map<String, dynamic>;
+    return HoldingsSnapshot.fromJson(j);
+  }
+
+  Future<List<HoldingTx>> holdingTransactions({
+    String? currency,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    final q = StringBuffer('?page=$page&limit=$limit');
+    if (currency != null && currency.isNotEmpty) q.write('&currency=$currency');
+    final list = await _get('/api/v1/holdings/transactions$q') as List;
+    return list
+        .map((e) => HoldingTx.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  /// آدرسِ واریزِ کریپتو + Earth ID برای دریافتِ درون‌شبکه‌ای.
+  Future<ReceiveInfo> receiveInfo(String currency) async => ReceiveInfo.fromJson(
+      await _get('/api/v1/holdings/$currency/receive') as Map<String, dynamic>);
+
+  /// انتقالِ درون‌شبکه‌ایِ یک ارز به کاربرِ دیگر با Earth ID.
+  Future<void> transferHolding({
+    required String toEarthId,
+    required String currency,
+    required int amount,
+    String? description,
+  }) =>
+      _post('/api/v1/holdings/transfer', {
+        'to_earth_id': toEarthId,
+        'currency': currency,
+        'amount': amount,
+        if (description != null && description.isNotEmpty)
+          'description': description,
+      });
+
+  /// برداشتِ کریپتو به آدرسِ بیرونی (فقط ارزِ دیجیتال؛ در صفِ تسویه `pending`).
+  Future<HoldingTx> withdrawHolding({
+    required String currency,
+    required int amount,
+    required String address,
+    String? description,
+  }) async {
+    final j = await _post('/api/v1/holdings/withdraw', {
+      'currency': currency,
+      'amount': amount,
+      'address': address,
+      if (description != null && description.isNotEmpty)
+        'description': description,
+    }) as Map<String, dynamic>;
+    return HoldingTx.fromJson((j['transaction'] as Map).cast<String, dynamic>());
+  }
+
+  /// نرخِ ارزها بر پایهٔ USD. خروجی: `(rates, updatedAt)`.
+  Future<(Map<String, double>, DateTime?)> fxRates() async {
+    final j = await _get('/api/v1/fx/rates') as Map<String, dynamic>;
+    final rates = <String, double>{};
+    ((j['rates'] as Map?) ?? {}).forEach((k, v) {
+      rates[k.toString().toUpperCase()] = (v as num).toDouble();
+    });
+    return (rates, DateTime.tryParse((j['updated_at'] ?? '') as String));
+  }
+
+  /// پیش‌فاکتورِ تبدیل، بدونِ اجرا (برای نمایشِ «چقدر می‌گیرم»).
+  Future<FxQuote> fxQuote({
+    required String from,
+    required String to,
+    required int amount,
+  }) async {
+    final j = await _post('/api/v1/fx/quote', {
+      'from_currency': from,
+      'to_currency': to,
+      'amount': amount,
+    }) as Map<String, dynamic>;
+    return FxQuote.fromJson(j);
+  }
+
+  // ─────────────── درگاهِ پرداخت (شارژِ کیف‌پول) ───────────────
+
+  /// درگاه‌های فعال؛ با [currency]/[country] فیلتر می‌شوند.
+  Future<List<PayGateway>> paymentGateways({
+    String? currency,
+    String? country,
+  }) async {
+    final q = <String>[];
+    if (currency != null && currency.isNotEmpty) q.add('currency=$currency');
+    if (country != null && country.isNotEmpty) q.add('country=$country');
+    final path = '/api/v1/paygate/gateways${q.isEmpty ? '' : '?${q.join('&')}'}';
+    final list = await _get(path) as List;
+    return list
+        .map((e) => PayGateway.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  /// آغازِ شارژ. [creditTo] ارزِ مقصدِ واریز است (اگر با ارزِ پرداخت فرق دارد).
+  Future<TopupIntent> topupInitiate({
+    required String gatewayCode,
+    required int amount,
+    String? currency,
+    String? creditTo,
+    String? description,
+  }) async {
+    final j = await _post('/api/v1/paygate/topup/initiate', {
+      'gateway_code': gatewayCode,
+      'amount': amount,
+      if (currency != null) 'currency': currency,
+      if (creditTo != null) 'credit_to': creditTo,
+      if (description != null) 'description': description,
+    }) as Map<String, dynamic>;
+    return TopupIntent.fromJson(j);
+  }
+
+  /// تأییدِ پرداخت پس از بازگشت از درگاه. idempotent است (تکرار دوباره واریز
+  /// نمی‌کند و همان نتیجه را می‌دهد). خروجی: `(status, creditedAmount)`.
+  Future<(String, int)> topupVerify({
+    required String intentId,
+    String? authority,
+  }) async {
+    final j = await _post('/api/v1/paygate/topup/verify', {
+      'intent_id': intentId,
+      if (authority != null && authority.isNotEmpty) 'authority': authority,
+    }) as Map<String, dynamic>;
+    return (
+      (j['status'] ?? '') as String,
+      (j['credited_amount'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  /// وضعیتِ یک قصدِ پرداخت (برای بازیابی پس از بسته‌شدنِ ناگهانیِ درگاه).
+  Future<Map<String, dynamic>> topupIntent(String intentId) async =>
+      await _get('/api/v1/paygate/intents/$intentId') as Map<String, dynamic>;
+
   // ─────────────── Calls (سیگنالینگِ WebRTC روی HTTP) ───────────────
   // ⚠ سیگنالینگ **WebSocket نیست**؛ سرور صفِ Redis دارد و کلاینت با
   // `GET /calls/poll` هم سیگنال می‌گیرد و هم حضورش را تازه می‌کند

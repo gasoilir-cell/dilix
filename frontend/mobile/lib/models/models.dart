@@ -1943,3 +1943,249 @@ class Credential {
         status: (j['status'] ?? '') as String,
       );
 }
+
+// ─────────────── کیفِ چندارزی (holdings) و درگاهِ پرداخت ───────────────
+
+/// یک «جیب» ارزی در کیفِ چندارزی. مبالغ همیشه در واحدِ **خرد** (minor) هستند و
+/// [scale] تعدادِ واحدِ خرد در یک واحدِ اصلی است (IRR=1، USD=100، BTC=1e8).
+class Pocket {
+  Pocket({
+    required this.currency,
+    required this.balance,
+    required this.scale,
+    required this.isPrimary,
+    this.usdValue,
+    this.baseValue,
+  });
+
+  final String currency;
+  final int balance;
+  final int scale;
+  final bool isPrimary;
+  final double? usdValue;
+  final int? baseValue;
+
+  /// مبلغ در واحدِ اصلی (برای نمایش).
+  double get major => scale <= 0 ? balance.toDouble() : balance / scale;
+
+  factory Pocket.fromJson(Map<String, dynamic> j) => Pocket(
+        currency: ((j['currency'] ?? '') as String).toUpperCase(),
+        balance: (j['balance'] as num?)?.toInt() ?? 0,
+        scale: (j['scale'] as num?)?.toInt() ?? 1,
+        isPrimary: (j['is_primary'] ?? false) as bool,
+        usdValue: (j['usd_value'] as num?)?.toDouble(),
+        baseValue: (j['base_value'] as num?)?.toInt(),
+      );
+}
+
+/// نمایِ کاملِ کیفِ چندارزی (`GET /api/v1/holdings`).
+class HoldingsSnapshot {
+  HoldingsSnapshot({
+    required this.baseCurrency,
+    required this.pockets,
+    required this.totalBase,
+    required this.totalUsd,
+  });
+
+  final String baseCurrency;
+  final List<Pocket> pockets;
+  final int totalBase;
+  final double totalUsd;
+
+  factory HoldingsSnapshot.fromJson(Map<String, dynamic> j) => HoldingsSnapshot(
+        baseCurrency: ((j['base_currency'] ?? 'IRR') as String).toUpperCase(),
+        pockets: ((j['pockets'] as List?) ?? const [])
+            .map((e) => Pocket.fromJson((e as Map).cast<String, dynamic>()))
+            .toList(),
+        totalBase: (j['total_base'] as num?)?.toInt() ?? 0,
+        totalUsd: (j['total_usd'] as num?)?.toDouble() ?? 0,
+      );
+}
+
+/// تراکنشِ یک جیبِ ارزی (`GET /api/v1/holdings/transactions`).
+class HoldingTx {
+  HoldingTx({
+    required this.id,
+    required this.currency,
+    required this.type,
+    required this.status,
+    required this.amount,
+    required this.balanceAfter,
+    this.counterparty,
+    this.description,
+    this.createdAt,
+  });
+
+  final String id;
+  final String currency;
+
+  /// `deposit` | `withdrawal` | `transfer_in` | `transfer_out` | `exchange_in` | `exchange_out`
+  final String type;
+  final String status;
+  final int amount;
+  final int balanceAfter;
+  final String? counterparty;
+  final String? description;
+  final DateTime? createdAt;
+
+  /// آیا این تراکنش موجودی را زیاد می‌کند؟ (برای علامتِ +/− و رنگ)
+  bool get isCredit =>
+      type == 'deposit' || type == 'transfer_in' || type == 'exchange_in';
+
+  factory HoldingTx.fromJson(Map<String, dynamic> j) => HoldingTx(
+        id: (j['id'] ?? '') as String,
+        currency: ((j['currency'] ?? '') as String).toUpperCase(),
+        type: (j['type'] ?? '') as String,
+        status: (j['status'] ?? '') as String,
+        amount: (j['amount'] as num?)?.toInt() ?? 0,
+        balanceAfter: (j['balance_after'] as num?)?.toInt() ?? 0,
+        counterparty: j['counterparty'] as String?,
+        description: j['description'] as String?,
+        createdAt: DateTime.tryParse((j['created_at'] ?? '') as String),
+      );
+}
+
+/// اطلاعاتِ دریافت (`GET /api/v1/holdings/{currency}/receive`).
+/// برای ارزِ غیرکریپتو فقط [earthId] پر است و [address] خالی می‌ماند.
+class ReceiveInfo {
+  ReceiveInfo({
+    required this.currency,
+    required this.earthId,
+    required this.isCrypto,
+    this.address,
+    this.network,
+    this.note,
+  });
+
+  final String currency;
+  final String earthId;
+  final bool isCrypto;
+  final String? address;
+  final String? network;
+  final String? note;
+
+  factory ReceiveInfo.fromJson(Map<String, dynamic> j) => ReceiveInfo(
+        currency: ((j['currency'] ?? '') as String).toUpperCase(),
+        earthId: (j['earth_id'] ?? '') as String,
+        isCrypto: (j['is_crypto'] ?? false) as bool,
+        address: j['address'] as String?,
+        network: j['network'] as String?,
+        note: j['note'] as String?,
+      );
+}
+
+/// پیش‌فاکتورِ تبدیلِ ارز (`POST /api/v1/fx/quote`).
+class FxQuote {
+  FxQuote({
+    required this.fromCurrency,
+    required this.toCurrency,
+    required this.amount,
+    required this.converted,
+    required this.rate,
+    required this.fromScale,
+    required this.toScale,
+  });
+
+  final String fromCurrency;
+  final String toCurrency;
+  final int amount;
+  final int converted;
+  final double rate;
+  final int fromScale;
+  final int toScale;
+
+  factory FxQuote.fromJson(Map<String, dynamic> j) => FxQuote(
+        fromCurrency: ((j['from_currency'] ?? '') as String).toUpperCase(),
+        toCurrency: ((j['to_currency'] ?? '') as String).toUpperCase(),
+        amount: (j['amount'] as num?)?.toInt() ?? 0,
+        converted: (j['converted'] as num?)?.toInt() ?? 0,
+        rate: (j['rate'] as num?)?.toDouble() ?? 0,
+        fromScale: (j['from_scale'] as num?)?.toInt() ?? 1,
+        toScale: (j['to_scale'] as num?)?.toInt() ?? 1,
+      );
+}
+
+/// درگاهِ پرداختِ فعال (`GET /api/v1/paygate/gateways`).
+class PayGateway {
+  PayGateway({
+    required this.code,
+    required this.name,
+    required this.supportedCurrencies,
+    required this.countries,
+    required this.isSandbox,
+    this.logoUrl,
+  });
+
+  final String code;
+  final String name;
+  final List<String> supportedCurrencies;
+  final List<String> countries;
+  final bool isSandbox;
+  final String? logoUrl;
+
+  factory PayGateway.fromJson(Map<String, dynamic> j) => PayGateway(
+        code: (j['code'] ?? '') as String,
+        name: (j['name'] ?? '') as String,
+        supportedCurrencies: ((j['supported_currencies'] as List?) ?? const [])
+            .map((e) => e.toString().toUpperCase())
+            .toList(),
+        countries: ((j['countries'] as List?) ?? const [])
+            .map((e) => e.toString().toUpperCase())
+            .toList(),
+        isSandbox: (j['is_sandbox'] ?? false) as bool,
+        logoUrl: j['logo_url'] as String?,
+      );
+}
+
+/// قصدِ شارژِ کیف‌پول (`POST /api/v1/paygate/topup/initiate`).
+///
+/// دو حالتِ کاملاً متفاوت دارد: درگاهِ معمولی [paymentUrl] می‌دهد که باید باز
+/// شود، ولی درگاهِ کریپتو ([crypto]=true) هیچ ریدایرکتی ندارد و به‌جای آن
+/// [address]/[network] را نشان می‌دهیم تا کاربر واریز کند.
+class TopupIntent {
+  TopupIntent({
+    required this.intentId,
+    required this.gateway,
+    required this.amount,
+    required this.currency,
+    required this.creditAmount,
+    required this.creditCurrency,
+    required this.sandbox,
+    required this.crypto,
+    this.paymentUrl,
+    this.authority,
+    this.fxRate,
+    this.address,
+    this.network,
+  });
+
+  final String intentId;
+  final String gateway;
+  final int amount;
+  final String currency;
+  final int creditAmount;
+  final String creditCurrency;
+  final bool sandbox;
+  final bool crypto;
+  final String? paymentUrl;
+  final String? authority;
+  final double? fxRate;
+  final String? address;
+  final String? network;
+
+  factory TopupIntent.fromJson(Map<String, dynamic> j) => TopupIntent(
+        intentId: (j['intent_id'] ?? '') as String,
+        gateway: (j['gateway'] ?? '') as String,
+        amount: (j['amount'] as num?)?.toInt() ?? 0,
+        currency: ((j['currency'] ?? '') as String).toUpperCase(),
+        creditAmount: (j['credit_amount'] as num?)?.toInt() ?? 0,
+        creditCurrency: ((j['credit_currency'] ?? '') as String).toUpperCase(),
+        sandbox: (j['sandbox'] ?? false) as bool,
+        crypto: (j['crypto'] ?? false) as bool,
+        paymentUrl: j['payment_url'] as String?,
+        authority: j['authority'] as String?,
+        fxRate: (j['fx_rate'] as num?)?.toDouble(),
+        address: j['address'] as String?,
+        network: j['network'] as String?,
+      );
+}
