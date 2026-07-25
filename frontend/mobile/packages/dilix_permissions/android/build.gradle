@@ -1,0 +1,19 @@
+group = "ir.dilix.permissions"
+version = "0.1.0"
+
+// ماژولِ کتابخانهٔ اندروید بدونِ هیچ کدِ منبعی: تنها کارش این است که
+// `src/main/AndroidManifest.xml` در مانیفستِ نهاییِ اپ merge شود.
+// نسخهٔ AGP/Kotlin از settings.gradle.ktsِ خودِ اپ می‌آید (buildscript محلی
+// اعلام نمی‌کنیم تا AGP دو بار روی classpath نیفتد).
+apply plugin: "com.android.library"
+
+android {
+    namespace = "ir.dilix.permissions"
+    // هم‌راستا با compileSdkِ اپ (patchِ ریشه هم برای همهٔ ماژول‌های library
+    // مقدارِ ۳۶ را force می‌کند).
+    compileSdk = 36
+
+    defaultConfig {
+        minSdk = 21
+    }
+}

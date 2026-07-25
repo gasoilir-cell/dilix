@@ -1,0 +1,9 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- geolocator_android مجوزِ موقعیت را در مانیفستِ خودش اعلام نمی‌کند (مستندش
+         می‌گوید اپ باید اضافه کند). چون CI پوشهٔ `android/` اپ را با
+         `rm -rf android && flutter create` از صفر می‌سازد، مانیفستِ اپ منبعِ
+         مطمئنی نیست؛ ولی مانیفستِ ماژول‌های پلاگین همیشه merge می‌شود (مثلِ
+         RECORD_AUDIO که از پلاگینِ record می‌آید). پس مجوزها اینجا اعلام می‌شوند. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+</manifest>

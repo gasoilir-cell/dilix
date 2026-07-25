@@ -1,0 +1,22 @@
+name: dilix_permissions
+description: >
+  مجوزهای اندرویدِ Dilix که هیچ پلاگینی اعلام نمی‌کند. فقط یک مانیفستِ اندروید
+  است؛ نه کدِ Dart دارد و نه کدِ بومی.
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        # `ffiPlugin` تا فلاتر کلاسِ ثبتِ بومی (pluginClass) نخواهد؛ این بسته کدِ
+        # اجرایی ندارد و تنها هدفش merge شدنِ AndroidManifest.xmlِ آن است.
+        ffiPlugin: true
