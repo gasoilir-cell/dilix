@@ -16,6 +16,7 @@ import '../support/support_screen.dart';
 import '../wallet/wallet_screen.dart';
 import 'kyc_screen.dart';
 import 'marketing_network_screen.dart';
+import 'region_screen.dart';
 import 'security_screen.dart';
 
 /// برچسبِ فارسیِ نقش‌های خودسرویسِ dilix-api (`SELF_SERVICE_ROLES`).
@@ -1046,6 +1047,16 @@ class _MeScreenState extends State<MeScreen> {
             subtitle: Text('${lang.flag} ${lang.native}'),
             trailing: const Icon(Icons.chevron_left),
             onTap: _pickLanguage,
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.travel_explore_outlined),
+            title: const Text('زبان و ارزِ حساب'),
+            subtitle: const Text('ذخیره روی سرور؛ مبنای ارزِ صورت‌حساب'),
+            trailing: const Icon(Icons.chevron_left),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const RegionScreen()),
+            ),
           ),
           const Divider(height: 1),
           SwitchListTile(

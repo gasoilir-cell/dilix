@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/api_client.dart';
 import '../../core/config.dart';
 import '../../models/models.dart';
+import 'my_sticker_packs_screen.dart';
 
 /// انتخابگرِ استیکر. شناسهٔ استیکرِ انتخاب‌شده را برمی‌گرداند تا `ChatScreen`
 /// خودش `sendSticker` را صدا بزند (منطقِ ارسال یک‌جا می‌ماند).
@@ -101,6 +102,18 @@ class _StickerPickerState extends State<_StickerPicker> {
     }
   }
 
+  /// استودیوی بسته‌های خودم. پس از بازگشت فهرستِ نصب‌شده‌ها را تازه می‌کنیم
+  /// چون ممکن است بستهٔ تازه‌ای ساخته و پر شده باشد.
+  Future<void> _openMyPacks() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MyStickerPacksScreen(api: widget.api),
+      ),
+    );
+    if (!mounted) return;
+    await _load();
+  }
+
   Future<void> _install(StickerPack pack) async {
     setState(() => _busy = true);
     try {
@@ -162,13 +175,24 @@ class _StickerPickerState extends State<_StickerPicker> {
             ListTile(
               leading: const Icon(Icons.emoji_emotions_outlined),
               title: Text(_discover ? 'بسته‌های عمومی' : 'استیکرها'),
-              trailing: IconButton(
-                tooltip: _discover ? 'استیکرهای من' : 'کشفِ بسته‌ها',
-                icon: Icon(_discover ? Icons.close : Icons.add_circle_outline),
-                onPressed: () {
-                  setState(() => _discover = !_discover);
-                  if (_discover && _public == null) _searchPublic();
-                },
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: 'بسته‌های من',
+                    icon: const Icon(Icons.brush_outlined),
+                    onPressed: _openMyPacks,
+                  ),
+                  IconButton(
+                    tooltip: _discover ? 'استیکرهای من' : 'کشفِ بسته‌ها',
+                    icon:
+                        Icon(_discover ? Icons.close : Icons.add_circle_outline),
+                    onPressed: () {
+                      setState(() => _discover = !_discover);
+                      if (_discover && _public == null) _searchPublic();
+                    },
+                  ),
+                ],
               ),
             ),
             if (_error != null)

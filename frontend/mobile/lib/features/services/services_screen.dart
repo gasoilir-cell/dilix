@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app.dart';
 import '../../models/models.dart';
 import '../discovery/discovery_screen.dart';
+import '../freight/cargo_detail_screen.dart';
 import '../gamification/gamification_screen.dart';
 import '../insurance/insurance_screen.dart';
 import '../investment/investment_screen.dart';
@@ -97,26 +98,20 @@ class FreightScreen extends StatefulWidget {
 }
 
 class _FreightScreenState extends State<FreightScreen> {
-  // برچسبِ فارسیِ وضعیت‌ها — منطبق با STATUS_LABEL صفحهٔ وب.
-  static const _statusLabels = <String, String>{
-    'open': 'باز',
-    'matched': 'تطبیق‌یافته',
-    'in_transit': 'در مسیر',
-    'delivered': 'تحویل‌شده',
-    'settled': 'تسویه‌شده',
-    'cancelled': 'لغوشده',
-  };
-
   final List<CargoPost> _cargo = [];
   bool _loading = true;
   bool _showForm = false;
   bool _submitting = false;
   String? _error;
 
+  /// false = بارهای باز (دیدِ راننده)، true = بارهای خودم (دیدِ صاحبِ بار).
+  bool _mine = false;
+
   final _titleCtrl = TextEditingController();
   final _originCtrl = TextEditingController();
   final _destCtrl = TextEditingController();
   final _weightCtrl = TextEditingController();
+  final _priceCtrl = TextEditingController();
 
   @override
   void didChangeDependencies() {
@@ -130,6 +125,7 @@ class _FreightScreenState extends State<FreightScreen> {
     _originCtrl.dispose();
     _destCtrl.dispose();
     _weightCtrl.dispose();
+    _priceCtrl.dispose();
     super.dispose();
   }
 
@@ -139,7 +135,7 @@ class _FreightScreenState extends State<FreightScreen> {
       _error = null;
     });
     try {
-      final cargo = await ApiScope.of(context).listCargo();
+      final cargo = await ApiScope.of(context).listCargo(mine: _mine);
       if (!mounted) return;
       setState(() {
         _cargo
@@ -156,17 +152,31 @@ class _FreightScreenState extends State<FreightScreen> {
     }
   }
 
+  Future<void> _openDetail(CargoPost c) async {
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => CargoDetailScreen(postId: c.id)),
+    );
+    if (changed == true && mounted) await _load();
+  }
+
   Future<void> _submit() async {
     final title = _titleCtrl.text.trim();
     final origin = _originCtrl.text.trim();
     final dest = _destCtrl.text.trim();
     final weightKg = double.tryParse(_weightCtrl.text.trim());
+    final price = int.tryParse(_priceCtrl.text.trim().replaceAll('،', ''));
     if (title.isEmpty || origin.isEmpty || dest.isEmpty) {
       setState(() => _error = 'عنوان، مبدأ و مقصد را وارد کنید.');
       return;
     }
     if (weightKg == null || weightKg <= 0) {
       setState(() => _error = 'وزنِ معتبر (کیلوگرم) وارد کنید.');
+      return;
+    }
+    // سرور `price > 0` را الزامی می‌کند و همین مبلغ هنگامِ پذیرشِ راننده از
+    // کیفِ صاحبِ بار امانی می‌شود.
+    if (price == null || price <= 0) {
+      setState(() => _error = 'کرایهٔ پیشنهادی را وارد کنید.');
       return;
     }
     setState(() {
@@ -179,9 +189,11 @@ class _FreightScreenState extends State<FreightScreen> {
         origin: origin,
         destination: dest,
         weightGrams: (weightKg * 1000).round(),
+        budgetMinor: price,
       );
       if (!mounted) return;
       setState(() {
+        // بارِ تازه `open` است؛ در دیدِ «بارهای من» هم دیده می‌شود.
         _cargo.insert(0, created);
         _showForm = false;
         _submitting = false;
@@ -189,6 +201,7 @@ class _FreightScreenState extends State<FreightScreen> {
         _originCtrl.clear();
         _destCtrl.clear();
         _weightCtrl.clear();
+        _priceCtrl.clear();
       });
     } catch (e) {
       if (!mounted) return;
@@ -233,6 +246,18 @@ class _FreightScreenState extends State<FreightScreen> {
                   Text(
                     'ثبتِ بار، تطبیقِ راننده، بارنامه و ردیابیِ زنده',
                     style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 8),
+                  SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment(value: false, label: Text('بارهای باز')),
+                      ButtonSegment(value: true, label: Text('بارهای من')),
+                    ],
+                    selected: {_mine},
+                    onSelectionChanged: (s) {
+                      setState(() => _mine = s.first);
+                      _load();
+                    },
                   ),
                   const SizedBox(height: 8),
                   if (_showForm) _formCard(),
@@ -284,6 +309,15 @@ class _FreightScreenState extends State<FreightScreen> {
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               decoration: const InputDecoration(labelText: 'وزن (کیلوگرم)'),
             ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _priceCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'کرایهٔ پیشنهادی (تومان)',
+                helperText: 'هنگامِ پذیرشِ راننده از کیفِ شما امانی می‌شود',
+              ),
+            ),
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
@@ -300,29 +334,39 @@ class _FreightScreenState extends State<FreightScreen> {
 
   Widget _cargoCard(CargoPost c) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    c.title,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+      child: InkWell(
+        onTap: () => _openDetail(c),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      c.title,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
+                  Chip(label: Text(cargoStatusLabels[c.status] ?? c.status)),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${c.origin} ← ${c.destination} · ${_formatWeight(c.weightGrams)}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              if (c.offersCount > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text('${c.offersCount} پیشنهادِ در انتظار',
+                      style: Theme.of(context).textTheme.bodySmall),
                 ),
-                Chip(label: Text(_statusLabels[c.status] ?? c.status)),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${c.origin} ← ${c.destination} · ${_formatWeight(c.weightGrams)}',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

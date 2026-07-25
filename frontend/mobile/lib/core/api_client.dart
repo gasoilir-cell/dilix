@@ -352,6 +352,20 @@ class ApiClient {
       ReferralNetwork.fromJson(
           await _get('/api/v1/referral/network') as Map<String, dynamic>);
 
+  /// لِجِرِ کمیسیون‌های من + جمعِ درآمد به تفکیکِ ارز.
+  Future<CommissionLedger> referralCommissions() async =>
+      CommissionLedger.fromJson(
+          await _get('/api/v1/referral/commissions') as Map<String, dynamic>);
+
+  /// ثبتِ معرف با Earth ID. فقط یک‌بار ممکن است؛ اگر قبلاً ثبت شده باشد یا کد
+  /// حلقه بسازد، سرور ۴۰۰ می‌دهد. نامِ معرف برگردانده می‌شود.
+  Future<String> applyReferral(String refCode) async {
+    final j = await _post('/api/v1/referral/apply', {
+      'ref_code': refCode.trim().toUpperCase(),
+    }) as Map<String, dynamic>;
+    return (j['referred_by'] ?? '') as String;
+  }
+
   // ─────────────── Social (دنبال‌کردن و پروفایل) ───────────────
   /// پروفایلِ عمومیِ یک کاربر؛ فیلدهای `is_following`/`is_followed_by`/`is_me`
   /// از دیدِ کاربرِ احرازشده محاسبه می‌شوند.
@@ -562,6 +576,31 @@ class ApiClient {
     return Post.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
 
+  /// «لحظه‌ها» — پست‌های دارای موقعیت برای نمایش روی کره. اگر هر چهار مرزِ
+  /// [minLat]/[maxLat]/[minLng]/[maxLng] داده شود فیلترِ محدوده اعمال می‌شود،
+  /// وگرنه جدیدترین‌های دارای موقعیت برمی‌گردند.
+  Future<List<Post>> moments({
+    double? minLat,
+    double? maxLat,
+    double? minLng,
+    double? maxLng,
+    int limit = 200,
+  }) async {
+    final params = <String, String>{'limit': '$limit'};
+    if (minLat != null && maxLat != null && minLng != null && maxLng != null) {
+      params['min_lat'] = '$minLat';
+      params['max_lat'] = '$maxLat';
+      params['min_lng'] = '$minLng';
+      params['max_lng'] = '$maxLng';
+    }
+    final list =
+        await _get('/api/v1/posts/moments?${Uri(queryParameters: params).query}')
+            as List;
+    return list
+        .map((e) => Post.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
   // ─────────────── Discovery (کره) ───────────────
   /// کاربرانِ روی کره؛ dilix-api پاسخِ `{count, users:[...]}` می‌دهد.
   /// [type] یکی از `driver|person|business`، [country] کدِ ISO-3.
@@ -603,10 +642,15 @@ class ApiClient {
   }
 
   // ─────────────── Freight (اسنپِ بار) ───────────────
-  Future<List<CargoPost>> listCargo() async {
-    final list = await _get('/api/v1/freight/posts') as List;
+  /// [mine] = true فهرستِ بارهای خودم (هر وضعیتی)، وگرنه فقط بارهای `open`
+  /// که برای پذیرشِ راننده در دسترس‌اند.
+  Future<List<CargoPost>> listCargo({bool mine = false}) async {
+    final list = await _get('/api/v1/freight/posts?mine=$mine') as List;
     return list.map((e) => CargoPost.fromJson(e as Map<String, dynamic>)).toList();
   }
+
+  Future<CargoPost> cargoPost(String postId) async => CargoPost.fromJson(
+      await _get('/api/v1/freight/posts/$postId') as Map<String, dynamic>);
 
   /// ثبتِ آگهیِ بارِ جدید. dilix-api `weight_kg` (کیلوگرم) و `price` (تومان) و
   /// `cargo_type` می‌گیرد؛ عنوانِ واردشده به‌عنوانِ نوعِ بار ارسال می‌شود.
@@ -617,6 +661,7 @@ class ApiClient {
     required int weightGrams,
     int? budgetMinor,
     String currency = 'IRR',
+    String? description,
   }) async {
     final j = await _post('/api/v1/freight/posts', {
       'origin': origin,
@@ -624,8 +669,47 @@ class ApiClient {
       'cargo_type': title,
       'weight_kg': weightGrams / 1000.0,
       'price': budgetMinor ?? 0,
+      if (description != null && description.isNotEmpty) 'description': description,
     });
     return CargoPost.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// راننده بار را با قیمتِ فعلی می‌پذیرد. سرور همین‌جا وجهِ صاحبِ بار را
+  /// امانی (escrow) می‌کند، پس اگر موجودیِ او کافی نباشد ۴۰۰ می‌گیریم.
+  Future<CargoPost> takeCargo(String postId) async => CargoPost.fromJson(
+      await _post('/api/v1/freight/posts/$postId/take', null) as Map<String, dynamic>);
+
+  /// تأییدِ تحویل‌گیری در مبدأ با کدِ ۴رقمی که صاحبِ بار در محل می‌دهد.
+  Future<CargoPost> pickupCargo(String postId, String code) async =>
+      CargoPost.fromJson(await _post('/api/v1/freight/posts/$postId/pickup', {
+        'code': code,
+      }) as Map<String, dynamic>);
+
+  /// ثبتِ تحویل در مقصد توسطِ راننده (+ نشانیِ عکسِ اثباتِ تحویل).
+  ///
+  /// ⚠ وبِ فعلی این را با PUT صدا می‌زند که با سرور نمی‌خواند؛ قراردادِ درستِ
+  /// سرور POST است.
+  Future<CargoPost> deliverCargo(String postId, {String? podPhotoUrl}) async =>
+      CargoPost.fromJson(await _post('/api/v1/freight/posts/$postId/deliver', {
+        if (podPhotoUrl != null && podPhotoUrl.isNotEmpty) 'pod_photo_url': podPhotoUrl,
+      }) as Map<String, dynamic>);
+
+  /// تأییدِ دریافتِ نهایی توسطِ صاحبِ بار با کدِ مقصد؛ همین‌جا تسویه انجام می‌شود.
+  Future<CargoPost> receiveCargo(String postId, String code) async =>
+      CargoPost.fromJson(await _post('/api/v1/freight/posts/$postId/receive', {
+        'code': code,
+      }) as Map<String, dynamic>);
+
+  /// لغوِ بار توسطِ صاحبِ آن (فقط `open` یا `in_progress`).
+  Future<void> cancelCargo(String postId) =>
+      _delete('/api/v1/freight/posts/$postId');
+
+  /// خطِ زمانیِ رهگیری — فقط صاحبِ بار و رانندهٔ تخصیص‌یافته دسترسی دارند.
+  Future<List<TrackingEvent>> cargoTracking(String postId) async {
+    final list = await _get('/api/v1/freight/posts/$postId/tracking') as List;
+    return list
+        .map((e) => TrackingEvent.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
   }
 
   // ─────────────── Provider (پورتالِ خودسرویس) ───────────────
@@ -1282,6 +1366,70 @@ class ApiClient {
       await _delete('/api/v1/stickers/$stickerId/star');
     }
   }
+
+  /// بسته‌هایی که خودم ساخته‌ام (نصب‌شده یا نه).
+  Future<List<StickerPack>> myStickerPacks() async {
+    final list = await _get('/api/v1/stickers/packs/mine') as List;
+    return list
+        .map((e) => StickerPack.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// ساختِ بستهٔ استیکرِ خالی؛ استیکرها بعداً با [addSticker] اضافه می‌شوند.
+  Future<StickerPack> createStickerPack({
+    required String title,
+    String? description,
+    bool isPublic = false,
+  }) async =>
+      StickerPack.fromJson(await _post('/api/v1/stickers/packs', {
+        'title': title,
+        if (description != null && description.isNotEmpty) 'description': description,
+        'is_public': isPublic,
+      }) as Map<String, dynamic>);
+
+  /// افزودنِ استیکر به بستهٔ خودم (multipart؛ سقفِ سرور ۱۲ مگابایت).
+  Future<StickerItem> addSticker({
+    required String packId,
+    required String filePath,
+    String? emojiTag,
+    String? title,
+  }) async {
+    final req = http.MultipartRequest(
+        'POST', Uri.parse('$_base/api/v1/stickers/packs/$packId/stickers'));
+    req.headers.addAll(_headers());
+    req.files.add(await http.MultipartFile.fromPath('file', filePath));
+    if (emojiTag != null && emojiTag.isNotEmpty) req.fields['emoji_tag'] = emojiTag;
+    if (title != null && title.isNotEmpty) req.fields['title'] = title;
+    final res = await http.Response.fromStream(await _client.send(req));
+    if (res.statusCode >= 400) _raise(res);
+    return StickerItem.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
+  }
+
+  // ─────────────── جهانی‌سازی (`/api/v1/i18n`) ───────────────
+  /// کاتالوگِ زبان‌ها و ارزها. عمومی است و به توکن نیاز ندارد.
+  Future<I18nCatalog> i18nCatalog() async => I18nCatalog.fromJson(
+      await _get('/api/v1/i18n/catalog') as Map<String, dynamic>);
+
+  /// پیشنهادِ زبان/ارز بر اساسِ IP و هدرهای درخواست — فقط پیشنهاد است.
+  Future<I18nSuggestion> i18nDetect() async => I18nSuggestion.fromJson(
+      await _get('/api/v1/i18n/detect') as Map<String, dynamic>);
+
+  Future<I18nPreferences> i18nPreferences() async => I18nPreferences.fromJson(
+      await _get('/api/v1/i18n/preferences') as Map<String, dynamic>);
+
+  /// ذخیرهٔ ترجیحات؛ هر فیلدی که null باشد دست‌نخورده می‌ماند.
+  Future<I18nPreferences> setI18nPreferences({
+    String? locale,
+    String? currency,
+    String? countryCode,
+    String? timezone,
+  }) async =>
+      I18nPreferences.fromJson(await _put('/api/v1/i18n/preferences', {
+        if (locale != null) 'locale': locale,
+        if (currency != null) 'currency': currency,
+        if (countryCode != null) 'country_code': countryCode,
+        if (timezone != null) 'timezone': timezone,
+      }) as Map<String, dynamic>);
 
   // ── ویرایش، حذف، واکنش، بازارسال، سنجاق ──
   /// ویرایشِ متنِ پیامِ خودم.

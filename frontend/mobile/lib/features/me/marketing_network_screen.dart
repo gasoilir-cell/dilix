@@ -16,6 +16,7 @@ class MarketingNetworkScreen extends StatefulWidget {
 class _MarketingNetworkScreenState extends State<MarketingNetworkScreen> {
   ReferralLink? _link;
   ReferralNetwork? _network;
+  CommissionLedger? _ledger;
   bool _loading = true;
   String? _error;
 
@@ -33,14 +34,20 @@ class _MarketingNetworkScreenState extends State<MarketingNetworkScreen> {
     try {
       final api = ApiScope.of(context);
       final link = await api.referralLink();
+      // شبکه و لِجِر تکمیلی‌اند؛ نبودشان نباید کلِ صفحه را خطا کند.
       ReferralNetwork? network;
       try {
         network = await api.referralNetwork();
+      } catch (_) {}
+      CommissionLedger? ledger;
+      try {
+        ledger = await api.referralCommissions();
       } catch (_) {}
       if (!mounted) return;
       setState(() {
         _link = link;
         _network = network;
+        _ledger = ledger;
         _loading = false;
       });
     } catch (e) {
@@ -81,6 +88,10 @@ class _MarketingNetworkScreenState extends State<MarketingNetworkScreen> {
                       _summary(),
                       const SizedBox(height: 16),
                       _inviteCard(),
+                      const SizedBox(height: 16),
+                      _applyCard(),
+                      const SizedBox(height: 16),
+                      _commissionsCard(),
                       const SizedBox(height: 16),
                       if (_network != null && _network!.levels.isNotEmpty) ...[
                         Text('سطوحِ شبکه',
@@ -195,6 +206,145 @@ class _MarketingNetworkScreenState extends State<MarketingNetworkScreen> {
         ),
       ),
     );
+  }
+
+  /// ثبتِ معرف. فقط یک‌بار در عمرِ حساب ممکن است و سرور خودش حلقه را رد می‌کند،
+  /// پس اینجا فقط خطای سرور را نشان می‌دهیم.
+  Widget _applyCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('معرفِ من', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Text(
+              'اگر کسی شما را به دیلیکس دعوت کرده، Earth ID او را ثبت کنید. '
+              'این کار فقط یک‌بار ممکن است.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _applyReferral,
+                icon: const Icon(Icons.person_add_alt),
+                label: const Text('ثبتِ کدِ معرف'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _applyReferral() async {
+    final ctrl = TextEditingController();
+    final code = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('کدِ معرف'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          textCapitalization: TextCapitalization.characters,
+          decoration: const InputDecoration(hintText: 'مثلاً EID-XXXXXX'),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('انصراف')),
+          FilledButton(
+            onPressed: () {
+              final v = ctrl.text.trim();
+              Navigator.pop(ctx, v.isEmpty ? null : v);
+            },
+            child: const Text('ثبت'),
+          ),
+        ],
+      ),
+    );
+    if (code == null || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final name = await ApiScope.of(context).applyReferral(code);
+      if (!mounted) return;
+      messenger.showSnackBar(
+          SnackBar(content: Text('معرفِ شما ثبت شد: $name')));
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('ثبت نشد: $e')));
+    }
+  }
+
+  Widget _commissionsCard() {
+    final ledger = _ledger;
+    if (ledger == null) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('کمیسیون‌های من',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            if (ledger.totals.isEmpty)
+              Text('هنوز کمیسیونی ثبت نشده است.', style: theme.textTheme.bodySmall)
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  for (final e in ledger.totals.entries)
+                    Chip(label: Text('${_money(e.value)} ${e.key}')),
+                ],
+              ),
+            if (ledger.items.isNotEmpty) ...[
+              const Divider(height: 24),
+              // فقط ۱۰ ردیفِ آخر؛ سرور هم بیش از ۱۰۰ ردیف نمی‌دهد.
+              for (final c in ledger.items.take(10))
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      CircleAvatar(radius: 14, child: Text('${c.level}')),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('${_money(c.amount)} ${c.currency}'),
+                            Text(
+                              'سطحِ ${c.level} · ٪${c.ratePercent.toStringAsFixed(
+                                c.rateBps % 100 == 0 ? 0 : 1,
+                              )}'
+                              '${c.sourceType != null ? ' · ${c.sourceType}' : ''}',
+                              style: theme.textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _money(int v) {
+    final s = v.toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write('،');
+      buf.write(s[i]);
+    }
+    return buf.toString();
   }
 
   Widget _levelTile(ReferralLevel l) {

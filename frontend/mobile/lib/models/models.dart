@@ -41,6 +41,7 @@ class Identity {
     this.trustScore = 0,
     this.avgRating = 0,
     this.totalTrips = 0,
+    this.userId,
   });
 
   final String earthId;
@@ -61,6 +62,10 @@ class Identity {
   final num trustScore;
   final num avgRating;
   final int totalTrips;
+
+  /// UUIDِ داخلیِ کاربر. ماژول‌هایی مثلِ حمل (`owner_id`/`driver_id`) به‌جای
+  /// Earth ID با همین شناسه کار می‌کنند.
+  final String? userId;
 
   factory Identity.fromJson(Map<String, dynamic> j) {
     // dilix-api پاسخِ تخت (UserResponse) می‌دهد؛ نامِ نمایشی در `full_name`.
@@ -85,6 +90,7 @@ class Identity {
       trustScore: (j['trust_score'] ?? 0) as num,
       avgRating: (j['avg_rating'] ?? 0) as num,
       totalTrips: (j['total_trips'] ?? 0) as int,
+      userId: j['id'] as String?,
     );
   }
 }
@@ -104,6 +110,8 @@ class Post {
     this.savedByMe = false,
     this.isMine = false,
     this.placeName,
+    this.lat,
+    this.lng,
   });
 
   final String id;
@@ -123,6 +131,13 @@ class Post {
 
   /// نامِ مکانِ ثبت‌شده هنگامِ انتشار (اختیاری).
   final String? placeName;
+
+  /// موقعیتِ جغرافیاییِ پست؛ فقط پست‌های دارای این دو در «لحظه‌ها» می‌آیند.
+  final double? lat;
+  final double? lng;
+
+  /// آیا این پست روی کره جایی دارد؟
+  bool get hasLocation => lat != null && lng != null;
 
   /// اولین نشانیِ ویدیوی پست (برای ریلز). اگر ویدیویی نباشد null.
   String? get videoUrl {
@@ -176,6 +191,8 @@ class Post {
         savedByMe: savedByMe ?? this.savedByMe,
         isMine: isMine,
         placeName: placeName,
+        lat: lat,
+        lng: lng,
       );
 
   /// سازگار با هر دو قرارداد: dilix-api (`PostOut`/`ReelOut`: تک `media_url`،
@@ -215,6 +232,8 @@ class Post {
       savedByMe: (j['saved_by_me'] ?? false) as bool,
       isMine: (j['is_mine'] ?? false) as bool,
       placeName: j['place_name'] as String?,
+      lat: (j['lat'] as num?)?.toDouble(),
+      lng: (j['lng'] as num?)?.toDouble(),
     );
   }
 }
@@ -478,6 +497,17 @@ class CargoPost {
     required this.weightGrams,
     this.budgetMinor,
     this.currency = 'IRR',
+    this.ref,
+    this.ownerId,
+    this.driverId,
+    this.description,
+    this.offersCount = 0,
+    this.escrowStatus,
+    this.podPhotoUrl,
+    this.pickupCode,
+    this.deliveryCode,
+    this.consigneeName,
+    this.consigneePhone,
   });
 
   final String id;
@@ -488,6 +518,32 @@ class CargoPost {
   final int weightGrams;
   final int? budgetMinor;
   final String currency;
+
+  /// شناسهٔ خواناىِ حمل (`FRT-XXXXXXXX`).
+  final String? ref;
+  final String? ownerId;
+
+  /// رانندهٔ تخصیص‌یافته؛ تا وقتی بار `open` است null می‌ماند.
+  final String? driverId;
+  final String? description;
+  final int offersCount;
+
+  /// `locked|released|refunded` — وضعیتِ وجهِ امانی نزدِ سرور.
+  final String? escrowStatus;
+  final String? podPhotoUrl;
+
+  /// کدهای تأییدِ ۴رقمی؛ سرور آن‌ها را **فقط** به صاحبِ بار برمی‌گرداند، پس برای
+  /// راننده همیشه null هستند.
+  final String? pickupCode;
+  final String? deliveryCode;
+  final String? consigneeName;
+  final String? consigneePhone;
+
+  bool get isOpen => status == 'open';
+
+  /// آیا این بار در یکی از مرحله‌های در جریانِ حمل است؟
+  bool get isActive =>
+      status == 'in_progress' || status == 'picked_up' || status == 'in_transit';
 
   /// سازگار با dilix-api (`CargoPostOut`: `cargo_type`/`weight_kg`/`price`) و
   /// شکلِ قدیمیِ Core (`title`/`weight_grams`/`budget_minor`).
@@ -502,6 +558,50 @@ class CargoPost {
         budgetMinor: (j['budget_minor'] as num?)?.toInt() ??
             (j['price'] as num?)?.toInt(),
         currency: (j['currency'] ?? 'IRR') as String,
+        ref: j['ref'] as String?,
+        ownerId: j['owner_id'] as String?,
+        driverId: j['driver_id'] as String?,
+        description: j['description'] as String?,
+        offersCount: (j['offers_count'] as num?)?.toInt() ?? 0,
+        escrowStatus: j['escrow_status'] as String?,
+        podPhotoUrl: j['pod_photo_url'] as String?,
+        pickupCode: j['pickup_code'] as String?,
+        deliveryCode: j['delivery_code'] as String?,
+        consigneeName: j['consignee_name'] as String?,
+        consigneePhone: j['consignee_phone'] as String?,
+      );
+}
+
+/// یک رویداد از خطِ زمانیِ رهگیریِ حمل — `GET /freight/posts/{id}/tracking`.
+class TrackingEvent {
+  TrackingEvent({
+    required this.id,
+    required this.eventType,
+    this.status,
+    this.note,
+    this.lat,
+    this.lng,
+    this.createdAt,
+  });
+
+  final String id;
+
+  /// `created|accepted|picked_up|location|delivered|received|cancelled`.
+  final String eventType;
+  final String? status;
+  final String? note;
+  final double? lat;
+  final double? lng;
+  final DateTime? createdAt;
+
+  factory TrackingEvent.fromJson(Map<String, dynamic> j) => TrackingEvent(
+        id: j['id'] as String,
+        eventType: (j['event_type'] ?? '') as String,
+        status: j['status'] as String?,
+        note: j['note'] as String?,
+        lat: (j['lat'] as num?)?.toDouble(),
+        lng: (j['lng'] as num?)?.toDouble(),
+        createdAt: DateTime.tryParse((j['created_at'] ?? '') as String),
       );
 }
 
@@ -2486,5 +2586,209 @@ class LiveState {
         status: (j['status'] ?? 'ended') as String,
         viewerCount: (j['viewer_count'] as num?)?.toInt() ?? 0,
         hearts: (j['hearts'] as num?)?.toInt() ?? 0,
+      );
+}
+
+// ─────────────── جهانی‌سازی (i18n): زبان، ارز و ترجیحات ───────────────
+
+/// یک زبانِ پشتیبانی‌شده در کاتالوگِ سرور.
+class LocaleOption {
+  LocaleOption({
+    required this.code,
+    required this.native,
+    required this.english,
+    required this.dir,
+    required this.defaultCurrency,
+    this.flag,
+  });
+
+  final String code;
+  final String native;
+  final String english;
+
+  /// `rtl` یا `ltr`.
+  final String dir;
+  final String defaultCurrency;
+  final String? flag;
+
+  bool get isRtl => dir == 'rtl';
+
+  factory LocaleOption.fromJson(Map<String, dynamic> j) => LocaleOption(
+        code: j['code'] as String,
+        native: (j['native'] ?? j['code']) as String,
+        english: (j['english'] ?? j['code']) as String,
+        dir: (j['dir'] ?? 'ltr') as String,
+        defaultCurrency: (j['default_currency'] ?? 'USD') as String,
+        flag: j['flag'] as String?,
+      );
+}
+
+/// یک ارزِ پشتیبانی‌شده در کاتالوگِ سرور.
+class CurrencyOption {
+  CurrencyOption({
+    required this.code,
+    required this.nameFa,
+    required this.nameEn,
+    required this.symbol,
+    required this.decimals,
+    this.subunit,
+  });
+
+  final String code;
+  final String nameFa;
+  final String nameEn;
+  final String symbol;
+  final int decimals;
+
+  /// واحدِ نمایشِ محلی (برای IRR: «تومان»)؛ برای بقیه null.
+  final String? subunit;
+
+  factory CurrencyOption.fromJson(Map<String, dynamic> j) => CurrencyOption(
+        code: j['code'] as String,
+        nameFa: (j['name_fa'] ?? j['code']) as String,
+        nameEn: (j['name_en'] ?? j['code']) as String,
+        symbol: (j['symbol'] ?? '') as String,
+        decimals: (j['decimals'] as num?)?.toInt() ?? 2,
+        subunit: j['subunit'] as String?,
+      );
+}
+
+/// `GET /api/v1/i18n/catalog` — عمومی، بدونِ نیاز به ورود.
+class I18nCatalog {
+  I18nCatalog({
+    required this.locales,
+    required this.currencies,
+    required this.defaultLocale,
+    required this.defaultCurrency,
+  });
+
+  final List<LocaleOption> locales;
+  final List<CurrencyOption> currencies;
+  final String defaultLocale;
+  final String defaultCurrency;
+
+  factory I18nCatalog.fromJson(Map<String, dynamic> j) => I18nCatalog(
+        locales: ((j['locales'] ?? const []) as List)
+            .map((e) => LocaleOption.fromJson((e as Map).cast<String, dynamic>()))
+            .toList(),
+        currencies: ((j['currencies'] ?? const []) as List)
+            .map((e) => CurrencyOption.fromJson((e as Map).cast<String, dynamic>()))
+            .toList(),
+        defaultLocale: (j['default_locale'] ?? 'en') as String,
+        defaultCurrency: (j['default_currency'] ?? 'USD') as String,
+      );
+}
+
+/// `GET /api/v1/i18n/detect` — فقط «پیشنهاد» است و کاربر می‌تواند نادیده بگیرد.
+class I18nSuggestion {
+  I18nSuggestion({
+    required this.locale,
+    required this.currency,
+    required this.direction,
+    this.country,
+    this.source,
+  });
+
+  final String locale;
+  final String currency;
+  final String direction;
+  final String? country;
+
+  /// `geoip|accept-language|default`.
+  final String? source;
+
+  factory I18nSuggestion.fromJson(Map<String, dynamic> j) => I18nSuggestion(
+        locale: (j['suggested_locale'] ?? 'en') as String,
+        currency: (j['suggested_currency'] ?? 'USD') as String,
+        direction: (j['direction'] ?? 'ltr') as String,
+        country: j['country'] as String?,
+        source: j['source'] as String?,
+      );
+}
+
+/// ترجیحاتِ ذخیره‌شدهٔ کاربر — `GET/PUT /api/v1/i18n/preferences`.
+class I18nPreferences {
+  I18nPreferences({
+    required this.locale,
+    required this.currency,
+    required this.direction,
+    this.countryCode,
+    this.timezone,
+  });
+
+  final String locale;
+  final String currency;
+  final String direction;
+  final String? countryCode;
+  final String? timezone;
+
+  bool get isRtl => direction == 'rtl';
+
+  factory I18nPreferences.fromJson(Map<String, dynamic> j) => I18nPreferences(
+        locale: (j['locale'] ?? 'fa') as String,
+        currency: (j['currency'] ?? 'IRR') as String,
+        direction: (j['direction'] ?? 'rtl') as String,
+        countryCode: j['country_code'] as String?,
+        timezone: j['timezone'] as String?,
+      );
+}
+
+// ─────────────── کمیسیونِ بازاریابیِ چندسطحی ───────────────
+
+/// یک ردیفِ لِجِرِ کمیسیون — `GET /api/v1/referral/commissions`.
+class MlmCommission {
+  MlmCommission({
+    required this.id,
+    required this.level,
+    required this.amount,
+    required this.currency,
+    required this.rateBps,
+    this.sourceType,
+    this.createdAt,
+  });
+
+  final String id;
+
+  /// سطحِ زیرمجموعه‌ای که این کمیسیون از آن آمده (۱ تا ۳).
+  final int level;
+
+  /// مبلغ در واحدِ خردِ همان ارز.
+  final int amount;
+  final String currency;
+
+  /// نرخ بر حسبِ صدمِ درصد (۸۰۰ = ۸٪).
+  final int rateBps;
+  final String? sourceType;
+  final DateTime? createdAt;
+
+  /// نرخ به درصد، برای نمایش.
+  double get ratePercent => rateBps / 100;
+
+  factory MlmCommission.fromJson(Map<String, dynamic> j) => MlmCommission(
+        id: j['id'] as String,
+        level: (j['level'] as num?)?.toInt() ?? 1,
+        amount: (j['amount'] as num?)?.toInt() ?? 0,
+        currency: (j['currency'] ?? 'IRR') as String,
+        rateBps: (j['rate_bps'] as num?)?.toInt() ?? 0,
+        sourceType: j['source_type'] as String?,
+        createdAt: DateTime.tryParse((j['created_at'] ?? '') as String),
+      );
+}
+
+/// لِجِرِ کمیسیون + جمعِ درآمد به تفکیکِ ارز.
+class CommissionLedger {
+  CommissionLedger({required this.items, required this.totals});
+
+  final List<MlmCommission> items;
+
+  /// ارز → جمعِ مبلغ در واحدِ خرد.
+  final Map<String, int> totals;
+
+  factory CommissionLedger.fromJson(Map<String, dynamic> j) => CommissionLedger(
+        items: ((j['commissions'] ?? const []) as List)
+            .map((e) => MlmCommission.fromJson((e as Map).cast<String, dynamic>()))
+            .toList(),
+        totals: ((j['totals'] ?? const {}) as Map)
+            .map((k, v) => MapEntry(k as String, (v as num).toInt())),
       );
 }
