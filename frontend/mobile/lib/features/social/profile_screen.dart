@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app.dart';
 import '../../core/config.dart';
 import '../../models/models.dart';
+import '../feed/post_card.dart';
 import '../messages/chat_screen.dart';
 import '../reels/reels_screen.dart';
 import 'user_list_screen.dart';
@@ -27,6 +28,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   SocialProfile? _profile;
   List<Reel>? _reels;
+  List<Post>? _posts;
   bool _loading = true;
   bool _busy = false;
   String? _error;
@@ -55,12 +57,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
       return;
     }
-    // ریل‌ها جدا و بعد از پروفایل می‌آیند: نبودنشان نباید کلِ صفحه را خطا کند.
+    // محتوا جدا و بعد از پروفایل می‌آید: نبودنش نباید کلِ صفحه را خطا کند.
     try {
       final reels = await api.userReels(widget.earthId);
       if (mounted) setState(() => _reels = reels);
     } catch (_) {
       if (mounted) setState(() => _reels = const []);
+    }
+    try {
+      final posts = await api.userPosts(widget.earthId);
+      if (mounted) setState(() => _posts = posts);
+    } catch (_) {
+      if (mounted) setState(() => _posts = const []);
     }
   }
 
@@ -151,6 +159,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       _identityCard(p),
                       const SizedBox(height: 24),
                       _reelsSection(),
+                      const SizedBox(height: 24),
+                      _postsSection(),
                     ],
                   ),
                 ),
@@ -336,6 +346,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  /// پست‌های کاربر؛ همان کارتِ مشترکِ فید تا رفتارِ لایک/نظر/ذخیره یکسان بماند.
+  Widget _postsSection() {
+    final posts = _posts;
+    if (posts == null || posts.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('پست‌ها (${posts.length})',
+            style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        for (final p in posts)
+          PostCard(
+            key: ValueKey(p.id),
+            post: p,
+            onDeleted: () =>
+                setState(() => posts.removeWhere((e) => e.id == p.id)),
+          ),
+      ],
     );
   }
 

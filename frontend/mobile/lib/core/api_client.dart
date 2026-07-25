@@ -348,10 +348,62 @@ class ApiClient {
   }
 
   // ─────────────── Social (پست‌ها) ───────────────
-  /// فیدِ پست‌ها. dilix-api پاسخِ `{items:[PostOut], next_cursor}` می‌دهد.
-  Future<List<Post>> feed({int limit = 30, String? postType}) async {
-    final j = await _get('/api/v1/posts/feed') as Map<String, dynamic>;
+  /// فیدِ دنبال‌شده‌ها. dilix-api پاسخِ `{items:[PostOut], next_cursor}` می‌دهد.
+  Future<List<Post>> feed({int limit = 30}) =>
+      _postEnvelope('/api/v1/posts/feed?limit=$limit');
+
+  /// کشف: پست‌های عمومی، فارغ از این‌که کسی را دنبال کرده باشی.
+  Future<List<Post>> explorePosts({int limit = 30}) =>
+      _postEnvelope('/api/v1/posts/explore?limit=$limit');
+
+  /// «برای تو» — پست‌های مرتبط با علاقه‌مندی‌ها.
+  Future<List<Post>> interestPosts({int limit = 30}) =>
+      _postEnvelope('/api/v1/posts/interests?limit=$limit');
+
+  Future<List<Post>> searchPosts(String q, {int limit = 30}) => _postEnvelope(
+      '/api/v1/posts/search?q=${Uri.encodeQueryComponent(q)}&limit=$limit');
+
+  Future<List<Post>> topicPosts(String tag, {int limit = 30}) => _postEnvelope(
+      '/api/v1/posts/topic/${Uri.encodeComponent(tag)}?limit=$limit');
+
+  /// ⚠ این دو آرایهٔ **خام** برمی‌گردانند، نه پاکتِ `{items}`.
+  Future<List<Post>> savedPosts() => _postList('/api/v1/posts/saved');
+  Future<List<Post>> userPosts(String earthId) =>
+      _postList('/api/v1/posts/user/$earthId');
+
+  /// هشتگ‌های پرتکرار → `{items:[{tag, post_count}]}`.
+  Future<List<Topic>> topics({int limit = 20}) async {
+    final j = await _get('/api/v1/posts/topics?limit=$limit') as Map;
     final list = (j['items'] ?? const []) as List;
+    return list.map((e) => Topic.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// toggleِ ذخیره → `{saved}`.
+  Future<bool> toggleSavePost(String postId) async {
+    final j = await _post('/api/v1/posts/$postId/save', null) as Map;
+    return (j['saved'] ?? false) as bool;
+  }
+
+  Future<void> deletePost(String postId) => _delete('/api/v1/posts/$postId');
+
+  Future<List<SocialComment>> postComments(String postId) async {
+    final list = await _get('/api/v1/posts/$postId/comments') as List;
+    return list
+        .map((e) => SocialComment.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> deletePostComment(String commentId) =>
+      _delete('/api/v1/posts/comments/$commentId');
+
+  Future<List<Post>> _postEnvelope(String path) async {
+    final j = await _get(path) as Map<String, dynamic>;
+    final list = (j['items'] ?? const []) as List;
+    return list.map((e) => Post.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<List<Post>> _postList(String path) async {
+    final list = await _get(path) as List;
     return list.map((e) => Post.fromJson(e as Map<String, dynamic>)).toList();
   }
 
@@ -391,20 +443,20 @@ class ApiClient {
     } catch (_) {}
   }
 
-  Future<List<ReelComment>> reelComments(String reelId) async {
+  Future<List<SocialComment>> reelComments(String reelId) async {
     final list = await _get('/api/v1/reels/$reelId/comments') as List;
     return list
-        .map((e) => ReelComment.fromJson(e as Map<String, dynamic>))
+        .map((e) => SocialComment.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
   /// بدنه به‌صورتِ form با کلیدِ `body` (مثلِ نظرِ پست).
-  Future<ReelComment> commentOnReel(String reelId, String body) async {
+  Future<SocialComment> commentOnReel(String reelId, String body) async {
     final j = await _postForm('/api/v1/reels/$reelId/comments', {'body': body});
-    return ReelComment.fromJson(j as Map<String, dynamic>);
+    return SocialComment.fromJson(j as Map<String, dynamic>);
   }
 
-  Future<void> deleteReelComment(String commentId) =>
+  Future<void> deleteSocialComment(String commentId) =>
       _delete('/api/v1/reels/comments/$commentId');
 
   Future<void> deleteReel(String reelId) => _delete('/api/v1/reels/$reelId');
@@ -420,15 +472,20 @@ class ApiClient {
     return Reel.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
 
-  /// toggleِ لایکِ یک پست؛ شمارِ جدیدِ لایک را برمی‌گرداند.
-  Future<int> likePost(String postId) async {
-    final j = await _post('/api/v1/posts/$postId/like', null);
-    return ((j as Map)['like_count'] as num?)?.toInt() ?? 0;
+  /// toggleِ لایکِ یک پست → `{liked, like_count}`.
+  Future<(bool, int)> likePost(String postId) async {
+    final j = await _post('/api/v1/posts/$postId/like', null) as Map;
+    return (
+      (j['liked'] ?? false) as bool,
+      (j['like_count'] as num?)?.toInt() ?? 0,
+    );
   }
 
   /// ثبتِ نظر روی یک پست (بدنه به‌صورتِ form با کلیدِ `body`).
-  Future<void> commentOnPost(String postId, String content) =>
-      _postForm('/api/v1/posts/$postId/comments', {'body': content});
+  Future<SocialComment> commentOnPost(String postId, String content) async {
+    final j = await _postForm('/api/v1/posts/$postId/comments', {'body': content});
+    return SocialComment.fromJson(j as Map<String, dynamic>);
+  }
 
   /// ساختِ پستِ جدید با آپلودِ فایلِ رسانه از گوشی (multipart).
   Future<Post> createPost({

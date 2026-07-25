@@ -103,6 +103,7 @@ class Post {
     this.likedByMe = false,
     this.savedByMe = false,
     this.isMine = false,
+    this.placeName,
   });
 
   final String id;
@@ -119,6 +120,9 @@ class Post {
   final bool likedByMe;
   final bool savedByMe;
   final bool isMine;
+
+  /// نامِ مکانِ ثبت‌شده هنگامِ انتشار (اختیاری).
+  final String? placeName;
 
   /// اولین نشانیِ ویدیوی پست (برای ریلز). اگر ویدیویی نباشد null.
   String? get videoUrl {
@@ -149,9 +153,13 @@ class Post {
         reactionCounts: {...reactionCounts, 'like': likeCount},
       );
 
+  /// کپی با وضعیتِ ذخیرهٔ به‌روزشده (پس از toggleِ save).
+  Post copyWithSaved(bool saved) => _copy(savedByMe: saved);
+
   Post _copy({
     int? commentCount,
     bool? likedByMe,
+    bool? savedByMe,
     Map<String, int>? reactionCounts,
   }) =>
       Post(
@@ -165,8 +173,9 @@ class Post {
         reactionCounts: reactionCounts ?? this.reactionCounts,
         commentCount: commentCount ?? this.commentCount,
         likedByMe: likedByMe ?? this.likedByMe,
-        savedByMe: savedByMe,
+        savedByMe: savedByMe ?? this.savedByMe,
         isMine: isMine,
+        placeName: placeName,
       );
 
   /// سازگار با هر دو قرارداد: dilix-api (`PostOut`/`ReelOut`: تک `media_url`،
@@ -205,6 +214,7 @@ class Post {
       likedByMe: (j['liked_by_me'] ?? false) as bool,
       savedByMe: (j['saved_by_me'] ?? false) as bool,
       isMine: (j['is_mine'] ?? false) as bool,
+      placeName: j['place_name'] as String?,
     );
   }
 }
@@ -306,9 +316,23 @@ class Reel {
       );
 }
 
-/// نظرِ یک ریل (`GET /api/v1/reels/{id}/comments`).
-class ReelComment {
-  const ReelComment({
+/// هشتگِ پرتکرار (`GET /api/v1/posts/topics`).
+class Topic {
+  const Topic({required this.tag, required this.postCount});
+
+  final String tag;
+  final int postCount;
+
+  factory Topic.fromJson(Map<String, dynamic> j) => Topic(
+        tag: (j['tag'] ?? '') as String,
+        postCount: (j['post_count'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// نظر روی ریل یا پست. سرور برای هر دو دقیقاً همان اسکیمای `CommentOut` را
+/// می‌دهد، پس یک مدلِ مشترک است.
+class SocialComment {
+  const SocialComment({
     required this.id,
     required this.authorEarthId,
     required this.authorName,
@@ -329,7 +353,7 @@ class ReelComment {
   String get authorTitle =>
       (authorName?.trim().isNotEmpty ?? false) ? authorName!.trim() : authorEarthId;
 
-  factory ReelComment.fromJson(Map<String, dynamic> j) => ReelComment(
+  factory SocialComment.fromJson(Map<String, dynamic> j) => SocialComment(
         id: j['id'] as String,
         authorEarthId: (j['author_earth_id'] ?? '') as String,
         authorName: j['author_name'] as String?,

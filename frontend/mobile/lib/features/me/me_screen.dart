@@ -10,6 +10,7 @@ import '../../models/models.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../legal/legal_screen.dart';
 import '../notifications/notifications_screen.dart';
+import '../feed/saved_posts_screen.dart';
 import '../social/people_screen.dart';
 import '../support/support_screen.dart';
 import '../wallet/wallet_screen.dart';
@@ -614,6 +615,17 @@ class _MeScreenState extends State<MeScreen> {
             trailing: const Icon(Icons.chevron_left),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const PeopleScreen()),
+            ),
+          ),
+        ),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.bookmark_border),
+            title: const Text('ذخیره‌شده‌ها'),
+            subtitle: const Text('پست‌هایی که نگه داشته‌اید'),
+            trailing: const Icon(Icons.chevron_left),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const SavedPostsScreen()),
             ),
           ),
         ),
