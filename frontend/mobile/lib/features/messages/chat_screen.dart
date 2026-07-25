@@ -12,6 +12,7 @@ import '../../core/config.dart';
 import '../../core/location_service.dart';
 import '../../models/models.dart';
 import '../call/call_service.dart';
+import '../social/profile_screen.dart';
 import 'chat_sheets.dart';
 import 'media_viewer.dart';
 import 'message_bubble.dart';
@@ -1090,54 +1091,65 @@ class _ChatScreenState extends State<ChatScreen> {
         : (_room.isGroup
             ? '${_room.memberCount} عضو'
             : (online ? 'آنلاین' : _lastSeenLabel()));
-    return Row(
-      children: [
-        CircleAvatar(
-          radius: 18,
-          backgroundColor: online ? const Color(0xFF22C55E) : Colors.grey,
-          backgroundImage: avatar != null ? NetworkImage(avatar) : null,
-          child: avatar == null
-              ? Text(
-                  _room.displayTitle.isNotEmpty
-                      ? _room.displayTitle.characters.first
-                      : '؟',
-                  style: const TextStyle(color: Colors.white))
-              : null,
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Flexible(
-                    child: Text(_room.displayTitle,
-                        style: const TextStyle(fontSize: 16),
-                        overflow: TextOverflow.ellipsis),
-                  ),
-                  if (_room.isMuted)
-                    const Padding(
-                      padding: EdgeInsets.only(right: 4),
-                      child: Icon(Icons.notifications_off, size: 13),
-                    ),
-                ],
-              ),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: typing.isNotEmpty
-                      ? const Color(0xFF60A5FA)
-                      : (online ? const Color(0xFF22C55E) : Colors.grey),
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+    final partnerId = _room.partnerEarthId;
+    // مثلِ وب (آواتار/نامِ هدرِ direct → `/u/{partner_earth_id}`) هدر به پروفایل
+    // می‌رود؛ در گروه مقصدی وجود ندارد پس تپ غیرفعال می‌ماند.
+    return InkWell(
+      onTap: (partnerId == null || partnerId.isEmpty)
+          ? null
+          : () => Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (_) => ProfileScreen(
+                    earthId: partnerId, fallbackName: _room.partnerName),
+              )),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: online ? const Color(0xFF22C55E) : Colors.grey,
+            backgroundImage: avatar != null ? NetworkImage(avatar) : null,
+            child: avatar == null
+                ? Text(
+                    _room.displayTitle.isNotEmpty
+                        ? _room.displayTitle.characters.first
+                        : '؟',
+                    style: const TextStyle(color: Colors.white))
+                : null,
           ),
-        ),
-      ],
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(_room.displayTitle,
+                          style: const TextStyle(fontSize: 16),
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                    if (_room.isMuted)
+                      const Padding(
+                        padding: EdgeInsets.only(right: 4),
+                        child: Icon(Icons.notifications_off, size: 13),
+                      ),
+                  ],
+                ),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: typing.isNotEmpty
+                        ? const Color(0xFF60A5FA)
+                        : (online ? const Color(0xFF22C55E) : Colors.grey),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

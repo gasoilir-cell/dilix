@@ -5,6 +5,7 @@ import '../../core/location_service.dart';
 import '../../models/models.dart';
 import '../assistant/assistant_sheet.dart';
 import '../messages/chat_screen.dart';
+import '../social/profile_screen.dart';
 import 'earth_globe_view.dart';
 
 /// کشفِ افراد/کسب‌وکار روی کره (امضای محصول، سند ۷ §۳).
@@ -125,6 +126,18 @@ class _EarthScreenState extends State<EarthScreen> {
               onTap: () {
                 Navigator.of(ctx).pop();
                 _openChat(tap);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_outline),
+              title: const Text('پروفایل'),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => ProfileScreen(
+                      earthId: tap.earthId,
+                      fallbackName: tap.name.isEmpty ? null : tap.name),
+                ));
               },
             ),
           ],

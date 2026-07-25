@@ -248,6 +248,110 @@ class NearbyPerson {
       );
 }
 
+/// یک کاربر در فهرست‌های اجتماعی (دنبال‌کننده/دنبال‌شونده/پیشنهاد/جستجو).
+///
+/// همهٔ چهار اندپوینتِ `/api/v1/social/{followers,following,suggestions,search}`
+/// دقیقاً همین شکل را برمی‌گردانند، پس یک مدلِ مشترک کافی است.
+class SocialUser {
+  const SocialUser({
+    required this.earthId,
+    required this.name,
+    required this.username,
+    required this.avatarUrl,
+    required this.role,
+    required this.kycLevel,
+    required this.isFollowing,
+  });
+
+  final String earthId;
+  final String? name;
+  final String? username;
+  final String? avatarUrl;
+  final String role;
+  final int kycLevel;
+
+  /// «من او را دنبال می‌کنم» — حتی در فهرستِ دنبال‌کنندگانِ خودم هم از دیدِ من است.
+  final bool isFollowing;
+
+  String get title => (name?.trim().isNotEmpty ?? false) ? name!.trim() : earthId;
+
+  factory SocialUser.fromJson(Map<String, dynamic> j) => SocialUser(
+        earthId: j['earth_id'] as String,
+        name: j['name'] as String?,
+        username: j['username'] as String?,
+        avatarUrl: j['avatar_url'] as String?,
+        role: (j['role'] ?? 'user') as String,
+        kycLevel: (j['kyc_level'] as num?)?.toInt() ?? 0,
+        isFollowing: (j['is_following'] ?? false) as bool,
+      );
+}
+
+/// پروفایلِ کاملِ یک کاربر (`GET /api/v1/social/profile/{earth_id}`).
+class SocialProfile {
+  const SocialProfile({
+    required this.earthId,
+    required this.name,
+    required this.username,
+    required this.avatarUrl,
+    required this.bio,
+    required this.role,
+    required this.kycLevel,
+    required this.followersCount,
+    required this.followingCount,
+    required this.isFollowing,
+    required this.isFollowedBy,
+    required this.isMe,
+  });
+
+  final String earthId;
+  final String? name;
+  final String? username;
+  final String? avatarUrl;
+  final String? bio;
+  final String role;
+  final int kycLevel;
+  final int followersCount;
+  final int followingCount;
+  final bool isFollowing;
+
+  /// او مرا دنبال می‌کند → برچسبِ «دنبال می‌کند شما را» و متنِ دکمه «دنبال متقابل».
+  final bool isFollowedBy;
+  final bool isMe;
+
+  String get title => (name?.trim().isNotEmpty ?? false) ? name!.trim() : earthId;
+
+  factory SocialProfile.fromJson(Map<String, dynamic> j) => SocialProfile(
+        earthId: j['earth_id'] as String,
+        name: j['name'] as String?,
+        username: j['username'] as String?,
+        avatarUrl: j['avatar_url'] as String?,
+        bio: j['bio'] as String?,
+        role: (j['role'] ?? 'user') as String,
+        kycLevel: (j['kyc_level'] as num?)?.toInt() ?? 0,
+        followersCount: (j['followers_count'] as num?)?.toInt() ?? 0,
+        followingCount: (j['following_count'] as num?)?.toInt() ?? 0,
+        isFollowing: (j['is_following'] ?? false) as bool,
+        isFollowedBy: (j['is_followed_by'] ?? false) as bool,
+        isMe: (j['is_me'] ?? false) as bool,
+      );
+
+  SocialProfile copyWith({bool? isFollowing, int? followersCount}) =>
+      SocialProfile(
+        earthId: earthId,
+        name: name,
+        username: username,
+        avatarUrl: avatarUrl,
+        bio: bio,
+        role: role,
+        kycLevel: kycLevel,
+        followersCount: followersCount ?? this.followersCount,
+        followingCount: followingCount,
+        isFollowing: isFollowing ?? this.isFollowing,
+        isFollowedBy: isFollowedBy,
+        isMe: isMe,
+      );
+}
+
 class CargoPost {
   CargoPost({
     required this.id,

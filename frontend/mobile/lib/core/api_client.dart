@@ -298,6 +298,55 @@ class ApiClient {
       ReferralNetwork.fromJson(
           await _get('/api/v1/referral/network') as Map<String, dynamic>);
 
+  // ─────────────── Social (دنبال‌کردن و پروفایل) ───────────────
+  /// پروفایلِ عمومیِ یک کاربر؛ فیلدهای `is_following`/`is_followed_by`/`is_me`
+  /// از دیدِ کاربرِ احرازشده محاسبه می‌شوند.
+  Future<SocialProfile> socialProfile(String earthId) async =>
+      SocialProfile.fromJson(
+          await _get('/api/v1/social/profile/$earthId') as Map<String, dynamic>);
+
+  /// دنبال‌کردن؛ پاسخ `{ok, following, followers_count}`.
+  Future<(bool, int)> followUser(String earthId) async {
+    final j = await _post('/api/v1/social/follow', {'earth_id': earthId}) as Map;
+    return (
+      (j['following'] ?? true) as bool,
+      (j['followers_count'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  /// لغوِ دنبال‌کردن. ⚠ برخلافِ لایک، این toggle نیست: دو اندپوینتِ جدا
+  /// (`POST /follow` و `DELETE /follow/{earth_id}`) — همان الگوی ستارهٔ استیکر.
+  Future<(bool, int)> unfollowUser(String earthId) async {
+    final j = await _delete('/api/v1/social/follow/$earthId') as Map;
+    return (
+      (j['following'] ?? false) as bool,
+      (j['followers_count'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  Future<List<SocialUser>> followers(String earthId, {int limit = 50}) =>
+      _socialUsers('/api/v1/social/followers/$earthId?limit=$limit');
+
+  Future<List<SocialUser>> following(String earthId, {int limit = 50}) =>
+      _socialUsers('/api/v1/social/following/$earthId?limit=$limit');
+
+  /// پیشنهادِ افرادِ قابلِ دنبال‌کردن (سقفِ سرور ۵۰).
+  Future<List<SocialUser>> followSuggestions({int limit = 20}) =>
+      _socialUsers('/api/v1/social/suggestions?limit=$limit');
+
+  /// جستجوی کاربر با نام، یوزرنیم یا Earth ID (سرور حداقل ۱ و حداکثر ۵۰ نویسه).
+  Future<List<SocialUser>> searchUsers(String q, {int limit = 20}) =>
+      _socialUsers(
+          '/api/v1/social/search?q=${Uri.encodeQueryComponent(q)}&limit=$limit');
+
+  /// هر چهار اندپوینتِ فهرستیِ social آرایهٔ خامِ هم‌شکل برمی‌گردانند.
+  Future<List<SocialUser>> _socialUsers(String path) async {
+    final list = await _get(path) as List;
+    return list
+        .map((e) => SocialUser.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   // ─────────────── Social (پست‌ها) ───────────────
   /// فیدِ پست‌ها. dilix-api پاسخِ `{items:[PostOut], next_cursor}` می‌دهد.
   Future<List<Post>> feed({int limit = 30, String? postType}) async {

@@ -10,6 +10,7 @@ import '../../models/models.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../legal/legal_screen.dart';
 import '../notifications/notifications_screen.dart';
+import '../social/people_screen.dart';
 import '../support/support_screen.dart';
 import '../wallet/wallet_screen.dart';
 import 'kyc_screen.dart';
@@ -602,6 +603,17 @@ class _MeScreenState extends State<MeScreen> {
             trailing: const Icon(Icons.chevron_left),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const DashboardScreen()),
+            ),
+          ),
+        ),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.people_outline),
+            title: const Text('یافتنِ آدم‌ها'),
+            subtitle: const Text('جستجوی کاربر و پیشنهادِ دنبال‌کردن'),
+            trailing: const Icon(Icons.chevron_left),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const PeopleScreen()),
             ),
           ),
         ),
