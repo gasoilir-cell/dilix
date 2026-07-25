@@ -25,7 +25,11 @@ dependencies:
   image_picker: ^1.1.2
   # ضبطِ پیامِ صوتیِ گفتگو (خروجیِ AAC/m4a). مجوزِ RECORD_AUDIO از مانیفستِ خودِ
   # پلاگین با manifest-merger ادغام می‌شود، پس CI نیازی به patchِ مانیفست ندارد.
-  record: ^5.0.0
+  # ⚠ خطِ ۵.x قابلِ استفاده نیست: pub در آن `record_linux 0.7.2` را با
+  # `record_platform_interface 1.6.0` جفت می‌کند و کامپایلِ Dart می‌شکند
+  # («RecordLinux is missing implementations»). خطِ ۷.x مجموعهٔ federatedِ ۲.x
+  # سازگار دارد.
+  record: ^7.0.0
   # مسیرِ موقتِ دستگاه برای فایلِ صوتیِ ضبط‌شده
   path_provider: ^2.1.0
   # انتخابِ فایلِ دلخواه (سند/PDF/…) برای پیوستِ گفتگو — سرور نوعِ `file` را می‌پذیرد
