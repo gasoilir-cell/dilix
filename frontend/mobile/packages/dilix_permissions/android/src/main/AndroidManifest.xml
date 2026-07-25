@@ -6,4 +6,21 @@
          RECORD_AUDIO که از پلاگینِ record می‌آید). پس مجوزها اینجا اعلام می‌شوند. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+
+    <!-- موقعیتِ زندهٔ پس‌زمینه: geolocator سرویسِ `GeolocatorLocationService` را با
+         `foregroundServiceType="location"` در مانیفستِ خودش دارد، ولی مجوزهایش را
+         اعلام نمی‌کند. از اندروید ۹ (API 28) خودِ FOREGROUND_SERVICE و از
+         اندروید ۱۴ (API 34) نوعِ صریحِ FOREGROUND_SERVICE_LOCATION لازم است،
+         وگرنه `startForeground()` با SecurityException می‌افتد و اشتراکِ زنده در
+         پس‌زمینه بی‌صدا می‌میرد. WAKE_LOCK برای `enableWakeLock` است تا فیکس‌ها
+         تا بیدارشدنِ دستگاه انبار نشوند. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+
+    <!-- عمداً ACCESS_BACKGROUND_LOCATION اعلام **نشده**: اشتراکِ زنده همیشه با
+         کنشِ کاربر و درحالی‌که اپ دیده می‌شود آغاز می‌شود، و foreground serviceِ
+         نوعِ location در همین حالت مجازِ دسترسی در پس‌زمینه است. اعلامِ آن مجوز
+         کاربر را به سفرِ «همیشه اجازه بده» در تنظیمات و اپ را به توجیهِ اضافیِ
+         Play Store می‌کشاند، بی‌آنکه چیزی به این سناریو اضافه کند. -->
 </manifest>

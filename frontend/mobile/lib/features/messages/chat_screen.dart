@@ -49,10 +49,19 @@ class _ChatScreenState extends State<ChatScreen> {
   Timer? _recTimer;
   String? _recPath;
 
-  /// اشتراکِ موقعیتِ زندهٔ فعالِ من در این اتاق (شناسهٔ پیام) و تایمرِ به‌روزرسانی.
+  /// اشتراکِ موقعیتِ زندهٔ فعالِ من در این اتاق (شناسهٔ پیام) و جریانِ GPSِ آن.
+  ///
+  /// به‌جای `Timer.periodic` از جریانِ `LocationService.liveStream` استفاده
+  /// می‌شود تا روی اندروید یک foreground service بالا بیاید؛ وگرنه به‌محضِ رفتنِ
+  /// اپ به پس‌زمینه سیستم موقعیت را throttle می‌کرد و اشتراک عملاً می‌ایستاد.
   static const _location = LocationService();
   String? _liveLocationId;
-  Timer? _liveTimer;
+  StreamSubscription<LocationFix>? _liveSub;
+
+  /// آخرین ارسالِ موفق به سرور؛ جریان ممکن است تندتر از این فیکس بدهد و لازم
+  /// نیست هر فیکس یک درخواست شود.
+  DateTime _lastLivePush = DateTime.fromMillisecondsSinceEpoch(0);
+  static const _livePushInterval = Duration(seconds: 30);
 
   Timer? _poll;
   Timer? _statusPoll;
@@ -96,7 +105,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void dispose() {
     _poll?.cancel();
     _statusPoll?.cancel();
-    _liveTimer?.cancel();
+    _liveSub?.cancel();
     _recTimer?.cancel();
     _recorder.dispose();
     _scrollCtrl.dispose();
@@ -137,8 +146,8 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   /// اشتراکِ موقعیتِ زندهٔ فعالِ خودم را از پیام‌های بارگذاری‌شده بازیابی می‌کند تا
-  /// با بازکردنِ دوبارهٔ گفتگو (یا انقضا از سمتِ سرور) وضعیتِ دکمه و تایمر درست
-  /// بماند.
+  /// با بازکردنِ دوبارهٔ گفتگو (یا انقضا از سمتِ سرور) وضعیتِ دکمه و جریانِ GPS
+  /// درست بماند.
   void _syncLiveLocation(List<ChatMessage> list) {
     final active = list
         .where((m) =>
@@ -150,11 +159,40 @@ class _ChatScreenState extends State<ChatScreen> {
     final id = active.isEmpty ? null : active.last.id;
     if (id == _liveLocationId) return;
     _liveLocationId = id;
-    _liveTimer?.cancel();
-    if (id != null) {
-      _liveTimer = Timer.periodic(
-          const Duration(seconds: 30), (_) => _pushLiveLocation());
+    if (id == null) {
+      _endLiveTracking();
+    } else {
+      _beginLiveTracking();
     }
+  }
+
+  /// جریانِ GPS را آغاز می‌کند (روی اندروید همراهِ یک foreground service، پس در
+  /// پس‌زمینه هم فیکس می‌رسد). هر فیکس از throttleِ [_livePushInterval] می‌گذرد
+  /// تا شبکه با هر جابه‌جاییِ چندمتری درگیر نشود.
+  void _beginLiveTracking() {
+    _liveSub?.cancel();
+    _lastLivePush = DateTime.fromMillisecondsSinceEpoch(0);
+    _liveSub = _location
+        .liveStream(
+          interval: _livePushInterval,
+          notificationTitle: 'اشتراکِ موقعیتِ زنده',
+          notificationText:
+              'موقعیتِ تو با ${_room.title} به اشتراک گذاشته می‌شود.',
+        )
+        .listen(_onLiveFix);
+  }
+
+  void _endLiveTracking() {
+    _liveSub?.cancel();
+    _liveSub = null;
+  }
+
+  void _onLiveFix(LocationFix fix) {
+    if (!fix.isOk || !mounted) return;
+    final now = DateTime.now();
+    if (now.difference(_lastLivePush) < _livePushInterval) return;
+    _lastLivePush = now;
+    _pushLiveLocation(fix);
   }
 
   Future<void> _refreshStatus() async {
@@ -686,9 +724,7 @@ class _ChatScreenState extends State<ChatScreen> {
           lat: fix.lat, lng: fix.lng, durationMinutes: minutes);
       if (!mounted) return;
       setState(() => _liveLocationId = msg.id);
-      _liveTimer?.cancel();
-      _liveTimer = Timer.periodic(
-          const Duration(seconds: 30), (_) => _pushLiveLocation());
+      _beginLiveTracking();
       await _load();
       _scrollToBottom();
       _toast('موقعیتِ زنده تا $minutes دقیقه به اشتراک گذاشته شد.');
@@ -696,18 +732,16 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   /// یک ضربانِ به‌روزرسانی؛ خطا سکوت می‌کند تا اشتراک با یک قطعیِ گذرا نمیرد،
-  /// ولی اگر سرور اشتراک را پایان‌یافته بداند تایمر متوقف می‌شود.
-  Future<void> _pushLiveLocation() async {
+  /// ولی اگر سرور اشتراک را پایان‌یافته بداند جریانِ GPS متوقف می‌شود (وگرنه
+  /// foreground service و باتری بی‌دلیل مصرف می‌شدند).
+  Future<void> _pushLiveLocation(LocationFix fix) async {
     final id = _liveLocationId;
     if (id == null) return;
-    final fix = await _location.current(highAccuracy: false);
-    if (!fix.isOk || !mounted) return;
     try {
       await _api.updateLiveLocation(id, lat: fix.lat, lng: fix.lng);
     } on ApiException catch (e) {
-      // اشتراک منقضی/حذف شده → تایمر را نگه نداریم.
       if (e.status == 404 || e.status == 409 || e.status == 400) {
-        _liveTimer?.cancel();
+        _endLiveTracking();
         if (mounted) setState(() => _liveLocationId = null);
       }
     } catch (_) {}
@@ -716,7 +750,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _stopLiveLocation() async {
     final id = _liveLocationId;
     if (id == null) return;
-    _liveTimer?.cancel();
+    _endLiveTracking();
     await _run(() async {
       await _api.stopLiveLocation(id);
       if (mounted) setState(() => _liveLocationId = null);
