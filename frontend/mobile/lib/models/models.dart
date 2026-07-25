@@ -248,6 +248,98 @@ class NearbyPerson {
       );
 }
 
+/// یک ریل (`/api/v1/reels`).
+///
+/// ⚠ ریل در dilix-api موجودیتِ **جدا** از پست است و شکلِ پاسخِ متفاوتی دارد
+/// (`media_url`/`media_type` مفرد، `view_count`). پیش‌تر فیدِ ریلز در مدلِ
+/// `Post` ریخته می‌شد و کنش‌ها به `/posts/{id}/...` می‌رفتند که برای شناسهٔ ریل
+/// همیشه ۴۰۴ می‌داد.
+class Reel {
+  const Reel({
+    required this.id,
+    required this.authorEarthId,
+    required this.authorName,
+    required this.authorAvatar,
+    required this.mediaUrl,
+    required this.mediaType,
+    required this.caption,
+    required this.viewCount,
+    required this.likeCount,
+    required this.commentCount,
+    required this.likedByMe,
+    required this.isMine,
+  });
+
+  final String id;
+  final String authorEarthId;
+  final String? authorName;
+  final String? authorAvatar;
+  final String mediaUrl;
+
+  /// `video` یا `image` — سرور هر دو را می‌پذیرد، پس صفحه باید تصویر را هم
+  /// نمایش دهد (نه پیامِ «ویدیویی ندارد»).
+  final String mediaType;
+  final String? caption;
+  final int viewCount;
+  final int likeCount;
+  final int commentCount;
+  final bool likedByMe;
+  final bool isMine;
+
+  bool get isVideo => mediaType.startsWith('video');
+  String get authorTitle =>
+      (authorName?.trim().isNotEmpty ?? false) ? authorName!.trim() : authorEarthId;
+
+  factory Reel.fromJson(Map<String, dynamic> j) => Reel(
+        id: j['id'] as String,
+        authorEarthId: (j['author_earth_id'] ?? '') as String,
+        authorName: j['author_name'] as String?,
+        authorAvatar: j['author_avatar'] as String?,
+        mediaUrl: (j['media_url'] ?? '') as String,
+        mediaType: (j['media_type'] ?? 'video') as String,
+        caption: j['caption'] as String?,
+        viewCount: (j['view_count'] as num?)?.toInt() ?? 0,
+        likeCount: (j['like_count'] as num?)?.toInt() ?? 0,
+        commentCount: (j['comment_count'] as num?)?.toInt() ?? 0,
+        likedByMe: (j['liked_by_me'] ?? false) as bool,
+        isMine: (j['is_mine'] ?? false) as bool,
+      );
+}
+
+/// نظرِ یک ریل (`GET /api/v1/reels/{id}/comments`).
+class ReelComment {
+  const ReelComment({
+    required this.id,
+    required this.authorEarthId,
+    required this.authorName,
+    required this.authorAvatar,
+    required this.body,
+    required this.isMine,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String authorEarthId;
+  final String? authorName;
+  final String? authorAvatar;
+  final String body;
+  final bool isMine;
+  final DateTime? createdAt;
+
+  String get authorTitle =>
+      (authorName?.trim().isNotEmpty ?? false) ? authorName!.trim() : authorEarthId;
+
+  factory ReelComment.fromJson(Map<String, dynamic> j) => ReelComment(
+        id: j['id'] as String,
+        authorEarthId: (j['author_earth_id'] ?? '') as String,
+        authorName: j['author_name'] as String?,
+        authorAvatar: j['author_avatar'] as String?,
+        body: (j['body'] ?? '') as String,
+        isMine: (j['is_mine'] ?? false) as bool,
+        createdAt: DateTime.tryParse((j['created_at'] ?? '') as String),
+      );
+}
+
 /// یک کاربر در فهرست‌های اجتماعی (دنبال‌کننده/دنبال‌شونده/پیشنهاد/جستجو).
 ///
 /// همهٔ چهار اندپوینتِ `/api/v1/social/{followers,following,suggestions,search}`

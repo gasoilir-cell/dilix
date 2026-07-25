@@ -4,6 +4,7 @@ import '../../app.dart';
 import '../../core/config.dart';
 import '../../models/models.dart';
 import '../messages/chat_screen.dart';
+import '../reels/reels_screen.dart';
 import 'user_list_screen.dart';
 
 /// پروفایلِ عمومیِ یک کاربر: دنبال‌کردن، شمارِ دنبال‌کننده/دنبال‌شونده و شروعِ گفتگو.
@@ -25,6 +26,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   SocialProfile? _profile;
+  List<Reel>? _reels;
   bool _loading = true;
   bool _busy = false;
   String? _error;
@@ -51,6 +53,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _loading = false;
         _error = '$e';
       });
+      return;
+    }
+    // ریل‌ها جدا و بعد از پروفایل می‌آیند: نبودنشان نباید کلِ صفحه را خطا کند.
+    try {
+      final reels = await api.userReels(widget.earthId);
+      if (mounted) setState(() => _reels = reels);
+    } catch (_) {
+      if (mounted) setState(() => _reels = const []);
     }
   }
 
@@ -139,6 +149,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                       const SizedBox(height: 24),
                       _identityCard(p),
+                      const SizedBox(height: 24),
+                      _reelsSection(),
                     ],
                   ),
                 ),
@@ -251,6 +263,79 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  /// شبکهٔ ریل‌های کاربر. سرور برای ریلِ ویدیویی thumbnail نمی‌دهد، پس فقط
+  /// ریلِ تصویری پیش‌نمایشِ واقعی دارد و بقیه کاشیِ نشانه‌دار می‌گیرند.
+  Widget _reelsSection() {
+    final reels = _reels;
+    if (reels == null) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (reels.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('ریل‌ها (${reels.length})',
+            style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            mainAxisSpacing: 4,
+            crossAxisSpacing: 4,
+            childAspectRatio: 9 / 16,
+          ),
+          itemCount: reels.length,
+          itemBuilder: (_, i) => _reelTile(reels, i),
+        ),
+      ],
+    );
+  }
+
+  Widget _reelTile(List<Reel> reels, int index) {
+    final reel = reels[index];
+    final url = reel.isVideo ? null : AppConfig.absoluteMedia(reel.mediaUrl);
+    return InkWell(
+      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => ReelPagerScreen(
+          reels: reels,
+          initialIndex: index,
+          title: _profile?.title ?? 'ریل‌ها',
+        ),
+      )),
+      child: Container(
+        color: Colors.black12,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (url != null) Image.network(url, fit: BoxFit.cover),
+            if (url == null)
+              const Center(
+                  child: Icon(Icons.play_circle_outline,
+                      size: 32, color: Colors.black45)),
+            Positioned(
+              right: 4,
+              bottom: 4,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.favorite, size: 12, color: Colors.white),
+                  const SizedBox(width: 2),
+                  Text('${reel.likeCount}',
+                      style: const TextStyle(color: Colors.white, fontSize: 11)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

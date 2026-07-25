@@ -355,11 +355,69 @@ class ApiClient {
     return list.map((e) => Post.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  /// فیدِ ریلز؛ dilix-api endpointِ جدا دارد (`ReelOut` هم‌شکلِ PostOut است).
-  Future<List<Post>> reelsFeed({int limit = 30}) async {
-    final j = await _get('/api/v1/reels/feed') as Map<String, dynamic>;
+  // ─────────────── Reels ───────────────
+  /// فیدِ ریلز. ⚠ ریل در dilix-api موجودیتِ **جدا** از پست است: شکلِ پاسخ فرق
+  /// دارد (`media_url`/`media_type` مفرد، `view_count`) و شناسه‌اش در
+  /// اندپوینت‌های `/posts/*` معتبر نیست (۴۰۴ «پست پیدا نشد»).
+  Future<List<Reel>> reelsFeed({int limit = 30}) async {
+    final j =
+        await _get('/api/v1/reels/feed?limit=$limit') as Map<String, dynamic>;
     final list = (j['items'] ?? const []) as List;
-    return list.map((e) => Post.fromJson(e as Map<String, dynamic>)).toList();
+    return list.map((e) => Reel.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// ریل‌های یک کاربر.
+  Future<List<Reel>> userReels(String earthId, {int limit = 30}) async {
+    final j = await _get('/api/v1/reels/user/$earthId?limit=$limit');
+    // بسته به نسخهٔ سرور آرایهٔ خام یا پاکتِ `{items}`؛ هر دو تحمل می‌شود.
+    final list = j is List ? j : ((j as Map)['items'] ?? const []) as List;
+    return list.map((e) => Reel.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// toggleِ لایکِ ریل → `{liked, like_count}`.
+  Future<(bool, int)> likeReel(String reelId) async {
+    final j = await _post('/api/v1/reels/$reelId/like', null) as Map;
+    return (
+      (j['liked'] ?? false) as bool,
+      (j['like_count'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  /// ثبتِ بازدید (سرور ۲۰۴ و بدونِ بدنه می‌دهد). خطا عمداً بلعیده می‌شود چون
+  /// شمارشِ بازدید نباید پخشِ ویدیو را بشکند.
+  Future<void> viewReel(String reelId) async {
+    try {
+      await _post('/api/v1/reels/$reelId/view', null);
+    } catch (_) {}
+  }
+
+  Future<List<ReelComment>> reelComments(String reelId) async {
+    final list = await _get('/api/v1/reels/$reelId/comments') as List;
+    return list
+        .map((e) => ReelComment.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// بدنه به‌صورتِ form با کلیدِ `body` (مثلِ نظرِ پست).
+  Future<ReelComment> commentOnReel(String reelId, String body) async {
+    final j = await _postForm('/api/v1/reels/$reelId/comments', {'body': body});
+    return ReelComment.fromJson(j as Map<String, dynamic>);
+  }
+
+  Future<void> deleteReelComment(String commentId) =>
+      _delete('/api/v1/reels/comments/$commentId');
+
+  Future<void> deleteReel(String reelId) => _delete('/api/v1/reels/$reelId');
+
+  /// انتشارِ ریل با آپلودِ فایل (multipart، فیلدِ `file` + `caption` اختیاری).
+  Future<Reel> createReel({required String filePath, String? caption}) async {
+    final req = http.MultipartRequest('POST', Uri.parse('$_base/api/v1/reels'));
+    req.headers.addAll(_headers());
+    req.files.add(await http.MultipartFile.fromPath('file', filePath));
+    if (caption != null && caption.isNotEmpty) req.fields['caption'] = caption;
+    final res = await http.Response.fromStream(await _client.send(req));
+    if (res.statusCode >= 400) _raise(res);
+    return Reel.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
 
   /// toggleِ لایکِ یک پست؛ شمارِ جدیدِ لایک را برمی‌گرداند.
