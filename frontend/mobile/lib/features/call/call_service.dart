@@ -1,7 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
-import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -14,39 +12,51 @@ enum CallPhase { idle, outgoing, incoming, connecting, active }
 /// نوعِ رسانه.
 enum CallMedia { audio, video }
 
-/// سرویسِ WebRTC تماسِ صوتی/تصویری. signaling روی همان `WS /v1/ws?token=`
-/// انجام می‌شود و سرور فقط پیام‌ها را بینِ دو طرف relay می‌کند (سرور رسانه را
-/// نمی‌بیند). پروتکل هم‌راستا با `CallManager.tsx` وب است:
-///   call.offer/answer → payload.sdp {type,sdp}
-///   ice.candidate     → payload.candidate {candidate,sdpMid,sdpMLineIndex}
-///   call.end          → payload.reason
-/// و در همهٔ پیام‌ها `to` (گیرنده) و `call_id` و `media` هست؛ سرور `from` را
-/// به payload اضافه می‌کند.
+/// سرویسِ WebRTC تماسِ صوتی/تصویری، هم‌پروتکل با `CallManager.tsx`ِ وب.
+///
+/// ⚠ سیگنالینگ **WebSocket نیست**. سرور برای هر Earth ID یک صفِ Redis دارد و
+/// کلاینت با `GET /api/v1/calls/poll` هم سیگنال‌ها را برمی‌دارد و هم حضورش را
+/// تازه می‌کند (کلیدِ حضور TTL=۱۵ث دارد). پس حلقهٔ poll باید تا وقتی کاربر
+/// واردِ حساب است بچرخد، وگرنه دیگران او را «آفلاین» می‌بینند و `invite`
+/// بی‌آنکه زنگ بخورد `status=offline` می‌گیرد.
+///
+/// قرارداد سیگنال‌ها (دقیقاً مثلِ وب):
+///   * `sdp` همیشه **رشتهٔ JSON** است، نه شیء: `jsonEncode({type, sdp})`.
+///   * کاندیدای ICE هم با `type:'ice'` و همان فیلدِ `sdp` می‌رود (فیلدِ
+///     `candidate`ِ سرور استفاده نمی‌شود) — تغییرش سازگاری با وب را می‌شکند.
 class CallService extends ChangeNotifier {
   CallService(this._api);
 
   final ApiClient _api;
 
-  static const _iceServers = <String, dynamic>{
-    'iceServers': [
-      {'urls': 'stun:stun.l.google.com:19302'},
-    ],
-  };
+  /// وقتی سرور ICE نداد (یا کاربر واردِ حساب نیست) همین‌ها استفاده می‌شوند.
+  static const _fallbackIce = <Map<String, dynamic>>[
+    {'urls': 'stun:stun.l.google.com:19302'},
+    {'urls': 'stun:stun1.l.google.com:19302'},
+  ];
 
-  WebSocket? _ws;
-  StreamSubscription<dynamic>? _wsSub;
+  static const _pollInterval = Duration(milliseconds: 1500);
+  static const _ringTimeout = Duration(seconds: 35);
+
+  Timer? _pollTimer;
+  bool _polling = false;
+  List<Map<String, dynamic>>? _iceCache;
+
   RTCPeerConnection? _pc;
 
   final RTCVideoRenderer localRenderer = RTCVideoRenderer();
   final RTCVideoRenderer remoteRenderer = RTCVideoRenderer();
 
   MediaStream? _localStream;
-  final List<RTCIceCandidate> _pendingCandidates = [];
+  final List<Map<String, dynamic>> _pendingLocalIce = [];
+  final List<RTCIceCandidate> _pendingRemoteIce = [];
+  bool _remoteSet = false;
 
   CallPhase _phase = CallPhase.idle;
   CallMedia _media = CallMedia.audio;
   String _peerId = '';
   String _peerName = '';
+  String? _peerAvatar;
   String _callId = '';
   bool _outgoing = false;
   bool _muted = false;
@@ -54,18 +64,22 @@ class CallService extends ChangeNotifier {
   bool _initialized = false;
   bool _renderersReady = false;
   String? _error;
+  String? _pendingOfferSdp;
+  Timer? _ringTimer;
+  DateTime? _activeSince;
 
   CallPhase get phase => _phase;
   CallMedia get media => _media;
   String get peerId => _peerId;
   String get peerName => _peerName;
+  String? get peerAvatar => _peerAvatar;
   bool get muted => _muted;
   bool get camOff => _camOff;
   String? get error => _error;
   bool get isBusy => _phase != CallPhase.idle;
 
-  /// آماده‌سازیِ رندررها و اتصالِ WebSocket. idempotent است و پس از احرازِ هویت
-  /// یک‌بار به‌صورتِ سراسری صدا زده می‌شود تا WS همیشه به تماسِ ورودی گوش دهد.
+  /// آماده‌سازیِ رندررها و روشن‌کردنِ حلقهٔ poll. idempotent است و پس از احرازِ
+  /// هویت یک‌بار به‌صورتِ سراسری صدا زده می‌شود تا تماسِ ورودی شنیده شود.
   Future<void> init() async {
     if (_initialized) return;
     _initialized = true;
@@ -75,7 +89,20 @@ class CallService extends ChangeNotifier {
       await remoteRenderer.initialize();
       _renderersReady = true;
     } catch (_) {}
-    await _ensureSocket();
+    startPolling();
+  }
+
+  /// روشن‌کردنِ حلقهٔ حضور/سیگنال. بعد از ورود صدا زده می‌شود.
+  void startPolling() {
+    if (_pollTimer != null) return;
+    _pollTimer = Timer.periodic(_pollInterval, (_) => _tick());
+    _tick();
+  }
+
+  /// خاموش‌کردنِ حلقه (خروج از حساب) تا درخواستِ ۴۰۱ پشتِ سرِ هم نرود.
+  void stopPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = null;
   }
 
   /// فقط برای تست: تنظیمِ مستقیمِ فاز/طرف بدونِ درگیرکردنِ WebRTC واقعی.
@@ -91,120 +118,141 @@ class CallService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _ensureSocket() async {
-    if (_ws != null) return;
-    final token = _api.accessToken;
-    if (token == null) return;
-    final base = _api.baseUrl
-        .replaceFirst('https://', 'wss://')
-        .replaceFirst('http://', 'ws://');
+  Future<void> _tick() async {
+    if (_polling || !_api.isAuthenticated) return;
+    _polling = true;
     try {
-      _ws = await WebSocket.connect('$base/v1/ws?token=$token');
-      _wsSub = _ws!.listen(
-        _onWsData,
-        onDone: () {
-          _ws = null;
-        },
-        onError: (_) {
-          _ws = null;
-        },
-      );
-    } catch (e) {
-      _error = 'اتصالِ بلادرنگ برقرار نشد.';
-      notifyListeners();
+      final signals = await _api.callPoll();
+      for (final s in signals) {
+        await _handleSignal(s);
+      }
+    } catch (_) {
+      // شبکه/۴۰۱ — حلقه باید زنده بماند تا با برگشتِ اتصال ادامه دهد.
+    } finally {
+      _polling = false;
     }
   }
 
-  void _send(String type, Map<String, dynamic> payload) {
-    final ws = _ws;
-    if (ws == null || _peerId.isEmpty) return;
-    ws.add(jsonEncode({
-      'type': type,
-      'payload': {
-        'to': _peerId,
-        'call_id': _callId,
-        'media': _media == CallMedia.video ? 'video' : 'audio',
-        ...payload,
-      },
-    }));
+  // ─────────── ارسالِ سیگنال ───────────
+  Future<void> _signal(String type, {String? sdp, String? text, String? lang}) async {
+    if (_callId.isEmpty || _peerId.isEmpty) return;
+    try {
+      await _api.callSignal(
+        callId: _callId,
+        toEarthId: _peerId,
+        type: type,
+        sdp: sdp,
+        text: text,
+        lang: lang,
+      );
+    } catch (_) {}
   }
 
-  Future<void> _onWsData(dynamic raw) async {
-    Map<String, dynamic> data;
-    try {
-      data = jsonDecode(raw as String) as Map<String, dynamic>;
-    } catch (_) {
+  void _sendIce(Map<String, dynamic> cand) {
+    // پیش از گرفتنِ call_id مقصدی نداریم؛ صف می‌کنیم و بعد می‌فرستیم.
+    if (_callId.isEmpty || _peerId.isEmpty) {
+      _pendingLocalIce.add(cand);
       return;
     }
-    final type = data['type'] as String?;
-    final payload = (data['payload'] as Map?)?.cast<String, dynamic>() ?? {};
-    switch (type) {
-      case 'call.offer':
-        await _onOffer(payload);
-        break;
-      case 'call.answer':
-        await _onAnswer(payload);
-        break;
-      case 'ice.candidate':
-        await _onRemoteCandidate(payload);
-        break;
-      case 'call.end':
-        _teardown();
-        break;
+    _signal('ice', sdp: jsonEncode(cand));
+  }
+
+  void _flushLocalIce() {
+    final queued = List<Map<String, dynamic>>.from(_pendingLocalIce);
+    _pendingLocalIce.clear();
+    for (final c in queued) {
+      _signal('ice', sdp: jsonEncode(c));
+    }
+  }
+
+  Future<void> _flushRemoteIce() async {
+    final queued = List<RTCIceCandidate>.from(_pendingRemoteIce);
+    _pendingRemoteIce.clear();
+    for (final c in queued) {
+      try {
+        await _pc!.addCandidate(c);
+      } catch (_) {}
     }
   }
 
   // ─────────── ساختِ اتصال ───────────
+  Future<List<Map<String, dynamic>>> _ice() async {
+    if (_iceCache != null) return _iceCache!;
+    try {
+      final servers = await _api.callIceServers();
+      _iceCache = servers.isEmpty ? _fallbackIce : servers;
+    } catch (_) {
+      _iceCache = _fallbackIce;
+    }
+    return _iceCache!;
+  }
+
   Future<RTCPeerConnection> _newPeerConnection() async {
-    final pc = await createPeerConnection(_iceServers);
+    final pc = await createPeerConnection({
+      'iceServers': await _ice(),
+      'sdpSemantics': 'unified-plan',
+      'bundlePolicy': 'max-bundle',
+    });
     pc.onIceCandidate = (c) {
       if (c.candidate != null) {
-        _send('ice.candidate', {
-          'candidate': {
-            'candidate': c.candidate,
-            'sdpMid': c.sdpMid,
-            'sdpMLineIndex': c.sdpMLineIndex,
-          },
+        _sendIce({
+          'candidate': c.candidate,
+          'sdpMid': c.sdpMid,
+          'sdpMLineIndex': c.sdpMLineIndex,
         });
       }
     };
     pc.onTrack = (event) {
       if (event.streams.isNotEmpty) {
-        remoteRenderer.srcObject = event.streams[0];
+        if (_renderersReady) remoteRenderer.srcObject = event.streams[0];
         notifyListeners();
       }
     };
     pc.onConnectionState = (state) {
       if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
           state == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {
-        if (_phase != CallPhase.idle) _teardown();
+        if (_phase != CallPhase.idle) _finish('failed');
       }
     };
     return pc;
   }
 
+  /// انتظار برای کاملِ‌شدنِ جمع‌آوریِ ICE با سقفِ ۳ثانیه (مثلِ وب).
+  /// نیمه‌trickle: offer/answer کامل‌تر می‌رود ولی کاندیداهای بعدی هم می‌روند.
+  Future<void> _waitIce(RTCPeerConnection pc) async {
+    final done = Completer<void>();
+    void finish() {
+      if (!done.isCompleted) done.complete();
+    }
+
+    if (await pc.getIceGatheringState() ==
+        RTCIceGatheringState.RTCIceGatheringStateComplete) {
+      return;
+    }
+    pc.onIceGatheringState = (state) {
+      if (state == RTCIceGatheringState.RTCIceGatheringStateComplete) finish();
+    };
+    Timer(const Duration(seconds: 3), finish);
+    await done.future;
+  }
+
   Future<void> _attachLocal() async {
     final stream = await navigator.mediaDevices.getUserMedia({
       'audio': true,
-      'video': _media == CallMedia.video,
+      'video': _media == CallMedia.video
+          ? {'facingMode': 'user', 'width': 640, 'height': 480}
+          : false,
     });
     _localStream = stream;
-    localRenderer.srcObject = stream;
+    if (_renderersReady) localRenderer.srcObject = stream;
     for (final track in stream.getTracks()) {
       await _pc!.addTrack(track, stream);
     }
     notifyListeners();
   }
 
-  Future<void> _flushCandidates() async {
-    final pending = List<RTCIceCandidate>.from(_pendingCandidates);
-    _pendingCandidates.clear();
-    for (final c in pending) {
-      try {
-        await _pc!.addCandidate(c);
-      } catch (_) {}
-    }
-  }
+  String _localDesc(RTCSessionDescription d) =>
+      jsonEncode({'type': d.type, 'sdp': d.sdp});
 
   // ─────────── تماسِ خروجی ───────────
   Future<void> startCall({
@@ -213,13 +261,14 @@ class CallService extends ChangeNotifier {
     required CallMedia media,
   }) async {
     if (_phase != CallPhase.idle) return;
-    await _ensureSocket();
     _error = null;
     _outgoing = true;
-    _peerId = peerId;
+    _remoteSet = false;
+    _peerId = peerId.toUpperCase();
     _peerName = peerName;
+    _peerAvatar = null;
     _media = media;
-    _callId = _newCallId();
+    _callId = '';
     _phase = CallPhase.outgoing;
     notifyListeners();
     try {
@@ -227,93 +276,195 @@ class CallService extends ChangeNotifier {
       await _attachLocal();
       final offer = await _pc!.createOffer();
       await _pc!.setLocalDescription(offer);
-      _send('call.offer', {
-        'sdp': {'type': offer.type, 'sdp': offer.sdp},
+      await _waitIce(_pc!);
+      final local = await _pc!.getLocalDescription() ?? offer;
+      final (callId, status) = await _api.callInvite(
+        toEarthId: _peerId,
+        media: media == CallMedia.video ? 'video' : 'audio',
+        sdp: _localDesc(local),
+      );
+      if (status == 'offline') {
+        _error = 'مخاطب در دسترس نیست.';
+        _peerId = peerId.toUpperCase();
+        await _logCall('no_answer', 0);
+        _teardown();
+        return;
+      }
+      _callId = callId;
+      _flushLocalIce();
+      _ringTimer = Timer(_ringTimeout, () async {
+        if (_phase != CallPhase.outgoing) return;
+        await _signal('cancel');
+        _error = 'پاسخی داده نشد.';
+        await _logCall('no_answer', 0);
+        _teardown();
       });
     } catch (_) {
-      _error = 'شروعِ تماس ناموفق بود.';
+      _error = 'برقراریِ تماس ناموفق بود.';
       _teardown();
     }
   }
 
   // ─────────── تماسِ ورودی ───────────
-  Future<void> _onOffer(Map<String, dynamic> payload) async {
-    if (_phase != CallPhase.idle) {
-      // مشغول: به تماس‌گیرنده پایان می‌فرستیم.
-      _peerId = (payload['from'] ?? '') as String;
-      _callId = (payload['call_id'] ?? '') as String;
-      _send('call.end', {'reason': 'busy'});
-      _peerId = '';
-      return;
-    }
-    _outgoing = false;
-    _peerId = (payload['from'] ?? '') as String;
-    _callId = (payload['call_id'] ?? '') as String;
-    _media = payload['media'] == 'video' ? CallMedia.video : CallMedia.audio;
-    final sdp = (payload['sdp'] as Map).cast<String, dynamic>();
-    _pendingOffer = RTCSessionDescription(sdp['sdp'] as String, sdp['type'] as String);
-    _phase = CallPhase.incoming;
-    notifyListeners();
-  }
-
-  RTCSessionDescription? _pendingOffer;
-
   Future<void> accept() async {
-    if (_pendingOffer == null) return;
+    if (_pendingOfferSdp == null) return;
     _phase = CallPhase.connecting;
     notifyListeners();
+    _ringTimer?.cancel();
     try {
       _pc = await _newPeerConnection();
       await _attachLocal();
-      await _pc!.setRemoteDescription(_pendingOffer!);
-      await _flushCandidates();
+      final offer = jsonDecode(_pendingOfferSdp!) as Map<String, dynamic>;
+      await _pc!.setRemoteDescription(
+        RTCSessionDescription(offer['sdp'] as String?, offer['type'] as String?),
+      );
+      _remoteSet = true;
+      await _flushRemoteIce();
       final answer = await _pc!.createAnswer();
       await _pc!.setLocalDescription(answer);
-      _send('call.answer', {
-        'sdp': {'type': answer.type, 'sdp': answer.sdp},
-      });
-      _pendingOffer = null;
+      await _waitIce(_pc!);
+      final local = await _pc!.getLocalDescription() ?? answer;
+      await _signal('answer', sdp: _localDesc(local));
+      _flushLocalIce();
+      _pendingOfferSdp = null;
       _phase = CallPhase.active;
+      _activeSince = DateTime.now();
       notifyListeners();
     } catch (_) {
       _error = 'پاسخ به تماس ناموفق بود.';
-      _send('call.end', {'reason': 'failed'});
+      await _signal('reject');
       _teardown();
     }
   }
 
-  Future<void> _onAnswer(Map<String, dynamic> payload) async {
-    if (!_outgoing || _pc == null) return;
-    final sdp = (payload['sdp'] as Map).cast<String, dynamic>();
-    await _pc!.setRemoteDescription(
-      RTCSessionDescription(sdp['sdp'] as String, sdp['type'] as String),
-    );
-    await _flushCandidates();
-    _phase = CallPhase.active;
-    notifyListeners();
+  /// ردِ تماسِ ورودی.
+  Future<void> reject() async {
+    if (_phase == CallPhase.incoming) await _signal('reject');
+    _teardown();
   }
 
-  Future<void> _onRemoteCandidate(Map<String, dynamic> payload) async {
-    final c = (payload['candidate'] as Map?)?.cast<String, dynamic>();
-    if (c == null) return;
-    final cand = RTCIceCandidate(
-      c['candidate'] as String?,
-      c['sdpMid'] as String?,
-      (c['sdpMLineIndex'] as num?)?.toInt(),
-    );
-    if (_pc != null && await _hasRemoteDescription()) {
-      try {
-        await _pc!.addCandidate(cand);
-      } catch (_) {}
-    } else {
-      _pendingCandidates.add(cand);
+  /// قطعِ تماس از سمتِ کاربر.
+  Future<void> hangup() async {
+    switch (_phase) {
+      case CallPhase.outgoing:
+        await _signal('cancel');
+        await _logCall('no_answer', 0);
+        break;
+      case CallPhase.incoming:
+        await _signal('reject');
+        break;
+      case CallPhase.connecting:
+      case CallPhase.active:
+        await _signal('end');
+        final d = _durationSeconds();
+        await _logCall(d > 0 ? 'answered' : 'no_answer', d);
+        break;
+      case CallPhase.idle:
+        return;
     }
+    _teardown();
   }
 
-  Future<bool> _hasRemoteDescription() async {
-    if (_pc == null) return false;
-    final desc = await _pc!.getRemoteDescription();
-    return desc != null;
+  // ─────────── دریافتِ سیگنال ───────────
+  Future<void> _handleSignal(Map<String, dynamic> s) async {
+    final type = s['type'] as String?;
+    final callId = (s['call_id'] ?? '') as String;
+    switch (type) {
+      case 'incoming':
+        if (_phase != CallPhase.idle) {
+          // مشغولم: به تماس‌گیرنده «busy» می‌گویم بدونِ به‌هم‌ریختنِ تماسِ جاری.
+          try {
+            await _api.callSignal(
+              callId: callId,
+              toEarthId: ((s['from'] ?? '') as String).toUpperCase(),
+              type: 'busy',
+            );
+          } catch (_) {}
+          return;
+        }
+        _outgoing = false;
+        _remoteSet = false;
+        _peerId = ((s['from'] ?? '') as String).toUpperCase();
+        _peerName = (s['from_name'] as String?) ?? (s['from'] as String?) ?? 'تماس';
+        _peerAvatar = s['from_avatar'] as String?;
+        _callId = callId;
+        _pendingOfferSdp = s['sdp'] as String?;
+        _media = s['media'] == 'video' ? CallMedia.video : CallMedia.audio;
+        _phase = CallPhase.incoming;
+        notifyListeners();
+        _ringTimer = Timer(_ringTimeout + const Duration(seconds: 5), () {
+          if (_phase == CallPhase.incoming) _teardown(); // بی‌پاسخ
+        });
+        break;
+
+      case 'answer':
+        if (!_outgoing || _phase != CallPhase.outgoing || callId != _callId) return;
+        _ringTimer?.cancel();
+        try {
+          final desc = jsonDecode((s['sdp'] ?? '{}') as String) as Map<String, dynamic>;
+          await _pc!.setRemoteDescription(
+            RTCSessionDescription(desc['sdp'] as String?, desc['type'] as String?),
+          );
+          _remoteSet = true;
+          await _flushRemoteIce();
+          _phase = CallPhase.active;
+          _activeSince = DateTime.now();
+          notifyListeners();
+        } catch (_) {
+          _error = 'اتصال ناموفق بود.';
+          await _logCall('failed', 0);
+          _teardown();
+        }
+        break;
+
+      case 'reject':
+        if (_outgoing && _phase == CallPhase.outgoing && callId == _callId) {
+          _error = 'تماس رد شد.';
+          await _logCall('rejected', 0);
+          _teardown();
+        }
+        break;
+
+      case 'busy':
+        if (_outgoing && _phase == CallPhase.outgoing && callId == _callId) {
+          _error = 'مخاطب مشغول است.';
+          await _logCall('no_answer', 0);
+          _teardown();
+        }
+        break;
+
+      case 'cancel':
+        if (!_outgoing && _phase == CallPhase.incoming && callId == _callId) {
+          _teardown(); // تماس‌گیرنده منصرف شد؛ لاگ را خودش می‌زند.
+        }
+        break;
+
+      case 'end':
+        if ((_phase == CallPhase.active || _phase == CallPhase.connecting) &&
+            callId == _callId) {
+          final d = _durationSeconds();
+          if (_outgoing) await _logCall(d > 0 ? 'answered' : 'no_answer', d);
+          _teardown();
+        }
+        break;
+
+      case 'ice':
+        if (callId != _callId || s['sdp'] == null) return;
+        try {
+          final c = jsonDecode(s['sdp'] as String) as Map<String, dynamic>;
+          final cand = RTCIceCandidate(
+            c['candidate'] as String?,
+            c['sdpMid'] as String?,
+            (c['sdpMLineIndex'] as num?)?.toInt(),
+          );
+          if (_pc != null && _remoteSet) {
+            await _pc!.addCandidate(cand);
+          } else {
+            _pendingRemoteIce.add(cand);
+          }
+        } catch (_) {}
+        break;
+    }
   }
 
   // ─────────── کنترل‌ها ───────────
@@ -340,19 +491,35 @@ class CallService extends ChangeNotifier {
     }
   }
 
-  /// قطعِ تماس (از سمتِ کاربر): پیامِ پایان می‌فرستد و منابع را آزاد می‌کند.
-  void hangup() {
-    if (_phase != CallPhase.idle) _send('call.end', {'reason': 'hangup'});
-    _teardown();
+  int _durationSeconds() {
+    final since = _activeSince;
+    if (since == null) return 0;
+    return DateTime.now().difference(since).inSeconds;
   }
 
-  /// ردِ تماسِ ورودی.
-  void reject() {
-    if (_phase == CallPhase.incoming) _send('call.end', {'reason': 'declined'});
+  Future<void> _logCall(String status, int seconds) async {
+    if (!_outgoing || _peerId.isEmpty) return; // فقط تماس‌گیرنده لاگ می‌زند.
+    try {
+      await _api.callLog(
+        toEarthId: _peerId,
+        media: _media == CallMedia.video ? 'video' : 'audio',
+        status: status,
+        durationSeconds: seconds,
+      );
+    } catch (_) {}
+  }
+
+  /// پایانِ ناخواسته (خطای اتصال): به طرفِ مقابل خبر می‌دهد و پاک می‌کند.
+  Future<void> _finish(String reason) async {
+    await _signal('end');
+    final d = _durationSeconds();
+    if (_outgoing) await _logCall(d > 0 ? 'answered' : reason, d);
     _teardown();
   }
 
   void _teardown() {
+    _ringTimer?.cancel();
+    _ringTimer = null;
     try {
       _pc?.close();
     } catch (_) {}
@@ -368,27 +535,25 @@ class CallService extends ChangeNotifier {
       localRenderer.srcObject = null;
       remoteRenderer.srcObject = null;
     }
-    _pendingCandidates.clear();
-    _pendingOffer = null;
+    _pendingLocalIce.clear();
+    _pendingRemoteIce.clear();
+    _remoteSet = false;
+    _pendingOfferSdp = null;
     _peerId = '';
     _peerName = '';
+    _peerAvatar = null;
     _callId = '';
     _outgoing = false;
     _muted = false;
     _camOff = false;
+    _activeSince = null;
     _phase = CallPhase.idle;
     notifyListeners();
   }
 
-  static String _newCallId() {
-    final r = Random();
-    return List.generate(16, (_) => r.nextInt(16).toRadixString(16)).join();
-  }
-
   @override
   void dispose() {
-    _wsSub?.cancel();
-    _ws?.close();
+    stopPolling();
     _teardown();
     localRenderer.dispose();
     remoteRenderer.dispose();

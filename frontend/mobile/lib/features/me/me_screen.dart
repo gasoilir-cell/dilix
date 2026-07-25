@@ -117,6 +117,8 @@ class _MeScreenState extends State<MeScreen> {
   }
 
   Future<void> _logout() async {
+    // حلقهٔ حضور/تماس باید پیش از پاک‌شدنِ توکن بایستد، وگرنه هر ۱٫۵ث یک ۴۰۱ می‌زند.
+    CallScope.of(context).stopPolling();
     await ApiScope.of(context).logout();
     setState(() {
       _me = null;

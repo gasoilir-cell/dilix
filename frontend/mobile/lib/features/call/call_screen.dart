@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import '../../app.dart';
+import '../../core/config.dart';
 import 'call_service.dart';
 
 /// شروعِ یک تماسِ خروجی روی نمونهٔ سراسریِ [CallService] (از `CallScope`).
@@ -94,17 +95,21 @@ class CallScreen extends StatelessWidget {
   }
 
   Widget _audioBackdrop(CallService s) {
+    final avatar = AppConfig.absoluteMedia(s.peerAvatar);
     return Container(
       color: Colors.black,
       alignment: Alignment.center,
       child: CircleAvatar(
         radius: 56,
         backgroundColor: Colors.white12,
-        child: Icon(
-          s.media == CallMedia.video ? Icons.videocam : Icons.person,
-          size: 56,
-          color: Colors.white70,
-        ),
+        backgroundImage: avatar != null ? NetworkImage(avatar) : null,
+        child: avatar != null
+            ? null
+            : Icon(
+                s.media == CallMedia.video ? Icons.videocam : Icons.person,
+                size: 56,
+                color: Colors.white70,
+              ),
       ),
     );
   }

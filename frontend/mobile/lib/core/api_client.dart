@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -90,60 +91,113 @@ class ApiClient {
     throw ApiException(res.statusCode, detail, title);
   }
 
-  Future<dynamic> _get(String path) async {
-    final res = await _client.get(Uri.parse('$_base$path'), headers: _headers());
+  /// اجرای درخواست با یک‌بار تلاشِ خودکارِ تازه‌سازیِ توکن در صورتِ ۴۰۱.
+  ///
+  /// [run] عمداً یک بستار است تا هدرها **بعد از** رفرش دوباره ساخته شوند؛
+  /// وگرنه تلاشِ دوم همان توکنِ منقضی را می‌فرستد.
+  Future<dynamic> _exec(String path, Future<http.Response> Function() run) async {
+    var res = await run();
+    if (res.statusCode == 401 && _canRefresh(path) && await _refreshSession()) {
+      res = await run();
+    }
     if (res.statusCode >= 400) _raise(res);
     return res.body.isEmpty ? null : jsonDecode(res.body);
   }
 
-  Future<dynamic> _post(String path, Object? body) async {
-    final res = await _client.post(
-      Uri.parse('$_base$path'),
-      headers: _headers(json: true),
-      body: jsonEncode(body ?? {}),
-    );
-    if (res.statusCode >= 400) _raise(res);
-    return res.body.isEmpty ? null : jsonDecode(res.body);
+  /// روی خودِ اندپوینت‌های ورود/ثبت‌نام رفرش بی‌معناست (۴۰۱ آنجا یعنی
+  /// «رمز اشتباه»، نه «توکن منقضی») و باعثِ حلقه می‌شود.
+  static bool _canRefresh(String path) =>
+      !path.startsWith('/api/v1/auth/login') &&
+      !path.startsWith('/api/v1/auth/register') &&
+      !path.startsWith('/api/v1/auth/refresh') &&
+      !path.startsWith('/api/v1/auth/otp') &&
+      !path.startsWith('/api/v1/auth/oauth');
+
+  Future<bool>? _refreshInFlight;
+
+  /// تازه‌سازیِ نشست با `refresh_token`. تک‌پروازه (single-flight) است تا وقتی
+  /// چند درخواستِ هم‌زمان ۴۰۱ می‌گیرند فقط یک رفرش برود.
+  Future<bool> _refreshSession() =>
+      _refreshInFlight ??= _doRefresh().whenComplete(() {
+        _refreshInFlight = null;
+      });
+
+  Future<bool> _doRefresh() async {
+    final token = _refreshToken;
+    if (token == null || token.isEmpty) return false;
+    try {
+      final res = await _client.post(
+        Uri.parse('$_base/api/v1/auth/refresh'),
+        headers: const {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({'refresh_token': token}),
+      );
+      if (res.statusCode >= 400) {
+        // رفرش‌توکن هم باطل است → نشست واقعاً تمام شده.
+        await logout();
+        onSessionExpired?.call();
+        return false;
+      }
+      await _persistTokens(
+        TokenPair.fromJson(jsonDecode(res.body) as Map<String, dynamic>),
+      );
+      return true;
+    } catch (_) {
+      // خطای شبکه؛ نشست را پاک نمی‌کنیم تا با برگشتِ اینترنت ادامه یابد.
+      return false;
+    }
   }
+
+  /// وقتی رفرش هم شکست خورد (نشست باطل) صدا زده می‌شود تا UI به ورود برگردد.
+  void Function()? onSessionExpired;
+
+  Future<dynamic> _get(String path) =>
+      _exec(path, () => _client.get(Uri.parse('$_base$path'), headers: _headers()));
+
+  Future<dynamic> _post(String path, Object? body) => _exec(
+        path,
+        () => _client.post(
+          Uri.parse('$_base$path'),
+          headers: _headers(json: true),
+          body: jsonEncode(body ?? {}),
+        ),
+      );
 
   /// POST با بدنهٔ `application/x-www-form-urlencoded` (کتابخانهٔ http وقتی
   /// body یک `Map<String,String>` باشد خودکار این نوع را تنظیم می‌کند).
-  Future<dynamic> _postForm(String path, Map<String, String> fields) async {
-    final res = await _client.post(
-      Uri.parse('$_base$path'),
-      headers: _headers(),
-      body: fields,
-    );
-    if (res.statusCode >= 400) _raise(res);
-    return res.body.isEmpty ? null : jsonDecode(res.body);
-  }
+  Future<dynamic> _postForm(String path, Map<String, String> fields) => _exec(
+        path,
+        () => _client.post(
+          Uri.parse('$_base$path'),
+          headers: _headers(),
+          body: fields,
+        ),
+      );
 
-  Future<dynamic> _delete(String path) async {
-    final res =
-        await _client.delete(Uri.parse('$_base$path'), headers: _headers());
-    if (res.statusCode >= 400) _raise(res);
-    return res.body.isEmpty ? null : jsonDecode(res.body);
-  }
+  Future<dynamic> _delete(String path) => _exec(
+        path,
+        () => _client.delete(Uri.parse('$_base$path'), headers: _headers()),
+      );
 
-  Future<dynamic> _patch(String path, Object? body) async {
-    final res = await _client.patch(
-      Uri.parse('$_base$path'),
-      headers: _headers(json: true),
-      body: jsonEncode(body ?? {}),
-    );
-    if (res.statusCode >= 400) _raise(res);
-    return res.body.isEmpty ? null : jsonDecode(res.body);
-  }
+  Future<dynamic> _patch(String path, Object? body) => _exec(
+        path,
+        () => _client.patch(
+          Uri.parse('$_base$path'),
+          headers: _headers(json: true),
+          body: jsonEncode(body ?? {}),
+        ),
+      );
 
-  Future<dynamic> _put(String path, Object? body) async {
-    final res = await _client.put(
-      Uri.parse('$_base$path'),
-      headers: _headers(json: true),
-      body: jsonEncode(body ?? {}),
-    );
-    if (res.statusCode >= 400) _raise(res);
-    return res.body.isEmpty ? null : jsonDecode(res.body);
-  }
+  Future<dynamic> _put(String path, Object? body) => _exec(
+        path,
+        () => _client.put(
+          Uri.parse('$_base$path'),
+          headers: _headers(json: true),
+          body: jsonEncode(body ?? {}),
+        ),
+      );
 
   // ─────────────── Auth ───────────────
   Future<TokenPair> login(String identifier, String password) async {
@@ -1463,4 +1517,74 @@ class ApiClient {
     final j = await _post('/api/v1/ai/chat', {'message': message});
     return AiMessage.fromJson(j as Map<String, dynamic>);
   }
+
+  // ─────────────── Calls (سیگنالینگِ WebRTC روی HTTP) ───────────────
+  // ⚠ سیگنالینگ **WebSocket نیست**؛ سرور صفِ Redis دارد و کلاینت با
+  // `GET /calls/poll` هم سیگنال می‌گیرد و هم حضورش را تازه می‌کند
+  // (کلیدِ حضور TTL=۱۵ث دارد؛ بدونِ poll دیگران «آفلاین» می‌بینندت).
+
+  /// پیکربندیِ ICE (STUN عمومی + STUN/TURNِ خودی با کردنشالِ کوتاه‌عمر).
+  Future<List<Map<String, dynamic>>> callIceServers() async {
+    final j = await _get('/api/v1/calls/ice-servers') as Map<String, dynamic>;
+    return ((j['iceServers'] as List?) ?? const [])
+        .map((e) => (e as Map).cast<String, dynamic>())
+        .toList();
+  }
+
+  /// شروعِ تماس. [sdp] رشتهٔ JSONِ `{type, sdp}` است.
+  /// خروجی `(callId, status)` که status یکی از `ringing` یا `offline` است.
+  Future<(String, String)> callInvite({
+    required String toEarthId,
+    required String media,
+    required String sdp,
+    String? callId,
+  }) async {
+    final j = await _post('/api/v1/calls/invite', {
+      'to_earth_id': toEarthId,
+      'media': media,
+      'sdp': sdp,
+      if (callId != null) 'call_id': callId,
+    }) as Map<String, dynamic>;
+    return ((j['call_id'] ?? '') as String, (j['status'] ?? '') as String);
+  }
+
+  /// رلهٔ سیگنال: `answer|ice|reject|cancel|end|busy|caption|reoffer|reanswer`.
+  Future<void> callSignal({
+    required String callId,
+    required String toEarthId,
+    required String type,
+    String? sdp,
+    String? text,
+    String? lang,
+  }) =>
+      _post('/api/v1/calls/signal', {
+        'call_id': callId,
+        'to_earth_id': toEarthId,
+        'type': type,
+        if (sdp != null) 'sdp': sdp,
+        if (text != null) 'text': text,
+        if (lang != null) 'lang': lang,
+      });
+
+  /// دریافتِ صفِ سیگنال + heartbeatِ حضور.
+  Future<List<Map<String, dynamic>>> callPoll() async {
+    final j = await _get('/api/v1/calls/poll') as Map<String, dynamic>;
+    return ((j['signals'] as List?) ?? const [])
+        .map((e) => (e as Map).cast<String, dynamic>())
+        .toList();
+  }
+
+  /// ثبتِ لاگِ تماس به‌شکلِ پیامِ چت (`media_type=call`) — فقط تماس‌گیرنده.
+  Future<void> callLog({
+    required String toEarthId,
+    required String media,
+    required String status,
+    required int durationSeconds,
+  }) =>
+      _post('/api/v1/calls/call-log', {
+        'to_earth_id': toEarthId,
+        'media': media,
+        'status': status,
+        'duration_seconds': durationSeconds,
+      });
 }

@@ -149,6 +149,13 @@ class _RootGateState extends State<RootGate> {
 
   Future<void> _restoreSession() async {
     final api = ApiScope.of(context);
+    // اگر رفرش‌توکن هم باطل شده باشد، کلاینت نشست را پاک می‌کند و اینجا خبر
+    // می‌دهد تا اپ به‌جای ماندن در صفحهٔ خطا به ورود برگردد.
+    api.onSessionExpired = () {
+      if (!mounted) return;
+      CallScope.of(context).stopPolling();
+      setState(() {});
+    };
     await api.loadSession();
     if (mounted) setState(() => _sessionLoaded = true);
   }
@@ -170,10 +177,14 @@ class _RootGateState extends State<RootGate> {
       }
       return LoginScreen(onAuthenticated: () => setState(() {}));
     }
-    // پس از احرازِ هویت، سرویسِ تماس را یک‌بار راه‌اندازی می‌کنیم تا WebSocketِ
-    // signaling همیشه به تماسِ ورودی گوش دهد. init() idempotent است.
+    // پس از احرازِ هویت، سرویسِ تماس را راه‌اندازی می‌کنیم. حلقهٔ pollِ آن هم
+    // تماسِ ورودی را می‌گیرد و هم حضورِ کاربر را زنده نگه می‌دارد (بدونِ آن
+    // دیگران «آفلاین» می‌بینندش). init() idempotent است.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) CallScope.of(context).init();
+      if (!mounted) return;
+      final call = CallScope.of(context);
+      call.init();
+      call.startPolling(); // پس از ورودِ دوباره، حلقهٔ خاموش‌شده روشن می‌شود.
     });
     return const HomeShell();
   }
