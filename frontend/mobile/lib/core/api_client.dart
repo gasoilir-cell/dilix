@@ -456,7 +456,8 @@ class ApiClient {
     return SocialComment.fromJson(j as Map<String, dynamic>);
   }
 
-  Future<void> deleteSocialComment(String commentId) =>
+  /// ⚠ نظرِ ریل و نظرِ پست مسیرِ حذفِ **جدا** دارند، هرچند مدلشان یکی است.
+  Future<void> deleteReelComment(String commentId) =>
       _delete('/api/v1/reels/comments/$commentId');
 
   Future<void> deleteReel(String reelId) => _delete('/api/v1/reels/$reelId');

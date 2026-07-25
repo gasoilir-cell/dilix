@@ -49,6 +49,9 @@ void main() {
   testWidgets('فیدِ خالی پیامِ مناسب نشان می‌دهد', (tester) async {
     await tester.pumpWidget(_wrap(const HomeShell(), _fakeApi()));
     await tester.pumpAndSettle();
-    expect(find.text('هنوز پستی نیست.'), findsOneWidget);
+    expect(
+      find.text('فیدِ شما خالی است.\nاز «کشف» آدم‌های تازه را دنبال کنید.'),
+      findsOneWidget,
+    );
   });
 }
