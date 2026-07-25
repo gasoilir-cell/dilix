@@ -6,6 +6,7 @@ import '../../models/models.dart';
 import '../feed/post_card.dart';
 import '../messages/chat_screen.dart';
 import '../reels/reels_screen.dart';
+import '../stories/highlights_screen.dart';
 import 'user_list_screen.dart';
 
 /// پروفایلِ عمومیِ یک کاربر: دنبال‌کردن، شمارِ دنبال‌کننده/دنبال‌شونده و شروعِ گفتگو.
@@ -29,6 +30,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   SocialProfile? _profile;
   List<Reel>? _reels;
   List<Post>? _posts;
+  List<StoryHighlight>? _highlights;
   bool _loading = true;
   bool _busy = false;
   String? _error;
@@ -69,6 +71,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) setState(() => _posts = posts);
     } catch (_) {
       if (mounted) setState(() => _posts = const []);
+    }
+    try {
+      final highlights = await api.highlights(widget.earthId);
+      if (mounted) setState(() => _highlights = highlights);
+    } catch (_) {
+      if (mounted) setState(() => _highlights = const []);
     }
   }
 
@@ -157,6 +165,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                       const SizedBox(height: 24),
                       _identityCard(p),
+                      _highlightsSection(p),
                       const SizedBox(height: 24),
                       _reelsSection(),
                       const SizedBox(height: 24),
@@ -164,6 +173,86 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                   ),
                 ),
+    );
+  }
+
+  /// نوارِ افقیِ هایلایت‌ها. وقتی کاربر هایلایتی ندارد و پروفایل هم مالِ خودم
+  /// نیست، اصلاً رندر نمی‌شود تا پروفایلِ خالی شلوغ نشود.
+  Widget _highlightsSection(SocialProfile p) {
+    final items = _highlights ?? const <StoryHighlight>[];
+    if (items.isEmpty && !p.isMe) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 24),
+        Row(
+          children: [
+            const Expanded(
+              child: Text('هایلایت‌ها',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            TextButton(
+              onPressed: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => HighlightsScreen(
+                        earthId: widget.earthId, isMe: p.isMe),
+                  ),
+                );
+                if (mounted) await _load();
+              },
+              child: Text(items.isEmpty ? 'ساختن' : 'همه'),
+            ),
+          ],
+        ),
+        if (items.isEmpty)
+          Text('هنوز هایلایتی نساخته‌ای.',
+              style: Theme.of(context).textTheme.bodySmall)
+        else
+          SizedBox(
+            height: 96,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (_, i) {
+                final h = items[i];
+                final cover = AppConfig.absoluteMedia(h.coverUrl);
+                return GestureDetector(
+                  onTap: () async {
+                    await Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            HighlightDetailScreen(highlightId: h.id),
+                      ),
+                    );
+                    if (mounted) await _load();
+                  },
+                  child: SizedBox(
+                    width: 68,
+                    child: Column(
+                      children: [
+                        CircleAvatar(
+                          radius: 30,
+                          backgroundImage:
+                              cover != null ? NetworkImage(cover) : null,
+                          child: cover == null
+                              ? const Icon(Icons.auto_awesome_motion_outlined)
+                              : null,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(h.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+      ],
     );
   }
 

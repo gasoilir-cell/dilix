@@ -2189,3 +2189,166 @@ class TopupIntent {
         network: j['network'] as String?,
       );
 }
+
+// ─────────────── داستان‌ها: هایلایت، حلقهٔ مخاطب، بازدیدکننده ───────────────
+
+/// یک هایلایتِ پروفایل (`HighlightOut`) — مجموعهٔ ماندگارِ داستان‌ها.
+///
+/// هایلایت **اسنپ‌شات** است: پس از ساخته‌شدن به انقضای داستانِ اصلی وابسته
+/// نیست، پس حذفِ داستان آیتمِ هایلایت را پاک نمی‌کند.
+class StoryHighlight {
+  StoryHighlight({
+    required this.id,
+    required this.title,
+    required this.itemCount,
+    required this.isMine,
+    required this.updatedAt,
+    this.coverUrl,
+  });
+
+  final String id;
+  final String title;
+  final int itemCount;
+  final bool isMine;
+  final DateTime updatedAt;
+  final String? coverUrl;
+
+  factory StoryHighlight.fromJson(Map<String, dynamic> j) => StoryHighlight(
+        id: (j['id'] ?? '') as String,
+        title: (j['title'] ?? '') as String,
+        itemCount: (j['item_count'] as num?)?.toInt() ?? 0,
+        isMine: (j['is_mine'] ?? false) as bool,
+        updatedAt: DateTime.tryParse((j['updated_at'] ?? '') as String) ??
+            DateTime.fromMillisecondsSinceEpoch(0),
+        coverUrl: j['cover_url'] as String?,
+      );
+}
+
+/// یک آیتمِ داخلِ هایلایت (`HighlightItemOut`).
+class HighlightItem {
+  HighlightItem({
+    required this.id,
+    required this.mediaUrl,
+    required this.mediaType,
+    required this.sortOrder,
+    this.storyId,
+    this.caption,
+  });
+
+  final String id;
+  final String mediaUrl;
+  final String mediaType; // image | video
+  final int sortOrder;
+  final String? storyId;
+  final String? caption;
+
+  factory HighlightItem.fromJson(Map<String, dynamic> j) => HighlightItem(
+        id: (j['id'] ?? '') as String,
+        mediaUrl: (j['media_url'] ?? '') as String,
+        mediaType: (j['media_type'] ?? 'image') as String,
+        sortOrder: (j['sort_order'] as num?)?.toInt() ?? 0,
+        storyId: j['story_id'] as String?,
+        caption: j['caption'] as String?,
+      );
+}
+
+/// جزئیاتِ یک هایلایت با آیتم‌هایش (`HighlightDetailOut`).
+class HighlightDetail {
+  HighlightDetail({
+    required this.id,
+    required this.title,
+    required this.isMine,
+    required this.ownerEarthId,
+    required this.ownerName,
+    required this.items,
+    this.coverUrl,
+  });
+
+  final String id;
+  final String title;
+  final bool isMine;
+  final String ownerEarthId;
+  final String ownerName;
+  final List<HighlightItem> items;
+  final String? coverUrl;
+
+  factory HighlightDetail.fromJson(Map<String, dynamic> j) => HighlightDetail(
+        id: (j['id'] ?? '') as String,
+        title: (j['title'] ?? '') as String,
+        isMine: (j['is_mine'] ?? false) as bool,
+        ownerEarthId: (j['owner_earth_id'] ?? '') as String,
+        ownerName: (j['owner_name'] ?? '') as String,
+        items: ((j['items'] as List?) ?? const [])
+            .map((e) => HighlightItem.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        coverUrl: j['cover_url'] as String?,
+      );
+}
+
+/// عضوِ یک حلقهٔ مخاطب (`CircleMember`).
+class CircleMember {
+  CircleMember({required this.earthId, required this.name, this.avatarUrl});
+
+  final String earthId;
+  final String name;
+  final String? avatarUrl;
+
+  factory CircleMember.fromJson(Map<String, dynamic> j) => CircleMember(
+        earthId: (j['earth_id'] ?? '') as String,
+        name: (j['name'] ?? '') as String,
+        avatarUrl: j['avatar_url'] as String?,
+      );
+}
+
+/// سه حلقهٔ مخاطب (`CirclesOut`). نامِ کلیدها همان مقادیرِ مجازِ `audience` در
+/// ساختِ داستان است، پس مستقیماً برای انتخابِ مخاطبِ داستان هم به کار می‌رود.
+class ContactCircles {
+  ContactCircles({
+    required this.colleagues,
+    required this.family,
+    required this.friends,
+  });
+
+  final List<CircleMember> colleagues;
+  final List<CircleMember> family;
+  final List<CircleMember> friends;
+
+  static List<CircleMember> _list(dynamic v) => ((v as List?) ?? const [])
+      .map((e) => CircleMember.fromJson(e as Map<String, dynamic>))
+      .toList();
+
+  factory ContactCircles.fromJson(Map<String, dynamic> j) => ContactCircles(
+        colleagues: _list(j['colleagues']),
+        family: _list(j['family']),
+        friends: _list(j['friends']),
+      );
+
+  List<CircleMember> of(String circle) => switch (circle) {
+        'colleagues' => colleagues,
+        'family' => family,
+        _ => friends,
+      };
+}
+
+/// یک بازدیدکنندهٔ داستان (`ViewerOut`) — فقط نویسندهٔ داستان آن را می‌بیند.
+class StoryViewerEntry {
+  StoryViewerEntry({
+    required this.earthId,
+    required this.name,
+    required this.viewedAt,
+    this.avatarUrl,
+  });
+
+  final String earthId;
+  final String name;
+  final DateTime viewedAt;
+  final String? avatarUrl;
+
+  factory StoryViewerEntry.fromJson(Map<String, dynamic> j) => StoryViewerEntry(
+        earthId: (j['earth_id'] ?? '') as String,
+        name: (j['name'] ?? '') as String,
+        viewedAt: DateTime.tryParse((j['viewed_at'] ?? '') as String) ??
+            DateTime.fromMillisecondsSinceEpoch(0),
+        avatarUrl: j['avatar_url'] as String?,
+      );
+}

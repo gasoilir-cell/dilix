@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../app.dart';
+import '../../core/config.dart';
 import '../../models/models.dart';
+import 'circles_screen.dart';
+import 'highlights_screen.dart';
 
 /// فیدِ داستان‌ها: هر نویسنده یک حلقه؛ با لمسِ حلقه، نمایش‌گرِ داستان‌های آن
 /// نویسنده باز می‌شود و بازدیدِ هر داستان ثبت می‌گردد. هم‌سبکِ سایرِ featureها.
@@ -15,10 +18,26 @@ class StoriesScreen extends StatefulWidget {
 class _StoriesScreenState extends State<StoriesScreen> {
   Future<List<StoryRing>>? _rings;
 
+  /// Earth IDِ خودم؛ برای بازکردنِ هایلایت‌های خودم لازم است. حلقهٔ `isMe` در
+  /// فید فقط وقتی وجود دارد که داستانِ فعالی داشته باشم، پس روی آن حساب نمی‌کنیم.
+  String? _myEarthId;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _rings ??= ApiScope.of(context).storiesFeed();
+    if (_rings == null) {
+      _rings = ApiScope.of(context).storiesFeed();
+      _loadMe();
+    }
+  }
+
+  Future<void> _loadMe() async {
+    try {
+      final identity = await ApiScope.of(context).me();
+      if (mounted) setState(() => _myEarthId = identity.earthId);
+    } catch (_) {
+      // ناواردشده یا خطای شبکه؛ فقط کاشی‌های شخصی نمایش داده نمی‌شوند.
+    }
   }
 
   Future<void> _reload() async {
@@ -38,7 +57,29 @@ class _StoriesScreenState extends State<StoriesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('داستان‌ها')),
+      appBar: AppBar(
+        title: const Text('داستان‌ها'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.groups_outlined),
+            tooltip: 'حلقه‌های مخاطب',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const CirclesScreen()),
+            ),
+          ),
+          if (_myEarthId != null)
+            IconButton(
+              icon: const Icon(Icons.auto_awesome_motion_outlined),
+              tooltip: 'هایلایت‌های من',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) =>
+                      HighlightsScreen(earthId: _myEarthId!, isMe: true),
+                ),
+              ),
+            ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: _reload,
         child: FutureBuilder<List<StoryRing>>(
@@ -122,6 +163,9 @@ class _StoryViewerState extends State<StoryViewer> {
   final _controller = PageController();
   int _index = 0;
 
+  /// داستان‌های حذف‌شده در همین نشست؛ صفحه‌شان دیگر رندر نمی‌شود.
+  final _deleted = <String>{};
+
   @override
   void initState() {
     super.initState();
@@ -140,6 +184,107 @@ class _StoryViewerState extends State<StoryViewer> {
     if (!s.viewedByMe && !s.isMine) {
       ApiScope.of(context).viewStory(s.id).catchError((_) {});
     }
+  }
+
+  /// فهرستِ بازدیدکنندگان — فقط نویسنده مجاز است، پس خطا را داخلِ شیت نشان
+  /// می‌دهیم به‌جای آنکه نمایش‌گر را ببندیم.
+  void _showViewers(Story s) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (_) => FutureBuilder<List<StoryViewerEntry>>(
+        future: ApiScope.of(context).storyViewers(s.id),
+        builder: (ctx, snap) {
+          if (snap.connectionState == ConnectionState.waiting) {
+            return const SizedBox(
+              height: 160,
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+          if (snap.hasError) {
+            return SizedBox(
+              height: 160,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text('${snap.error}', textAlign: TextAlign.center),
+                ),
+              ),
+            );
+          }
+          final viewers = snap.data ?? const <StoryViewerEntry>[];
+          if (viewers.isEmpty) {
+            return const SizedBox(
+              height: 160,
+              child: Center(child: Text('هنوز کسی این داستان را ندیده است.')),
+            );
+          }
+          return SafeArea(
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: viewers.length,
+              itemBuilder: (_, i) {
+                final v = viewers[i];
+                final avatar = AppConfig.absoluteMedia(v.avatarUrl);
+                return ListTile(
+                  leading: CircleAvatar(
+                    backgroundImage:
+                        avatar != null ? NetworkImage(avatar) : null,
+                    child: avatar == null
+                        ? const Icon(Icons.person_outline)
+                        : null,
+                  ),
+                  title: Text(v.name.isEmpty ? v.earthId : v.name),
+                  subtitle: Text(v.earthId),
+                );
+              },
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _delete(Story s) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('حذفِ داستان'),
+        content: const Text('این داستان برای همیشه حذف شود؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('انصراف'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ApiScope.of(context).deleteStory(s.id);
+      if (!mounted) return;
+      setState(() => _deleted.add(s.id));
+      if (_deleted.length >= widget.stories.length) navigator.pop();
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('$e')));
+    }
+  }
+
+  Future<void> _addToHighlight(Story s) async {
+    final ok = await showAddToHighlightSheet(
+      context,
+      earthId: s.authorEarthId,
+      storyId: s.id,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(ok ? 'به هایلایت افزوده شد.' : 'انجام نشد.')),
+    );
   }
 
   void _next() {
@@ -175,6 +320,12 @@ class _StoryViewerState extends State<StoryViewer> {
   }
 
   Widget _storyPage(Story s) {
+    if (_deleted.contains(s.id)) {
+      return const Center(
+        child: Text('این داستان حذف شد.',
+            style: TextStyle(color: Colors.white70)),
+      );
+    }
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -216,6 +367,34 @@ class _StoryViewerState extends State<StoryViewer> {
             child: Text(
               s.caption!,
               style: const TextStyle(color: Colors.white, fontSize: 16),
+            ),
+          ),
+        if (s.isMine)
+          Positioned(
+            top: 20,
+            left: 4,
+            child: PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, color: Colors.white),
+              onSelected: (v) {
+                if (v == 'viewers') {
+                  _showViewers(s);
+                } else if (v == 'highlight') {
+                  _addToHighlight(s);
+                } else {
+                  _delete(s);
+                }
+              },
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: 'viewers',
+                  child: Text('بازدیدکنندگان (${s.viewCount})'),
+                ),
+                const PopupMenuItem(
+                  value: 'highlight',
+                  child: Text('افزودن به هایلایت'),
+                ),
+                const PopupMenuItem(value: 'delete', child: Text('حذفِ داستان')),
+              ],
             ),
           ),
       ],

@@ -799,6 +799,90 @@ class ApiClient {
     return Story.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
 
+  /// حذفِ داستانِ خودم.
+  Future<void> deleteStory(String storyId) =>
+      _delete('/api/v1/stories/$storyId');
+
+  /// بازدیدکنندگانِ یک داستان — سرور فقط به نویسنده پاسخ می‌دهد (وگرنه ۴۰۳).
+  Future<List<StoryViewerEntry>> storyViewers(String storyId) async {
+    final list = await _get('/api/v1/stories/$storyId/viewers') as List;
+    return list
+        .map((e) => StoryViewerEntry.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  // ─────────────── داستان‌ها: حلقه‌های مخاطب ───────────────
+  /// اعضای سه حلقهٔ مخاطبِ من (colleagues/family/friends).
+  Future<ContactCircles> storyCircles() async => ContactCircles.fromJson(
+      await _get('/api/v1/stories/circles') as Map<String, dynamic>);
+
+  /// افزودنِ یک کاربر به حلقه؛ [circle] یکی از colleagues/family/friends.
+  Future<CircleMember> addToCircle(String circle, String earthId) async =>
+      CircleMember.fromJson(await _post(
+        '/api/v1/stories/circles/$circle',
+        {'earth_id': earthId},
+      ) as Map<String, dynamic>);
+
+  /// حذفِ یک کاربر از حلقه.
+  Future<void> removeFromCircle(String circle, String earthId) =>
+      _delete('/api/v1/stories/circles/$circle/$earthId');
+
+  // ─────────────── داستان‌ها: هایلایت‌ها ───────────────
+  /// هایلایت‌های یک کاربر (برای پروفایل).
+  Future<List<StoryHighlight>> highlights(String earthId) async {
+    final list = await _get('/api/v1/stories/highlights/user/$earthId') as List;
+    return list
+        .map((e) => StoryHighlight.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// جزئیاتِ یک هایلایت به‌همراه آیتم‌هایش.
+  Future<HighlightDetail> highlight(String highlightId) async =>
+      HighlightDetail.fromJson(await _get(
+        '/api/v1/stories/highlights/$highlightId',
+      ) as Map<String, dynamic>);
+
+  /// ساختِ هایلایت از داستان‌های خودم؛ سرور حداقل یک شناسهٔ معتبر می‌خواهد.
+  Future<StoryHighlight> createHighlight({
+    required String title,
+    required List<String> storyIds,
+    String? coverUrl,
+  }) async =>
+      StoryHighlight.fromJson(await _post('/api/v1/stories/highlights', {
+        'title': title,
+        'story_ids': storyIds,
+        if (coverUrl != null) 'cover_url': coverUrl,
+      }) as Map<String, dynamic>);
+
+  /// تغییرِ عنوان یا کاورِ هایلایت.
+  Future<StoryHighlight> updateHighlight(
+    String highlightId, {
+    String? title,
+    String? coverUrl,
+  }) async =>
+      StoryHighlight.fromJson(await _patch('/api/v1/stories/highlights/$highlightId', {
+        if (title != null) 'title': title,
+        if (coverUrl != null) 'cover_url': coverUrl,
+      }) as Map<String, dynamic>);
+
+  /// افزودنِ داستان‌های بیشتر به هایلایت؛ پاسخ، هایلایتِ کاملِ به‌روزشده است.
+  Future<HighlightDetail> addHighlightItems(
+    String highlightId,
+    List<String> storyIds,
+  ) async =>
+      HighlightDetail.fromJson(await _post(
+        '/api/v1/stories/highlights/$highlightId/items',
+        {'story_ids': storyIds},
+      ) as Map<String, dynamic>);
+
+  /// حذفِ یک آیتم از هایلایت.
+  Future<void> removeHighlightItem(String highlightId, String itemId) =>
+      _delete('/api/v1/stories/highlights/$highlightId/items/$itemId');
+
+  /// حذفِ کاملِ هایلایت.
+  Future<void> deleteHighlight(String highlightId) =>
+      _delete('/api/v1/stories/highlights/$highlightId');
+
   // ─────────────── Referral / Wallet ───────────────
   /// آمارِ ارجاع؛ dilix-api `/referral/stats` پاسخِ {code, link, total_referred}.
   Future<ReferralLink> referralLink() async =>
