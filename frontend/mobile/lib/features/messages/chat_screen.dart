@@ -1,7 +1,10 @@
 import 'dart:async';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
 
 import '../../app.dart';
 import '../../core/api_client.dart';
@@ -37,9 +40,19 @@ class _ChatScreenState extends State<ChatScreen> {
   /// ترجمهٔ نمایش‌داده‌شده برای هر پیام (id → متنِ ترجمه).
   final _translations = <String, String>{};
 
+  /// ضبطِ پیامِ صوتی.
+  final _recorder = AudioRecorder();
+  bool _recording = false;
+  Duration _recElapsed = Duration.zero;
+  Timer? _recTimer;
+  String? _recPath;
+
   Timer? _poll;
   Timer? _statusPoll;
   DateTime _lastTypingSent = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// آخرین وضعیتِ «فیلد متن دارد؟» برای سوییچِ دکمهٔ ارسال/میکروفن.
+  bool _hadText = false;
 
   bool _loading = true;
   bool _sending = false;
@@ -60,6 +73,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _room = widget.room;
+    _inputCtrl.addListener(_onInputChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _load(initial: true);
       _markRead();
@@ -75,8 +89,12 @@ class _ChatScreenState extends State<ChatScreen> {
   void dispose() {
     _poll?.cancel();
     _statusPoll?.cancel();
+    _recTimer?.cancel();
+    _recorder.dispose();
     _scrollCtrl.dispose();
-    _inputCtrl.dispose();
+    _inputCtrl
+      ..removeListener(_onInputChanged)
+      ..dispose();
     super.dispose();
   }
 
@@ -191,8 +209,17 @@ class _ChatScreenState extends State<ChatScreen> {
     }, failure: 'ارسال ناموفق بود');
   }
 
+  /// خالی/پرشدنِ فیلد → سوییچِ دکمهٔ ارسال ↔ میکروفن. روی `addListener` است تا
+  /// پاک‌شدنِ برنامه‌ایِ فیلد (پس از ارسال) هم دیده شود، نه فقط تایپِ کاربر.
+  void _onInputChanged() {
+    final hasText = _inputCtrl.text.trim().isNotEmpty;
+    if (hasText != _hadText && mounted) {
+      setState(() => _hadText = hasText);
+    }
+  }
+
   /// «در حالِ نوشتن» را حداکثر هر ۳ ثانیه یک‌بار به سرور اعلام می‌کند.
-  void _onTextChanged(String _) {
+  void _onTextChanged(String value) {
     final now = DateTime.now();
     if (now.difference(_lastTypingSent).inSeconds < 3) return;
     _lastTypingSent = now;
@@ -235,6 +262,113 @@ class _ChatScreenState extends State<ChatScreen> {
       });
       _scrollToBottom();
     }, failure: 'ارسالِ عکس ناموفق بود');
+  }
+
+  /// پیوستِ فایلِ دلخواه (سند/PDF/…). سقفِ سرور ۲۵MB است.
+  Future<void> _pickAndSendFile() async {
+    FilePickerResult? result;
+    try {
+      result = await FilePicker.platform.pickFiles();
+    } catch (e) {
+      _toast('انتخابِ فایل ناموفق بود: $e');
+      return;
+    }
+    final path = result?.files.single.path;
+    if (path == null) return;
+    final caption = _inputCtrl.text.trim();
+    await _run(() async {
+      final msg = await _api.sendMedia(
+        _room.id,
+        path,
+        caption: caption.isEmpty ? null : caption,
+        replyToId: _replyTo?.id,
+      );
+      _inputCtrl.clear();
+      if (!mounted) return;
+      setState(() {
+        _messages.add(msg);
+        _replyTo = null;
+      });
+      _scrollToBottom();
+    }, failure: 'ارسالِ فایل ناموفق بود');
+  }
+
+  // ─────────────── پیامِ صوتی ───────────────
+
+  /// شروعِ ضبط. مجوزِ میکروفن را خودِ پلاگین می‌گیرد؛ در نبودِ مجوز پیام می‌دهیم.
+  Future<void> _startRecording() async {
+    try {
+      if (!await _recorder.hasPermission()) {
+        _toast('برای ضبطِ صدا به اجازهٔ میکروفن نیاز است.');
+        return;
+      }
+      final dir = await getTemporaryDirectory();
+      final path =
+          '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      await _recorder.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc),
+        path: path,
+      );
+      if (!mounted) return;
+      setState(() {
+        _recording = true;
+        _recPath = path;
+        _recElapsed = Duration.zero;
+      });
+      _recTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) {
+          setState(() => _recElapsed += const Duration(seconds: 1));
+        }
+      });
+    } catch (e) {
+      _toast('شروعِ ضبط ناموفق بود: $e');
+    }
+  }
+
+  Future<String?> _finishRecording() async {
+    _recTimer?.cancel();
+    _recTimer = null;
+    String? path;
+    try {
+      path = await _recorder.stop();
+    } catch (_) {
+      path = null;
+    }
+    if (mounted) setState(() => _recording = false);
+    return path ?? _recPath;
+  }
+
+  Future<void> _cancelRecording() async {
+    _recTimer?.cancel();
+    _recTimer = null;
+    try {
+      await _recorder.cancel();
+    } catch (_) {}
+    if (mounted) setState(() => _recording = false);
+  }
+
+  Future<void> _stopAndSendRecording() async {
+    // صداهای زیرِ ۱ ثانیه معمولاً لمسِ اشتباهی‌اند.
+    final tooShort = _recElapsed.inSeconds < 1;
+    final path = await _finishRecording();
+    if (tooShort) {
+      _toast('پیامِ صوتی خیلی کوتاه بود.');
+      return;
+    }
+    if (path == null) {
+      _toast('فایلِ صوتی ساخته نشد.');
+      return;
+    }
+    await _run(() async {
+      final msg = await _api.sendMedia(_room.id, path,
+          replyToId: _replyTo?.id);
+      if (!mounted) return;
+      setState(() {
+        _messages.add(msg);
+        _replyTo = null;
+      });
+      _scrollToBottom();
+    }, failure: 'ارسالِ پیامِ صوتی ناموفق بود');
   }
 
   // ─────────────── کنش‌های پیام ───────────────
@@ -1077,6 +1211,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _composer() {
     final blocked = _room.isBlocked;
+    if (_recording) return _recordingBar();
+    final hasText = _inputCtrl.text.trim().isNotEmpty;
     return SafeArea(
       top: false,
       child: Padding(
@@ -1110,19 +1246,67 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
             const SizedBox(width: 4),
-            IconButton(
-              tooltip: 'دوربین',
-              icon: const Icon(Icons.photo_camera_outlined),
-              onPressed: blocked || _sending ? null : _captureAndSendPhoto,
-            ),
+            if (hasText || _editing != null)
+              IconButton(
+                tooltip: 'دوربین',
+                icon: const Icon(Icons.photo_camera_outlined),
+                onPressed: blocked || _sending ? null : _captureAndSendPhoto,
+              )
+            else
+              IconButton(
+                tooltip: 'پیامِ صوتی',
+                icon: const Icon(Icons.mic_none),
+                onPressed: blocked || _sending ? null : _startRecording,
+              ),
             IconButton.filled(
-              onPressed: blocked || _sending ? null : _send,
+              onPressed: blocked || _sending
+                  ? null
+                  : (hasText || _editing != null ? _send : _captureAndSendPhoto),
               icon: _sending
                   ? const SizedBox(
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2))
-                  : Icon(_editing != null ? Icons.check : Icons.send),
+                  : Icon(_editing != null
+                      ? Icons.check
+                      : hasText
+                          ? Icons.send
+                          : Icons.photo_camera_outlined),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// نوارِ ضبطِ صدا: زمانِ سپری‌شده + لغو + ارسال.
+  Widget _recordingBar() {
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        child: Row(
+          children: [
+            const Icon(Icons.fiber_manual_record, color: Colors.red, size: 16),
+            const SizedBox(width: 8),
+            Text(
+              '${_recElapsed.inMinutes.toString().padLeft(2, '0')}:'
+              '${_recElapsed.inSeconds.remainder(60).toString().padLeft(2, '0')}',
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text('در حالِ ضبطِ پیامِ صوتی…',
+                  style: TextStyle(fontSize: 12)),
+            ),
+            IconButton(
+              tooltip: 'لغو',
+              icon: const Icon(Icons.delete_outline, color: Colors.red),
+              onPressed: _cancelRecording,
+            ),
+            IconButton.filled(
+              onPressed: _stopAndSendRecording,
+              icon: const Icon(Icons.send),
             ),
           ],
         ),
@@ -1145,6 +1329,11 @@ class _ChatScreenState extends State<ChatScreen> {
               leading: const Icon(Icons.videocam),
               title: const Text('ویدیو از گالری'),
               onTap: () => Navigator.pop(ctx, 'video'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.attach_file),
+              title: const Text('فایل'),
+              onTap: () => Navigator.pop(ctx, 'file'),
             ),
             ListTile(
               leading: const Icon(Icons.place),
@@ -1181,6 +1370,8 @@ class _ChatScreenState extends State<ChatScreen> {
         await _pickAndSendMedia(video: false);
       case 'video':
         await _pickAndSendMedia(video: true);
+      case 'file':
+        await _pickAndSendFile();
       case 'location':
         await _sendLocation();
       case 'poll':
