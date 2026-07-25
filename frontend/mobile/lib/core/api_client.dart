@@ -1821,4 +1821,96 @@ class ApiClient {
         'status': status,
         'duration_seconds': durationSeconds,
       });
+
+  // ─────────────── پخشِ زنده (live) ───────────────
+  // سیگنالینگ مثلِ تماس روی HTTP+Redis است، ولی صفِ آن جداست
+  // (`/live/poll` ≠ `/calls/poll`) و مدلِ اتصال mesh است: میزبان به‌ازای هر
+  // بیننده یک PeerConnection جدا می‌سازد.
+
+  /// فهرستِ پخش‌های زندهٔ فعال.
+  Future<List<LiveItem>> liveList({int limit = 30}) async {
+    final j = await _get('/api/v1/live?limit=$limit') as Map<String, dynamic>;
+    return ((j['items'] as List?) ?? const [])
+        .map((e) => LiveItem.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  /// شروعِ پخش؛ خروجی `(sessionId, iceServers)`.
+  /// سرور پخشِ بازِ قبلیِ همین میزبان را خودکار می‌بندد.
+  Future<(String, List<Map<String, dynamic>>)> liveStart({String? title}) async {
+    final j = await _post('/api/v1/live/start', {
+      if (title != null && title.isNotEmpty) 'title': title,
+    }) as Map<String, dynamic>;
+    final ice = ((j['iceServers'] as List?) ?? const [])
+        .map((e) => (e as Map).cast<String, dynamic>())
+        .toList();
+    return ((j['session_id'] ?? '') as String, ice);
+  }
+
+  /// رلهٔ سیگنال؛ [type] یکی از `offer|answer|ice|bye`.
+  Future<void> liveSignal({
+    required String sessionId,
+    required String toEarthId,
+    required String type,
+    String? sdp,
+    Map<String, dynamic>? candidate,
+  }) =>
+      _post('/api/v1/live/signal', {
+        'session_id': sessionId,
+        'to_earth_id': toEarthId,
+        'type': type,
+        if (sdp != null) 'sdp': sdp,
+        if (candidate != null) 'candidate': candidate,
+      });
+
+  /// صفِ سیگنالِ من (میزبان یا بیننده). خواندن، صف را خالی می‌کند.
+  Future<List<Map<String, dynamic>>> livePoll() async {
+    final j = await _get('/api/v1/live/poll') as Map<String, dynamic>;
+    return ((j['signals'] as List?) ?? const [])
+        .map((e) => (e as Map).cast<String, dynamic>())
+        .toList();
+  }
+
+  /// پیوستن به پخش؛ سرور به میزبان `viewer-join` می‌فرستد تا offer بسازد.
+  /// اگر پخش تمام شده باشد ۴۱۰ می‌دهد.
+  Future<LiveJoinInfo> liveJoin(String sessionId) async =>
+      LiveJoinInfo.fromJson(
+          await _post('/api/v1/live/$sessionId/join', null) as Map<String, dynamic>);
+
+  /// ترکِ پخش (بیننده).
+  Future<void> liveLeave(String sessionId) =>
+      _post('/api/v1/live/$sessionId/leave', null);
+
+  /// وضعیتِ لحظه‌ای + heartbeatِ حضورِ بیننده.
+  Future<LiveState> liveStateOf(String sessionId) async => LiveState.fromJson(
+      await _get('/api/v1/live/$sessionId/state') as Map<String, dynamic>);
+
+  /// ارسالِ پیامِ چتِ زنده؛ خروجی همان پیامِ ساخته‌شده است.
+  Future<LiveChatMessage> liveChat(String sessionId, String text) async =>
+      LiveChatMessage.fromJson(await _post(
+        '/api/v1/live/$sessionId/chat',
+        {'text': text},
+      ) as Map<String, dynamic>);
+
+  /// پیام‌های اخیرِ چت (قدیم→جدید).
+  Future<List<LiveChatMessage>> liveMessages(String sessionId,
+      {int limit = 50}) async {
+    final j = await _get('/api/v1/live/$sessionId/messages?limit=$limit')
+        as Map<String, dynamic>;
+    return ((j['items'] as List?) ?? const [])
+        .map((e) =>
+            LiveChatMessage.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  /// ارسالِ قلب؛ خروجی مجموعِ قلب‌ها.
+  Future<int> liveHeart(String sessionId, {int count = 1}) async {
+    final j = await _post('/api/v1/live/$sessionId/heart', {'count': count})
+        as Map<String, dynamic>;
+    return (j['hearts'] as num?)?.toInt() ?? 0;
+  }
+
+  /// پایانِ پخش — فقط میزبان.
+  Future<void> liveStop(String sessionId) =>
+      _post('/api/v1/live/$sessionId/stop', null);
 }

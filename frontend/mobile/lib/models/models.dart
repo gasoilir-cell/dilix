@@ -2352,3 +2352,139 @@ class StoryViewerEntry {
         avatarUrl: j['avatar_url'] as String?,
       );
 }
+
+// ─────────────── پخشِ زنده (live) ───────────────
+
+/// میزبانِ یک پخشِ زنده (`_host_out`).
+class LiveHost {
+  LiveHost({required this.earthId, required this.name, this.avatarUrl});
+
+  final String earthId;
+  final String name;
+  final String? avatarUrl;
+
+  factory LiveHost.fromJson(Map<String, dynamic> j) => LiveHost(
+        earthId: (j['earth_id'] ?? '') as String,
+        name: (j['name'] ?? '') as String,
+        avatarUrl: j['avatar_url'] as String?,
+      );
+}
+
+/// یک پخشِ زندهٔ فعال در فهرستِ کشف (`GET /live`).
+class LiveItem {
+  LiveItem({
+    required this.sessionId,
+    required this.host,
+    required this.viewerCount,
+    required this.hearts,
+    required this.isMine,
+    this.title,
+    this.startedAt,
+  });
+
+  final String sessionId;
+  final LiveHost host;
+  final int viewerCount;
+  final int hearts;
+  final bool isMine;
+  final String? title;
+  final DateTime? startedAt;
+
+  factory LiveItem.fromJson(Map<String, dynamic> j) => LiveItem(
+        sessionId: (j['session_id'] ?? '') as String,
+        host: LiveHost.fromJson(
+            (j['host'] as Map?)?.cast<String, dynamic>() ?? const {}),
+        viewerCount: (j['viewer_count'] as num?)?.toInt() ?? 0,
+        hearts: (j['hearts'] as num?)?.toInt() ?? 0,
+        isMine: (j['is_mine'] ?? false) as bool,
+        title: j['title'] as String?,
+        startedAt: DateTime.tryParse((j['started_at'] ?? '') as String),
+      );
+}
+
+/// پاسخِ `POST /live/{id}/join` — همه‌چیزِ لازم برای شروعِ تماشا.
+class LiveJoinInfo {
+  LiveJoinInfo({
+    required this.sessionId,
+    required this.host,
+    required this.hostEarthId,
+    required this.status,
+    required this.iceServers,
+    required this.viewerCount,
+    required this.hearts,
+    required this.isHost,
+    this.title,
+  });
+
+  final String sessionId;
+  final LiveHost host;
+  final String hostEarthId;
+  final String status;
+  final List<Map<String, dynamic>> iceServers;
+  final int viewerCount;
+  final int hearts;
+  final bool isHost;
+  final String? title;
+
+  factory LiveJoinInfo.fromJson(Map<String, dynamic> j) => LiveJoinInfo(
+        sessionId: (j['session_id'] ?? '') as String,
+        host: LiveHost.fromJson(
+            (j['host'] as Map?)?.cast<String, dynamic>() ?? const {}),
+        hostEarthId: (j['host_earth_id'] ?? '') as String,
+        status: (j['status'] ?? 'live') as String,
+        iceServers: ((j['iceServers'] as List?) ?? const [])
+            .map((e) => (e as Map).cast<String, dynamic>())
+            .toList(),
+        viewerCount: (j['viewer_count'] as num?)?.toInt() ?? 0,
+        hearts: (j['hearts'] as num?)?.toInt() ?? 0,
+        isHost: (j['is_host'] ?? false) as bool,
+        title: j['title'] as String?,
+      );
+}
+
+/// پیامِ چتِ زنده. روی Redis نگهداری می‌شود و ماندگار نیست.
+class LiveChatMessage {
+  LiveChatMessage({
+    required this.id,
+    required this.fromEarthId,
+    required this.fromName,
+    required this.text,
+    this.fromAvatar,
+  });
+
+  final String id;
+  final String fromEarthId;
+  final String fromName;
+  final String text;
+  final String? fromAvatar;
+
+  factory LiveChatMessage.fromJson(Map<String, dynamic> j) => LiveChatMessage(
+        id: (j['id'] ?? '') as String,
+        fromEarthId: (j['from'] ?? '') as String,
+        fromName: (j['from_name'] ?? '') as String,
+        text: (j['text'] ?? '') as String,
+        fromAvatar: j['from_avatar'] as String?,
+      );
+}
+
+/// وضعیتِ لحظه‌ایِ پخش (`GET /live/{id}/state`). خواندنِ آن برای بیننده
+/// heartbeatِ حضور هم هست، پس نباید قطع شود وگرنه از شمارش خارج می‌شود.
+class LiveState {
+  LiveState({
+    required this.status,
+    required this.viewerCount,
+    required this.hearts,
+  });
+
+  final String status;
+  final int viewerCount;
+  final int hearts;
+
+  bool get isLive => status == 'live';
+
+  factory LiveState.fromJson(Map<String, dynamic> j) => LiveState(
+        status: (j['status'] ?? 'ended') as String,
+        viewerCount: (j['viewer_count'] as num?)?.toInt() ?? 0,
+        hearts: (j['hearts'] as num?)?.toInt() ?? 0,
+      );
+}

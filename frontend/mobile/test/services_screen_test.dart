@@ -60,19 +60,24 @@ void main() {
     await tester.pump();
 
     expect(find.text('خدمات'), findsOneWidget);
-    expect(find.text('حمل‌ونقل'), findsOneWidget);
-    expect(find.text('بیمه'), findsOneWidget);
 
-    // کاشی‌های پایینِ GridView در ویوپورتِ پیش‌فرضِ تست ساخته نمی‌شوند تا
-    // اسکرول شوند (Sliver فقط عناصرِ درونِ ناحیهٔ دیدِ + cache extent را می‌سازد).
-    await tester.dragUntilVisible(
-      find.text('ارائه‌دهنده'),
-      find.byType(GridView),
-      const Offset(0, -200),
-    );
-    expect(find.text('دستاوردها'), findsOneWidget);
-    expect(find.text('اعتبار'), findsOneWidget);
-    expect(find.text('ارائه‌دهنده'), findsOneWidget);
+    // کاشی‌های بیرونِ ویوپورتِ تست ساخته نمی‌شوند (Sliver فقط ناحیهٔ دید +
+    // cache extent را می‌سازد)، پس هر کاشی جداگانه به دید آورده می‌شود؛ این
+    // کار تست را نسبت به تعداد و ترتیبِ کاشی‌ها مقاوم می‌کند.
+    for (final label in const [
+      'حمل‌ونقل',
+      'بیمه',
+      'دستاوردها',
+      'اعتبار',
+      'ارائه‌دهنده',
+    ]) {
+      await tester.dragUntilVisible(
+        find.text(label),
+        find.byType(GridView),
+        const Offset(0, -120),
+      );
+      expect(find.text(label), findsOneWidget);
+    }
   });
 
   testWidgets('صفحهٔ حمل‌ونقل برچسبِ فارسیِ وضعیت (STATUS_LABEL) را نشان می‌دهد',

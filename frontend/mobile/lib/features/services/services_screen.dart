@@ -6,6 +6,7 @@ import '../discovery/discovery_screen.dart';
 import '../gamification/gamification_screen.dart';
 import '../insurance/insurance_screen.dart';
 import '../investment/investment_screen.dart';
+import '../live/live_screen.dart';
 import '../marketplace/marketplace_screen.dart';
 import '../membership/membership_screen.dart';
 import '../notifications/notifications_screen.dart';
@@ -25,6 +26,7 @@ class ServicesScreen extends StatelessWidget {
     final tiles = <_Service>[
       _Service(Icons.movie_creation_outlined, 'ریلز', 'ویدیوهای کوتاه', const ReelsScreen()),
       _Service(Icons.auto_stories_outlined, 'داستان‌ها', 'داستانِ ۲۴ساعته', const StoriesScreen()),
+      _Service(Icons.podcasts, 'پخشِ زنده', 'تماشا یا شروعِ پخش', const LiveScreen()),
       _Service(Icons.local_shipping_outlined, 'حمل‌ونقل', 'اسنپِ بار', const FreightScreen()),
       _Service(Icons.shield_outlined, 'بیمه', 'استعلام و صدور', const InsuranceScreen()),
       _Service(Icons.signal_cellular_alt, 'ارتباطات', 'اینترنت و eSIM', const TelecomScreen()),
