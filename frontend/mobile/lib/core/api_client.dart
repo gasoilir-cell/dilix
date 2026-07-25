@@ -369,6 +369,20 @@ class ApiClient {
     return list.map((e) => (e as Map).cast<String, dynamic>()).toList();
   }
 
+  /// ثبتِ موقعیتِ دقیقِ GPSِ خودم روی کره. سرور نامِ شهر را با reverse geocoding
+  /// پر می‌کند و برای دیگران مختصات را fuzz می‌کند (حریمِ خصوصی، ADR-06).
+  Future<void> updateMyLocation({
+    required double lat,
+    required double lng,
+    double? accuracy,
+  }) async {
+    await _post('/api/v1/earth/location', {
+      'lat': lat,
+      'lng': lng,
+      if (accuracy != null) 'accuracy': accuracy,
+    });
+  }
+
   // ─────────────── Freight (اسنپِ بار) ───────────────
   Future<List<CargoPost>> listCargo() async {
     final list = await _get('/api/v1/freight/posts') as List;
@@ -574,6 +588,34 @@ class ApiClient {
   /// کیفِ پول؛ dilix-api `WalletResponse` (موجودیِ در دسترس/پاداش/امانت).
   Future<RewardWallet> rewardWallet() async =>
       RewardWallet.fromJson(await _get('/api/v1/wallet/') as Map<String, dynamic>);
+
+  /// گردشِ حسابِ کیفِ پول (صفحه‌بندی‌شده).
+  Future<List<WalletTransaction>> walletTransactions({
+    int page = 1,
+    int limit = 20,
+  }) async {
+    final list =
+        await _get('/api/v1/wallet/transactions?page=$page&limit=$limit') as List;
+    return list
+        .map((e) => WalletTransaction.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// انتقالِ مستقیمِ موجودی به کیفِ پولِ کاربرِ دیگر. [amountMinor] در واحدِ خردِ
+  /// ارزِ کیف (ریال) است؛ سرور موجودی و انسدادِ کیف را بررسی می‌کند.
+  Future<Map<String, dynamic>> walletTransfer({
+    required String toEarthId,
+    required int amountMinor,
+    String? description,
+  }) async {
+    final j = await _post('/api/v1/wallet/transfer', {
+      'to_earth_id': toEarthId,
+      'amount': amountMinor,
+      if (description != null && description.isNotEmpty)
+        'description': description,
+    });
+    return (j as Map).cast<String, dynamic>();
+  }
 
   /// سهم از درآمد در dilix-api معادل ندارد؛ فراخوان 404 می‌دهد و مصرف‌کننده
   /// آن را اختیاری گرفته و کارت را پنهان می‌کند.
@@ -882,6 +924,60 @@ class ApiClient {
       if (replyToId != null) 'reply_to_id': replyToId,
     });
     return ChatMessage.fromJson(j as Map<String, dynamic>);
+  }
+
+  // ── کتابخانهٔ استیکر (`/api/v1/stickers`) ──
+  /// بسته‌های نصب‌شدهٔ من (منبعِ اصلیِ انتخابگرِ استیکر).
+  Future<List<StickerPack>> installedStickerPacks() async {
+    final list = await _get('/api/v1/stickers/packs/installed') as List;
+    return list
+        .map((e) => StickerPack.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// بسته‌های عمومیِ قابلِ نصب؛ [q] جستجویِ عنوان.
+  Future<List<StickerPack>> publicStickerPacks({
+    String? q,
+    int limit = 40,
+  }) async {
+    final params = <String, String>{'limit': '$limit'};
+    if (q != null && q.isNotEmpty) params['q'] = q;
+    final list =
+        await _get('/api/v1/stickers/packs/public?${Uri(queryParameters: params).query}')
+            as List;
+    return list
+        .map((e) => StickerPack.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// جزئیاتِ یک بسته همراهِ فهرستِ استیکرهایش.
+  Future<StickerPack> stickerPack(String packId) async =>
+      StickerPack.fromJson(
+          await _get('/api/v1/stickers/packs/$packId') as Map<String, dynamic>);
+
+  /// استیکرهای ستاره‌دارِ من (میان‌برِ «پُرکاربرد»).
+  Future<List<StickerItem>> starredStickers() async {
+    final list = await _get('/api/v1/stickers/starred') as List;
+    return list
+        .map((e) => StickerItem.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> installStickerPack(String packId) async {
+    await _post('/api/v1/stickers/packs/$packId/install', const {});
+  }
+
+  Future<void> uninstallStickerPack(String packId) async {
+    await _delete('/api/v1/stickers/packs/$packId/install');
+  }
+
+  /// ستاره‌دارکردن/برداشتنِ ستارهٔ یک استیکر (دو اندپوینتِ جدا، نه toggle).
+  Future<void> setStickerStarred(String stickerId, bool starred) async {
+    if (starred) {
+      await _post('/api/v1/stickers/$stickerId/star', const {});
+    } else {
+      await _delete('/api/v1/stickers/$stickerId/star');
+    }
   }
 
   // ── ویرایش، حذف، واکنش، بازارسال، سنجاق ──

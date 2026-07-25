@@ -17,6 +17,7 @@ class _WalletScreenState extends State<WalletScreen> {
   RewardWallet? _wallet;
   ReferralLink? _referral;
   RevenueShare? _revenue;
+  List<WalletTransaction> _transactions = const [];
   final List<PaymentOrder> _orders = [];
   bool _loading = true;
   String? _error;
@@ -39,17 +40,22 @@ class _WalletScreenState extends State<WalletScreen> {
       // این‌ها اختیاری‌اند؛ نبودشان نباید نمایشِ کیف را بشکند.
       ReferralLink? referral;
       RevenueShare? revenue;
+      var transactions = const <WalletTransaction>[];
       try {
         referral = await api.referralLink();
       } catch (_) {}
       try {
         revenue = await api.revenueShare();
       } catch (_) {}
+      try {
+        transactions = await api.walletTransactions(limit: 20);
+      } catch (_) {}
       if (!mounted) return;
       setState(() {
         _wallet = wallet;
         _referral = referral;
         _revenue = revenue;
+        _transactions = transactions;
         _loading = false;
       });
     } catch (e) {
@@ -79,6 +85,19 @@ class _WalletScreenState extends State<WalletScreen> {
         _orders.insert(0, created);
         _notice = 'سفارشِ امانی ساخته شد. برای تسویه یا برگشت از همان کارت استفاده کنید.';
       });
+    }
+  }
+
+  Future<void> _openTransferSheet() async {
+    final done = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => const _TransferSheet(),
+    );
+    if (done == true && mounted) {
+      setState(() => _notice = 'انتقال انجام شد.');
+      await _load();
     }
   }
 
@@ -142,6 +161,7 @@ class _WalletScreenState extends State<WalletScreen> {
                     ),
                   _balancesCard(),
                   _actionsGrid(),
+                  if (_transactions.isNotEmpty) _transactionsCard(),
                   if (_revenue != null) _revenueCard(_revenue!),
                   _referralCard(),
                   if (_orders.isNotEmpty) _ordersCard(),
@@ -210,15 +230,15 @@ class _WalletScreenState extends State<WalletScreen> {
           onTap: _openEscrowSheet,
         ),
         _actionTile(
-          icon: Icons.add,
-          title: 'شارژِ مستقیم',
-          desc: 'در Core فعلی فقط پرداختِ امانی فعال است.',
-          onTap: null,
+          icon: Icons.send_to_mobile,
+          title: 'انتقال به کاربر',
+          desc: 'پرداختِ مستقیم از کیف به کیف با Earth ID',
+          onTap: _openTransferSheet,
         ),
         _actionTile(
-          icon: Icons.remove,
-          title: 'برداشت',
-          desc: 'نیازمندِ ماژولِ درگاه/تسویه است.',
+          icon: Icons.add,
+          title: 'شارژِ مستقیم',
+          desc: 'نیازمندِ ماژولِ درگاهِ پرداخت است.',
           onTap: null,
         ),
         _actionTile(
@@ -261,6 +281,60 @@ class _WalletScreenState extends State<WalletScreen> {
         ),
       ),
     );
+  }
+
+  Widget _transactionsCard() {
+    final currency = _wallet?.balances.isNotEmpty ?? false
+        ? _wallet!.balances.first.currency
+        : 'IRR';
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: Text('گردشِ حساب',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            for (final t in _transactions)
+              ListTile(
+                dense: true,
+                leading: Icon(
+                  t.isOutgoing ? Icons.north_east : Icons.south_west,
+                  color: t.isOutgoing
+                      ? Theme.of(context).colorScheme.error
+                      : Colors.green,
+                  size: 20,
+                ),
+                title: Text(
+                  (t.description ?? '').isEmpty ? t.type : t.description!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(
+                  [
+                    if (t.createdAt != null) _formatDate(t.createdAt!),
+                    t.status,
+                  ].join(' • '),
+                  style: const TextStyle(fontSize: 11),
+                ),
+                trailing: Text(
+                  '${t.isOutgoing ? '−' : '+'} ${_formatMoney(t.amountMinor, currency)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime d) {
+    String two(int v) => v.toString().padLeft(2, '0');
+    final l = d.toLocal();
+    return '${l.year}/${two(l.month)}/${two(l.day)} ${two(l.hour)}:${two(l.minute)}';
   }
 
   Widget _revenueCard(RevenueShare r) {
@@ -356,6 +430,108 @@ class _WalletScreenState extends State<WalletScreen> {
 }
 
 /// فرمِ ساختِ سفارشِ امانی (Escrow) در یک bottom-sheet.
+/// انتقالِ مستقیمِ موجودی به کیفِ پولِ کاربرِ دیگر. مبلغ به تومان گرفته و به ریال
+/// (واحدِ خردِ کیف) ارسال می‌شود — همان قراردادی که هدیهٔ نقدی هم دارد.
+class _TransferSheet extends StatefulWidget {
+  const _TransferSheet();
+
+  @override
+  State<_TransferSheet> createState() => _TransferSheetState();
+}
+
+class _TransferSheetState extends State<_TransferSheet> {
+  final _toCtrl = TextEditingController();
+  final _amountCtrl = TextEditingController();
+  final _noteCtrl = TextEditingController();
+  bool _sending = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _toCtrl.dispose();
+    _amountCtrl.dispose();
+    _noteCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final to = _toCtrl.text.trim();
+    final toman = int.tryParse(_amountCtrl.text.trim().replaceAll(',', ''));
+    if (to.length < 3) {
+      setState(() => _error = 'Earth ID مقصد را وارد کنید.');
+      return;
+    }
+    if (toman == null || toman <= 0) {
+      setState(() => _error = 'مبلغِ معتبر (تومان) وارد کنید.');
+      return;
+    }
+    setState(() {
+      _sending = true;
+      _error = null;
+    });
+    try {
+      await ApiScope.of(context).walletTransfer(
+        toEarthId: to,
+        amountMinor: toman * 10,
+        description: _noteCtrl.text.trim(),
+      );
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'انتقال ناموفق بود: $e';
+        _sending = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('انتقال به کیفِ کاربرِ دیگر',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _toCtrl,
+            decoration: const InputDecoration(labelText: 'Earth ID مقصد'),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _amountCtrl,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+                labelText: 'مبلغ (تومان)', hintText: 'مثلاً ۵۰۰۰۰'),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _noteCtrl,
+            decoration: const InputDecoration(labelText: 'توضیح (اختیاری)'),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 8),
+            Text(_error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          ],
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _sending ? null : _submit,
+              child: Text(_sending ? 'در حالِ انتقال…' : 'انتقال'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _EscrowSheet extends StatefulWidget {
   const _EscrowSheet();
 

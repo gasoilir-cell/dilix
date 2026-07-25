@@ -759,6 +759,135 @@ class TranslationResult {
       );
 }
 
+/// یک استیکرِ تکی؛ `media_url` نسبی است و با `AppConfig.absoluteMedia` مطلق می‌شود.
+class StickerItem {
+  StickerItem({
+    required this.id,
+    required this.packId,
+    required this.mediaUrl,
+    required this.mediaType,
+    this.emojiTag,
+    this.title,
+    this.starred = false,
+  });
+
+  final String id;
+  final String packId;
+  final String mediaUrl;
+  final String mediaType;
+  final String? emojiTag;
+  final String? title;
+  final bool starred;
+
+  factory StickerItem.fromJson(Map<String, dynamic> j) => StickerItem(
+        id: (j['id'] ?? '') as String,
+        packId: (j['pack_id'] ?? '') as String,
+        mediaUrl: (j['media_url'] ?? '') as String,
+        mediaType: (j['media_type'] ?? 'image') as String,
+        emojiTag: j['emoji_tag'] as String?,
+        title: j['title'] as String?,
+        starred: (j['is_starred'] ?? false) as bool,
+      );
+
+  StickerItem copyWith({bool? starred}) => StickerItem(
+        id: id,
+        packId: packId,
+        mediaUrl: mediaUrl,
+        mediaType: mediaType,
+        emojiTag: emojiTag,
+        title: title,
+        starred: starred ?? this.starred,
+      );
+}
+
+/// بستهٔ استیکر. `PackOut` بدونِ فهرستِ استیکر می‌آید و `PackDetailOut` با آن.
+class StickerPack {
+  StickerPack({
+    required this.id,
+    required this.title,
+    required this.installed,
+    required this.mine,
+    required this.stickerCount,
+    this.description,
+    this.coverUrl,
+    this.ownerName,
+    this.animated = false,
+    this.isPublic = false,
+    this.installCount = 0,
+    this.stickers = const [],
+  });
+
+  final String id;
+  final String title;
+  final bool installed;
+  final bool mine;
+  final int stickerCount;
+  final String? description;
+  final String? coverUrl;
+  final String? ownerName;
+  final bool animated;
+  final bool isPublic;
+  final int installCount;
+  final List<StickerItem> stickers;
+
+  factory StickerPack.fromJson(Map<String, dynamic> j) => StickerPack(
+        id: (j['id'] ?? '') as String,
+        title: (j['title'] ?? '') as String,
+        installed: (j['is_installed'] ?? false) as bool,
+        mine: (j['is_mine'] ?? false) as bool,
+        stickerCount: (j['sticker_count'] as num?)?.toInt() ?? 0,
+        description: j['description'] as String?,
+        coverUrl: j['cover_url'] as String?,
+        ownerName: j['owner_name'] as String?,
+        animated: (j['is_animated'] ?? false) as bool,
+        isPublic: (j['is_public'] ?? false) as bool,
+        installCount: (j['install_count'] as num?)?.toInt() ?? 0,
+        stickers: ((j['stickers'] ?? const []) as List)
+            .map((e) => StickerItem.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+/// یک ردیفِ گردشِ حسابِ کیفِ پول (`TransactionResponse`).
+class WalletTransaction {
+  WalletTransaction({
+    required this.id,
+    required this.type,
+    required this.status,
+    required this.amountMinor,
+    required this.balanceAfter,
+    this.description,
+    this.createdAt,
+  });
+
+  final String id;
+  final String type;
+  final String status;
+  final int amountMinor;
+  final int balanceAfter;
+  final String? description;
+  final DateTime? createdAt;
+
+  /// سرور مبلغ را همیشه مثبت می‌دهد و جهت را در `type` می‌گذارد، پس جهتِ نمایش
+  /// از نامِ نوع استنتاج می‌شود.
+  bool get isOutgoing =>
+      type.contains('debit') ||
+      type.contains('withdraw') ||
+      type.contains('out') ||
+      type.contains('purchase');
+
+  factory WalletTransaction.fromJson(Map<String, dynamic> j) =>
+      WalletTransaction(
+        id: (j['id'] ?? '') as String,
+        type: (j['type'] ?? '') as String,
+        status: (j['status'] ?? '') as String,
+        amountMinor: (j['amount'] as num?)?.toInt() ?? 0,
+        balanceAfter: (j['balance_after'] as num?)?.toInt() ?? 0,
+        description: j['description'] as String?,
+        createdAt: _parseDate(j['created_at']),
+      );
+}
+
 /// تاریخِ ISO را با تحملِ `null` و مقدارِ نامعتبر پارس می‌کند.
 DateTime? _parseDate(Object? v) =>
     v is String && v.isNotEmpty ? DateTime.tryParse(v) : null;

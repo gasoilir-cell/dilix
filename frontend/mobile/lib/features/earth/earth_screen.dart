@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app.dart';
+import '../../core/location_service.dart';
 import '../../models/models.dart';
 import '../assistant/assistant_sheet.dart';
 import '../messages/chat_screen.dart';
@@ -27,6 +28,10 @@ class _EarthScreenState extends State<EarthScreen> {
   List<NearbyPerson>? _results;
   bool _searching = false;
   String? _searchError;
+
+  /// ثبتِ موقعیتِ GPSِ خودم روی کره.
+  static const _location = LocationService();
+  bool _locating = false;
 
   @override
   void dispose() {
@@ -71,6 +76,22 @@ class _EarthScreenState extends State<EarthScreen> {
               foregroundColor: Colors.white,
               onPressed: _openAssistant,
               child: const Icon(Icons.smart_toy),
+            ),
+          ),
+          // ثبتِ موقعیتِ GPSِ خودم روی کره (تا دیگران مرا ببینند) + تمرکزِ دوربین.
+          Positioned(
+            bottom: MediaQuery.of(context).padding.bottom + 16,
+            right: 16,
+            child: FloatingActionButton(
+              heroTag: 'earth-locate',
+              tooltip: 'ثبتِ موقعیتِ من روی کره',
+              onPressed: _locating ? null : _registerMyLocation,
+              child: _locating
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.my_location),
             ),
           ),
         ],
@@ -124,6 +145,36 @@ class _EarthScreenState extends State<EarthScreen> {
       );
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('باز کردنِ گفتگو ناموفق بود: $e')));
+    }
+  }
+
+  /// موقعیتِ GPS را می‌گیرد، روی سرور ثبت می‌کند (سرور نامِ شهر را پر و مختصات را
+  /// برای دیگران fuzz می‌کند) و دوربینِ کره را روی همان نقطه می‌برد.
+  Future<void> _registerMyLocation() async {
+    final api = ApiScope.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _locating = true);
+    final fix = await _location.current();
+    if (!mounted) return;
+    if (!fix.isOk) {
+      setState(() => _locating = false);
+      messenger.showSnackBar(SnackBar(content: Text(fix.error!)));
+      return;
+    }
+    try {
+      await api.updateMyLocation(
+          lat: fix.lat, lng: fix.lng, accuracy: fix.accuracy);
+      if (!mounted) return;
+      setState(() => _locating = false);
+      await _globe.refreshUsers();
+      await _globe.focusOn(fix.lat, fix.lng, altitude: 0.35);
+      messenger.showSnackBar(
+          const SnackBar(content: Text('موقعیتِ تو روی کره ثبت شد.')));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _locating = false);
+      messenger
+          .showSnackBar(SnackBar(content: Text('ثبتِ موقعیت ناموفق بود: $e')));
     }
   }
 

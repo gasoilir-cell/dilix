@@ -9,11 +9,13 @@ import 'package:record/record.dart';
 import '../../app.dart';
 import '../../core/api_client.dart';
 import '../../core/config.dart';
+import '../../core/location_service.dart';
 import '../../models/models.dart';
 import '../call/call_service.dart';
 import 'chat_sheets.dart';
 import 'media_viewer.dart';
 import 'message_bubble.dart';
+import 'sticker_picker_sheet.dart';
 
 /// نمای بومیِ گفتگو با پوششِ کاملِ پیام‌رسانِ dilix-api:
 /// متن/پاسخ/ویرایش/حذف، رسانه (عکس، ویدیو، صوت، فایل)، واکنش، بازارسال،
@@ -46,6 +48,11 @@ class _ChatScreenState extends State<ChatScreen> {
   Duration _recElapsed = Duration.zero;
   Timer? _recTimer;
   String? _recPath;
+
+  /// اشتراکِ موقعیتِ زندهٔ فعالِ من در این اتاق (شناسهٔ پیام) و تایمرِ به‌روزرسانی.
+  static const _location = LocationService();
+  String? _liveLocationId;
+  Timer? _liveTimer;
 
   Timer? _poll;
   Timer? _statusPoll;
@@ -89,6 +96,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void dispose() {
     _poll?.cancel();
     _statusPoll?.cancel();
+    _liveTimer?.cancel();
     _recTimer?.cancel();
     _recorder.dispose();
     _scrollCtrl.dispose();
@@ -115,6 +123,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ..addAll(list);
         _loading = false;
         _error = null;
+        _syncLiveLocation(list);
       });
       if (initial || (hadNew && wasAtBottom)) _scrollToBottom();
       if (hadNew && !initial) _markRead();
@@ -124,6 +133,27 @@ class _ChatScreenState extends State<ChatScreen> {
         _loading = false;
         if (initial) _error = '$e';
       });
+    }
+  }
+
+  /// اشتراکِ موقعیتِ زندهٔ فعالِ خودم را از پیام‌های بارگذاری‌شده بازیابی می‌کند تا
+  /// با بازکردنِ دوبارهٔ گفتگو (یا انقضا از سمتِ سرور) وضعیتِ دکمه و تایمر درست
+  /// بماند.
+  void _syncLiveLocation(List<ChatMessage> list) {
+    final active = list
+        .where((m) =>
+            m.isMine &&
+            !m.deleted &&
+            (m.location?.live ?? false) &&
+            (m.location?.active ?? false))
+        .toList();
+    final id = active.isEmpty ? null : active.last.id;
+    if (id == _liveLocationId) return;
+    _liveLocationId = id;
+    _liveTimer?.cancel();
+    if (id != null) {
+      _liveTimer = Timer.periodic(
+          const Duration(seconds: 30), (_) => _pushLiveLocation());
     }
   }
 
@@ -619,7 +649,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _sendLocation() async {
-    final loc = await showLocationComposer(context);
+    final loc = await showLocationComposer(context, fix: _currentFix);
     if (loc == null || !mounted) return;
     await _run(() async {
       await _api.sendLocation(_room.id,
@@ -628,6 +658,82 @@ class _ChatScreenState extends State<ChatScreen> {
       await _load();
       _scrollToBottom();
     }, failure: 'ارسالِ موقعیت ناموفق بود');
+  }
+
+  /// تأمین‌کنندهٔ GPS برای شیتِ موقعیت؛ خطا را همان‌جا toast می‌کند.
+  Future<(double, double)?> _currentFix() async {
+    final fix = await _location.current();
+    if (!fix.isOk) {
+      if (mounted) _toast(fix.error!);
+      return null;
+    }
+    return (fix.lat, fix.lng);
+  }
+
+  /// شروعِ اشتراکِ موقعیتِ زنده: مختصاتِ اول از GPS، سپس هر ۳۰ ثانیه به‌روزرسانی
+  /// تا پایانِ مدت یا توقفِ دستی. سرور حداکثر ۲۴ ساعت را می‌پذیرد.
+  Future<void> _startLiveLocation() async {
+    final minutes = await showLiveLocationDuration(context);
+    if (minutes == null || !mounted) return;
+    final fix = await _location.current();
+    if (!mounted) return;
+    if (!fix.isOk) {
+      _toast(fix.error!);
+      return;
+    }
+    await _run(() async {
+      final msg = await _api.startLiveLocation(_room.id,
+          lat: fix.lat, lng: fix.lng, durationMinutes: minutes);
+      if (!mounted) return;
+      setState(() => _liveLocationId = msg.id);
+      _liveTimer?.cancel();
+      _liveTimer = Timer.periodic(
+          const Duration(seconds: 30), (_) => _pushLiveLocation());
+      await _load();
+      _scrollToBottom();
+      _toast('موقعیتِ زنده تا $minutes دقیقه به اشتراک گذاشته شد.');
+    }, failure: 'شروعِ موقعیتِ زنده ناموفق بود');
+  }
+
+  /// یک ضربانِ به‌روزرسانی؛ خطا سکوت می‌کند تا اشتراک با یک قطعیِ گذرا نمیرد،
+  /// ولی اگر سرور اشتراک را پایان‌یافته بداند تایمر متوقف می‌شود.
+  Future<void> _pushLiveLocation() async {
+    final id = _liveLocationId;
+    if (id == null) return;
+    final fix = await _location.current(highAccuracy: false);
+    if (!fix.isOk || !mounted) return;
+    try {
+      await _api.updateLiveLocation(id, lat: fix.lat, lng: fix.lng);
+    } on ApiException catch (e) {
+      // اشتراک منقضی/حذف شده → تایمر را نگه نداریم.
+      if (e.status == 404 || e.status == 409 || e.status == 400) {
+        _liveTimer?.cancel();
+        if (mounted) setState(() => _liveLocationId = null);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _stopLiveLocation() async {
+    final id = _liveLocationId;
+    if (id == null) return;
+    _liveTimer?.cancel();
+    await _run(() async {
+      await _api.stopLiveLocation(id);
+      if (mounted) setState(() => _liveLocationId = null);
+      await _load();
+      _toast('اشتراکِ موقعیتِ زنده متوقف شد.');
+    }, failure: 'توقفِ موقعیتِ زنده ناموفق بود');
+  }
+
+  Future<void> _sendSticker() async {
+    final stickerId = await showStickerPicker(context, api: _api);
+    if (stickerId == null || !mounted) return;
+    await _run(() async {
+      await _api.sendSticker(_room.id, stickerId, replyToId: _replyTo?.id);
+      if (mounted) setState(() => _replyTo = null);
+      await _load();
+      _scrollToBottom();
+    }, failure: 'ارسالِ استیکر ناموفق بود');
   }
 
   Future<void> _createEvent() async {
@@ -929,6 +1035,7 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           if (_pins.isNotEmpty) _pinnedBar(),
           if ((_status?.disappearSeconds ?? 0) > 0) _disappearingBanner(),
+          if (_liveLocationId != null) _liveLocationBanner(),
           if (_room.isBlocked) _blockedBanner(),
           Expanded(child: _body()),
           if (_replyTo != null || _editing != null) _draftBanner(),
@@ -1039,6 +1146,26 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
     );
   }
+
+  Widget _liveLocationBanner() => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        color: Colors.blue.withValues(alpha: 0.16),
+        child: Row(
+          children: [
+            const Icon(Icons.podcasts, size: 14),
+            const SizedBox(width: 6),
+            const Expanded(
+              child: Text('موقعیتِ زندهٔ تو در حالِ اشتراک است.',
+                  style: TextStyle(fontSize: 11)),
+            ),
+            TextButton(
+              onPressed: _sending ? null : _stopLiveLocation,
+              child: const Text('توقف', style: TextStyle(fontSize: 11)),
+            ),
+          ],
+        ),
+      );
 
   Widget _disappearingBanner() {
     final s = _status!.disappearSeconds;
@@ -1341,6 +1468,20 @@ class _ChatScreenState extends State<ChatScreen> {
               onTap: () => Navigator.pop(ctx, 'location'),
             ),
             ListTile(
+              leading: Icon(_liveLocationId == null
+                  ? Icons.podcasts
+                  : Icons.stop_circle_outlined),
+              title: Text(_liveLocationId == null
+                  ? 'موقعیتِ زنده'
+                  : 'توقفِ موقعیتِ زنده'),
+              onTap: () => Navigator.pop(ctx, 'live'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.emoji_emotions_outlined),
+              title: const Text('استیکر'),
+              onTap: () => Navigator.pop(ctx, 'sticker'),
+            ),
+            ListTile(
               leading: const Icon(Icons.bar_chart),
               title: const Text('نظرسنجی'),
               onTap: () => Navigator.pop(ctx, 'poll'),
@@ -1374,6 +1515,14 @@ class _ChatScreenState extends State<ChatScreen> {
         await _pickAndSendFile();
       case 'location':
         await _sendLocation();
+      case 'live':
+        if (_liveLocationId == null) {
+          await _startLiveLocation();
+        } else {
+          await _stopLiveLocation();
+        }
+      case 'sticker':
+        await _sendSticker();
       case 'poll':
         await _createPoll();
       case 'redpacket':

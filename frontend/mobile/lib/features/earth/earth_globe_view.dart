@@ -28,6 +28,11 @@ class EarthGlobeController {
   Future<void> focusOn(double lat, double lng, {double altitude = 0.6}) async {
     await _state?._focusOn(lat, lng, altitude);
   }
+
+  /// بارگذاریِ فوریِ کاربران (بدونِ انتظارِ پولِ ۱۵ث) — پس از ثبتِ موقعیتِ خودم.
+  Future<void> refreshUsers() async {
+    await _state?._loadUsers();
+  }
 }
 
 /// کره‌ی سه‌بعدیِ زندهٔ Dilix به‌صورتِ بومی در اپلیکیشن.

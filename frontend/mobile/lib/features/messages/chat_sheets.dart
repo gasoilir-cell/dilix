@@ -1017,39 +1017,95 @@ Future<String?> _promptEarthId(BuildContext context,
   return value;
 }
 
-/// گرفتنِ مختصاتِ دستی برای ارسالِ موقعیت (بدونِ نیاز به مجوزِ GPS).
+/// گرفتنِ مختصات برای ارسالِ موقعیت: با «موقعیتِ فعلیِ من» از GPS پر می‌شود و
+/// در صورتِ نبودِ مجوز/GPS ورودِ دستی هم ممکن است. [fix] تأمین‌کنندهٔ GPS است و
+/// در صورتِ خطا `null` برمی‌گرداند (پیامِ خطا را خودِ فراخوان نشان می‌دهد).
 Future<(double, double, String?)?> showLocationComposer(
-    BuildContext context) async {
-  final latCtrl = TextEditingController();
-  final lngCtrl = TextEditingController();
-  final labelCtrl = TextEditingController();
-  final result = await showDialog<(double, double, String?)>(
+  BuildContext context, {
+  required Future<(double, double)?> Function() fix,
+}) {
+  return showDialog<(double, double, String?)>(
     context: context,
-    builder: (ctx) => AlertDialog(
+    builder: (ctx) => _LocationComposer(fix: fix),
+  );
+}
+
+class _LocationComposer extends StatefulWidget {
+  const _LocationComposer({required this.fix});
+  final Future<(double, double)?> Function() fix;
+
+  @override
+  State<_LocationComposer> createState() => _LocationComposerState();
+}
+
+class _LocationComposerState extends State<_LocationComposer> {
+  final _lat = TextEditingController();
+  final _lng = TextEditingController();
+  final _label = TextEditingController();
+  bool _locating = false;
+
+  @override
+  void dispose() {
+    _lat.dispose();
+    _lng.dispose();
+    _label.dispose();
+    super.dispose();
+  }
+
+  Future<void> _useGps() async {
+    setState(() => _locating = true);
+    final f = await widget.fix();
+    if (!mounted) return;
+    setState(() {
+      _locating = false;
+      if (f != null) {
+        _lat.text = f.$1.toStringAsFixed(6);
+        _lng.text = f.$2.toStringAsFixed(6);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
       title: const Text('ارسالِ موقعیت'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _locating ? null : _useGps,
+              icon: _locating
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.my_location),
+              label: Text(_locating ? 'در حالِ مکان‌یابی…' : 'موقعیتِ فعلیِ من'),
+            ),
+          ),
+          const SizedBox(height: 8),
           TextField(
-            controller: latCtrl,
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true, signed: true),
+            controller: _lat,
+            keyboardType: const TextInputType.numberWithOptions(
+                decimal: true, signed: true),
             decoration: const InputDecoration(
                 labelText: 'عرضِ جغرافیایی (lat)',
                 border: OutlineInputBorder()),
           ),
           const SizedBox(height: 8),
           TextField(
-            controller: lngCtrl,
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true, signed: true),
+            controller: _lng,
+            keyboardType: const TextInputType.numberWithOptions(
+                decimal: true, signed: true),
             decoration: const InputDecoration(
                 labelText: 'طولِ جغرافیایی (lng)',
                 border: OutlineInputBorder()),
           ),
           const SizedBox(height: 8),
           TextField(
-            controller: labelCtrl,
+            controller: _label,
             decoration: const InputDecoration(
                 labelText: 'برچسب (اختیاری)', border: OutlineInputBorder()),
           ),
@@ -1057,27 +1113,55 @@ Future<(double, double, String?)?> showLocationComposer(
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(ctx), child: const Text('لغو')),
+            onPressed: () => Navigator.pop(context), child: const Text('لغو')),
         FilledButton(
           onPressed: () {
-            final lat = double.tryParse(latCtrl.text.trim());
-            final lng = double.tryParse(lngCtrl.text.trim());
+            final lat = double.tryParse(_lat.text.trim());
+            final lng = double.tryParse(_lng.text.trim());
             if (lat == null || lng == null) return;
-            Navigator.pop(ctx, (
+            Navigator.pop(context, (
               lat,
               lng,
-              labelCtrl.text.trim().isEmpty ? null : labelCtrl.text.trim()
+              _label.text.trim().isEmpty ? null : _label.text.trim()
             ));
           },
           child: const Text('ارسال'),
         ),
       ],
+    );
+  }
+}
+
+/// مدتِ اشتراکِ موقعیتِ زنده (دقیقه). سرور حداکثر ۲۴ ساعت را می‌پذیرد.
+Future<int?> showLiveLocationDuration(BuildContext context) {
+  const options = <int, String>{
+    15: '۱۵ دقیقه',
+    60: '۱ ساعت',
+    480: '۸ ساعت',
+    1440: '۲۴ ساعت',
+  };
+  return showModalBottomSheet<int>(
+    context: context,
+    builder: (ctx) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const ListTile(
+            leading: Icon(Icons.podcasts),
+            title: Text('اشتراکِ موقعیتِ زنده'),
+            subtitle: Text(
+                'موقعیتِ تو هر ۳۰ ثانیه به‌روز می‌شود و در پایانِ مدت خودکار متوقف می‌شود.'),
+          ),
+          const Divider(height: 1),
+          for (final e in options.entries)
+            ListTile(
+              title: Text(e.value),
+              onTap: () => Navigator.pop(ctx, e.key),
+            ),
+        ],
+      ),
     ),
   );
-  latCtrl.dispose();
-  lngCtrl.dispose();
-  labelCtrl.dispose();
-  return result;
 }
 
 /// کپیِ متن در کلیپ‌بورد + پیامِ تأیید.
