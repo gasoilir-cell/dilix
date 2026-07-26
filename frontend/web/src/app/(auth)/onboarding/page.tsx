@@ -16,6 +16,18 @@ import { useAuthStore } from "@/store/auth";
 import { Button } from "@/components/ui/Button";
 import toast from "react-hot-toast";
 
+/**
+ * مقصدِ پس از شروعِ اولیه که صفحهٔ ورود در `?next=` گذاشته است.
+ * فقط مسیرِ نسبیِ همین سایت پذیرفته می‌شود تا لینکِ ساختگی نتواند کاربر را پس از
+ * ثبت‌نام به دامنهٔ دیگری بفرستد (open redirect).
+ */
+function nextAfterOnboarding(): string {
+  if (typeof window === "undefined") return "/dashboard";
+  const raw = new URLSearchParams(window.location.search).get("next");
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/dashboard";
+  return raw;
+}
+
 // ── Role definitions ──────────────────────────────────────────
 const ROLES = [
   { id: "user",            icon: User,      color: "#6366F1", bg: "rgba(99,102,241,0.15)" },
@@ -116,7 +128,7 @@ export default function OnboardingPage() {
       updateUser(res.data);
       setStep(4);
       applyRefCode();
-      setTimeout(() => router.push("/dashboard"), 1500);
+      setTimeout(() => router.push(nextAfterOnboarding()), 1500);
     } catch {
       // اگر role reject شد، بدون role ذخیره کن
       try {
@@ -127,7 +139,7 @@ export default function OnboardingPage() {
         });
         updateUser({ ...res2.data, role: selectedRole });
         setStep(4);
-        setTimeout(() => router.push("/dashboard"), 1500);
+        setTimeout(() => router.push(nextAfterOnboarding()), 1500);
       } catch (err2: unknown) {
         toast.error(getApiErrorMessage(err2, t("onb.toast.saveError")));
       }

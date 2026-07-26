@@ -46,6 +46,19 @@ export function currencyMeta(code?: string | null): CurrencyMeta {
   return (code && CURRENCIES[code]) || CURRENCIES.IRR;
 }
 
+/**
+ * تعدادِ واحدِ خرد در هر واحدِ نمایشی.
+ *
+ * بک‌اند همه‌ی مبالغ را در واحدِ خرد نگه می‌دارد (ریال برای IRR، cents برای بقیه)
+ * ولی ورودی و نمایشِ کاربر در واحدِ نمایشی است (تومان، دلار، …). هر عددی که بینِ
+ * این دو رد و بدل می‌شود باید از همین ضریب بگذرد؛ نبودش روی مسیرِ پول یعنی خطای
+ * ده برابری.
+ */
+export function minorScale(code?: string | null): number {
+  const m = currencyMeta(code);
+  return m.code === "IRR" ? 10 : Math.pow(10, m.decimals || 2);
+}
+
 const FA_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
 function toPersianDigits(s: string): string {
   return s.replace(/[0-9]/g, (d) => FA_DIGITS[+d]);

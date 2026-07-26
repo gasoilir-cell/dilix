@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { toPersianNum, formatAmount } from "@/lib/utils";
 import { walletApi, paygateApi, fxApi, holdingsApi, getApiErrorMessage} from "@/lib/api";
-import { currencyMeta, formatMoney, isCrypto } from "@/lib/currency";
+import { currencyMeta, formatMoney, isCrypto, minorScale } from "@/lib/currency";
 import { useTranslation } from "@/store/i18n";
 import toast from "react-hot-toast";
 
@@ -212,7 +212,11 @@ export default function WalletPage() {
   // ارزِ کیف‌پول (مقصدِ واریز). ورودیِ IRR «تومان»، بقیه واحدِ اصلی.
   const walletCur = wallet?.currency || "IRR";
   // مقیاسِ واحدِ خرد در هر واحدِ ISO: IRR ذخیره در ریال ولی ورودی تومان → ×۱۰؛ بقیه ×۱۰^decimals.
-  const scaleOf = (cur: string) => (cur === "IRR" ? 10 : Math.pow(10, currencyMeta(cur).decimals || 2));
+  const scaleOf = minorScale;
+  // موجودی و مبلغِ تراکنش‌ها از سرور در واحدِ خرد می‌آیند؛ برای نمایش/ورودی باید
+  // تقسیم شوند. تا پیش از این تقسیم انجام نمی‌شد و موجودی ده برابر نشان داده
+  // می‌شد و انتقال یک‌دهمِ مبلغِ تایپ‌شده را می‌فرستاد.
+  const toMain = (minor: number) => Math.round(minor / scaleOf(walletCur));
 
   // درگاهِ انتخاب‌شده → ارزِ پرداخت (اگر درگاه ارزِ کیف‌پول را بپذیرد بدونِ تبدیل، وگرنه ارزِ خودِ درگاه)
   const selectedGw = gateways.find((g) => g.code === gwCode) || null;
@@ -374,7 +378,9 @@ export default function WalletPage() {
     if (!amt || amt < 1000) { toast.error(t("wallet.minTransfer")); return; }
     setSending(true);
     try {
-      await walletApi.transfer(toEarthId, amt, desc || undefined);
+      // سرور مبلغ را در واحدِ خرد (ریال) می‌گیرد و ورودیِ کاربر تومان است؛ بدونِ
+      // این ضرب، کاربر یک‌دهمِ مبلغی که تایپ کرده بود را می‌فرستاد.
+      await walletApi.transfer(toEarthId, Math.round(amt * scaleOf(walletCur)), desc || undefined);
       toast.success(`${toPersianNum(amt.toLocaleString())} ${t("wallet.transferredSuffix")}`);
       setModal(null);
       setAmount("");
@@ -543,7 +549,7 @@ export default function WalletPage() {
 
             <div className="flex items-baseline gap-2 mb-4">
               <p className="text-4xl font-bold text-white tracking-tight">
-                {hideBalance ? "••••••" : toPersianNum(total.toLocaleString())}
+                {hideBalance ? "••••••" : toPersianNum(toMain(total).toLocaleString())}
               </p>
               <p className="text-indigo-300 text-sm">{t("wallet.toman")}</p>
             </div>
@@ -557,7 +563,7 @@ export default function WalletPage() {
                 <div key={b.label} className="bg-white/5 rounded-xl p-2.5">
                   <p className="text-xs text-indigo-300/70 mb-1">{t(b.label)}</p>
                   <p className={`text-sm font-semibold ${b.color}`}>
-                    {hideBalance ? "••••" : toPersianNum(b.value.toLocaleString())}
+                    {hideBalance ? "••••" : toPersianNum(toMain(b.value).toLocaleString())}
                   </p>
                 </div>
               ))}
@@ -697,7 +703,7 @@ export default function WalletPage() {
                     </div>
                   </div>
                   <p className={`text-sm font-bold flex-shrink-0 ${meta.sign === "+" ? "text-emerald-400" : "text-red-400"}`}>
-                    {meta.sign}{toPersianNum(tx.amount.toLocaleString())} {t("wallet.tomanShort")}
+                    {meta.sign}{toPersianNum(toMain(tx.amount).toLocaleString())} {t("wallet.tomanShort")}
                   </p>
                 </div>
               );
@@ -1034,7 +1040,7 @@ export default function WalletPage() {
                   </div>
                   <div className="bg-white/5 rounded-xl p-3 flex justify-between text-sm">
                     <span className="text-white/40">{t("wallet.availableBalance")}</span>
-                    <span className="text-white font-medium">{toPersianNum(wallet.balance_available.toLocaleString())} {t("wallet.tomanShort")}</span>
+                    <span className="text-white font-medium">{toPersianNum(toMain(wallet.balance_available).toLocaleString())} {t("wallet.tomanShort")}</span>
                   </div>
                   <Button
                     variant="primary" size="lg" fullWidth

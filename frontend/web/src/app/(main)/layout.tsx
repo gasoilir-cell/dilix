@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/store/auth";
 import CallManager from "@/components/call/CallManager";
 import LanguageSuggestBanner from "@/components/shared/LanguageSuggestBanner";
@@ -13,6 +13,7 @@ export default function MainLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const hasHydrated = useAuthStore((s) => s.hasHydrated);
 
@@ -20,9 +21,14 @@ export default function MainLayout({
     // فقط پس از بازیابیِ نشست از localStorage تصمیمِ ریدایرکت بگیر تا رفرشِ صفحه
     // کاربر را اشتباهاً به ورود/شروعِ اولیه نفرستد.
     if (hasHydrated && !isAuthenticated) {
-      router.replace("/login");
+      // مقصد را همراه می‌بریم. لینکِ عمیق مثلِ `/pay/DLX-…?a=…` که از اسکنِ کدِ QR
+      // می‌آید بدونِ این، پس از ورود روی داشبورد می‌افتاد و قصدِ پرداخت گم می‌شد.
+      const target = pathname + window.location.search;
+      router.replace(
+        target === "/dashboard" ? "/login" : `/login?next=${encodeURIComponent(target)}`
+      );
     }
-  }, [hasHydrated, isAuthenticated, router]);
+  }, [hasHydrated, isAuthenticated, pathname, router]);
 
   // اعمالِ زبان/جهتِ ذخیره‌شدهٔ کاربر روی <html> در هر بار بارگذاری
   useEffect(() => {

@@ -158,6 +158,25 @@ export const walletApi = {
   transactions: (page = 1) => api.get(`/wallet/transactions?page=${page}`),
   transfer: (to_earth_id: string, amount: number, description?: string) =>
     api.post("/wallet/transfer", { to_earth_id, amount, description }),
+
+  // ─── پرداختِ QR ───
+  // مبلغ همه‌جا **ریال** است (واحدِ خردِ کیف)؛ تبدیل به تومان کارِ UI است.
+  qrPayload: (amount?: number, note?: string) =>
+    api.get("/wallet/qr/payload", { params: { amount, note } }),
+  // بازگشاییِ بارِ اسکن‌شده پیش از کسرِ پول: سرور دامنه و شناسه را اعتبارسنجی
+  // می‌کند و نام/آواتارِ گیرنده را می‌دهد تا کاربر مقصد را ببیند.
+  qrResolve: (payload: string) => api.post("/wallet/qr/resolve", { payload }),
+  // SVGِ کدِ «به من پرداخت کن». مسیر احراز می‌خواهد، پس نمی‌شود آن را در `src`ِ
+  // یک <img> گذاشت؛ متن را می‌گیریم و خودمان رندر می‌کنیم.
+  // `transformResponse` لازم است چون تبدیلِ پیش‌فرضِ axios روی متن JSON.parse
+  // امتحان می‌کند و برای بارهای مرزی می‌تواند رشته را عوض کند.
+  qrSvg: (amount?: number, note?: string) =>
+    api.get<string>("/wallet/qr", {
+      params: { amount, note },
+      responseType: "text",
+      headers: { Accept: "image/svg+xml" },
+      transformResponse: (d) => d,
+    }),
 };
 
 // ─── Payment API ──────────────────────────────────────────────

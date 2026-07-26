@@ -16,6 +16,23 @@ import { cn } from "@/lib/utils";
 
 type EmailMode = "login" | "register";
 
+/**
+ * مقصدِ پس از ورود که در `?next=` آمده است.
+ *
+ * فقط مسیرِ نسبیِ همین سایت پذیرفته می‌شود: `//evil.com` و `https://evil.com`
+ * هر دو رد می‌شوند، وگرنه یک لینکِ ساختگیِ ورود می‌توانست کاربر را پس از احراز
+ * به سایتِ مهاجم بفرستد (open redirect).
+ *
+ * از `useSearchParams` استفاده نمی‌کنیم چون در App Router صفحه را وادار به
+ * Suspense/رندرِ پویا می‌کند؛ این تابع فقط در لحظهٔ کلیک روی مرورگر اجرا می‌شود.
+ */
+function safeNext(): string | null {
+  if (typeof window === "undefined") return null;
+  const raw = new URLSearchParams(window.location.search).get("next");
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return null;
+  return raw;
+}
+
 // ─── Page ─────────────────────────────────────────────────────
 export default function LoginPage() {
   const { t } = useTranslation();
@@ -38,7 +55,14 @@ export default function LoginPage() {
     toast.success(
       is_new_user ? `${t("login.welcomeNewPre")}${earth_id}` : t("login.loginOk")
     );
-    router.replace(is_new_user ? "/onboarding" : "/dashboard");
+    const next = safeNext();
+    if (!is_new_user) {
+      router.replace(next ?? "/dashboard");
+      return;
+    }
+    // کاربرِ تازه باید اول شروعِ اولیه را ببیند، ولی مقصد نباید گم شود؛
+    // `?next=` را به همان صفحه پاس می‌دهیم تا در پایان به آن‌جا برساند.
+    router.replace(next ? `/onboarding?next=${encodeURIComponent(next)}` : "/onboarding");
   };
 
   const errMessage = (err: any, fallback: string) => {
