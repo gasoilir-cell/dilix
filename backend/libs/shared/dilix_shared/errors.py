@@ -46,6 +46,21 @@ class InsufficientKycError(ForbiddenError):
     error_type = "insufficient_kyc"
 
 
+class RateLimitedError(DilixError):
+    """عبور از سقفِ نرخ. به‌صورتِ 429 نگاشت می‌شود.
+
+    ``retry_after`` ثانیه‌های باقی‌مانده تا بازشدنِ پنجره است؛ لایه‌ی API آن را در
+    سرآیندِ ``Retry-After`` می‌گذارد تا کلاینت کورکورانه دوباره تلاش نکند.
+    """
+
+    status_code = 429
+    error_type = "rate_limited"
+
+    def __init__(self, detail: str, retry_after: int = 60) -> None:
+        super().__init__(detail)
+        self.retry_after = max(1, int(retry_after))
+
+
 class ProviderError(DilixError):
     """شکست در سمتِ ارائه‌دهنده‌ی بیرونی (Adapter). به‌صورتِ 502 نگاشت می‌شود."""
 

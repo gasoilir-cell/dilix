@@ -13,10 +13,11 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
-from dilix_shared.errors import DilixError
+from dilix_shared.errors import DilixError, RateLimitedError
 
 from app.core.config import get_settings
 from app.core.observability import setup_telemetry
+from app.core.ratelimit import client_ip, hit, rule_for_path
 
 # ── Layer 0 — پایه ──
 from app.modules.auth.router import router as auth_router
@@ -82,13 +83,32 @@ app.add_middleware(
 # ── OpenTelemetry ──
 setup_telemetry(app, settings)
 
+AUTH_PREFIX = "/v1/auth"
 
-# ── Exception Handlers ──
-@app.exception_handler(DilixError)
-async def dilix_error_handler(request: Request, exc: DilixError) -> JSONResponse:
-    """نگاشت خطاهای دامنه به RFC 7807 (سند ۵)."""
+
+@app.middleware("http")
+async def rate_limit_auth(request: Request, call_next):
+    """سقفِ نرخ روی کلِ `/v1/auth/*` بر پایه‌ی IP.
+
+    اینجا و نه در تک‌تکِ روت‌ها، تا مسیرِ تازه‌ای که فردا اضافه شود به‌طورِ
+    پیش‌فرض پوشیده باشد. سقفِ وابسته به بدنه‌ی درخواست (مثلِ شماره‌ی مقصدِ پیامک)
+    در لایه‌ی سرویس اعمال می‌شود، چون بدنه اینجا هنوز خوانده نشده است.
+    """
+    path = request.url.path
+    if path.startswith(AUTH_PREFIX) and request.method != "OPTIONS":
+        try:
+            await hit(f"ip:{path}", client_ip(request), rule_for_path(path))
+        except RateLimitedError as exc:
+            # میان‌افزار بیرونِ محدوده‌ی exception handlerهای FastAPI است، پس
+            # پاسخ را مستقیم می‌سازیم (با همان قالبِ RFC 7807).
+            return _problem(request, exc, {"Retry-After": str(exc.retry_after)})
+    return await call_next(request)
+
+
+def _problem(request: Request, exc: DilixError, headers: dict | None = None) -> JSONResponse:
     return JSONResponse(
         status_code=exc.status_code,
+        headers=headers,
         content={
             "type": f"https://dilix.app/errors/{exc.error_type}",
             "title": exc.error_type.replace("_", " ").title(),
@@ -97,6 +117,15 @@ async def dilix_error_handler(request: Request, exc: DilixError) -> JSONResponse
             "instance": str(request.url.path),
         },
     )
+
+
+# ── Exception Handlers ──
+@app.exception_handler(DilixError)
+async def dilix_error_handler(request: Request, exc: DilixError) -> JSONResponse:
+    """نگاشت خطاهای دامنه به RFC 7807 (سند ۵)."""
+    retry_after = getattr(exc, "retry_after", None)
+    headers = {"Retry-After": str(retry_after)} if retry_after else None
+    return _problem(request, exc, headers)
 
 
 @app.exception_handler(Exception)

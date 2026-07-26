@@ -32,6 +32,19 @@ from sqlalchemy.pool import StaticPool  # noqa: E402
 _ATTACHED_SCHEMAS = ("ai", "stickers", "stories")
 
 
+@pytest_asyncio.fixture(autouse=True)
+async def _fresh_rate_limits():
+    """شمارنده‌ی سقفِ نرخ بینِ تست‌ها صفر می‌شود.
+
+    وگرنه تست‌های احراز هویت روی هم انباشته می‌شوند و از یک جایی به بعد ۴۲۹
+    می‌گیرند — شکستی که به ترتیبِ اجرای تست‌ها وابسته است و گیج‌کننده.
+    """
+    from app.core.ratelimit import reset_for_tests
+
+    reset_for_tests()
+    yield
+
+
 @compiles(JSONB, "sqlite")
 def _compile_jsonb_sqlite(_type, compiler, **kw):  # noqa: ANN001, ARG001
     return "JSON"

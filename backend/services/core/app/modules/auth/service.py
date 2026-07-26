@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dilix_shared.earth_id import EntityType
 from dilix_shared.errors import ConflictError, ForbiddenError, UnauthorizedError
 
+from app.core import ratelimit
 from app.core.config import get_settings
 from app.core.security import (
     create_access_token,
@@ -163,6 +164,11 @@ async def login_or_register_oauth(
 async def request_otp(db: AsyncSession, data: OtpRequest) -> OtpChallenge:
     """ساختِ چالشِ OTP و تحویلِ کد از طریقِ کانالِ خواسته‌شده."""
     otp_lib.validate_channel(data.channel)
+    # سقفِ ارسال به یک مقصدِ مشخص، جدا از سقفِ IPِ میان‌افزار: چرخاندنِ IP ارزان
+    # است ولی شماره‌ی قربانی ثابت می‌مانَد و هر پیامک هزینه‌ی واقعی دارد.
+    await ratelimit.hit(
+        f"otp:{data.channel}", data.destination, ratelimit.OTP_DESTINATION_RULE
+    )
     settings = get_settings()
     code = otp_lib.generate_code()
     challenge = OtpChallenge(

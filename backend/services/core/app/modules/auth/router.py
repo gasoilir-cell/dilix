@@ -18,9 +18,12 @@ from __future__ import annotations
 
 import uuid
 
+import jwt
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from dilix_shared.errors import ForbiddenError
 
 from app.core.database import get_session
 from app.core.security import create_access_token, decode_token
@@ -112,14 +115,19 @@ async def otp_verify(
 @router.post("/token/refresh", response_model=TokenPair)
 async def refresh_token(body: dict) -> TokenPair:
     """تجدید access token با refresh token معتبر."""
-    payload = decode_token(body.get("refresh_token", ""))
+    token = body.get("refresh_token") or ""
+    try:
+        payload = decode_token(token)
+    except jwt.PyJWTError as exc:
+        # بدونِ این، توکنِ بدشکل یا منقضی ۵۰۰ می‌داد: هم پاسخِ گمراه‌کننده برای
+        # کلاینت، هم نویز در لاگ به‌جای سیگنالِ امنیتی.
+        raise ForbiddenError("توکن تجدید نامعتبر یا منقضی است.") from exc
     if payload.get("type") != "refresh":
-        from dilix_shared.errors import ForbiddenError
         raise ForbiddenError("توکن تجدید نامعتبر است.")
     earth_id = payload["sub"]
     return TokenPair(
         access_token=create_access_token(earth_id),
-        refresh_token=body["refresh_token"],  # refresh token جدید در rotation کامل صادر می‌شود
+        refresh_token=token,  # refresh token جدید در rotation کامل صادر می‌شود
     )
 
 
