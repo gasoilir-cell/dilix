@@ -34,7 +34,7 @@ echo "→ همگام‌سازیِ $SRC → $SERVER:$SERVER_DIR"
 tar czf - -C "$SRC" \
     --exclude='node_modules' --exclude='.next' --exclude='.env.local' \
     --exclude='tsconfig.tsbuildinfo' --exclude='*.bak-*' \
-    src public package.json next.config.ts next-env.d.ts \
+    src public package.json package-lock.json next.config.ts next-env.d.ts \
     postcss.config.js tailwind.config.ts tsconfig.json deploy.sh \
   | ssh -p "$SERVER_PORT" "$SERVER" "cd '$SERVER_DIR' && tar xzf -"
 
