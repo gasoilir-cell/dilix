@@ -157,6 +157,18 @@ class ApiClient {
   Future<dynamic> _get(String path) =>
       _exec(path, () => _client.get(Uri.parse('$_base$path'), headers: _headers()));
 
+  /// GET برای پاسخی که JSON نیست (مثلِ SVG). `_exec` همیشه `jsonDecode` می‌کند،
+  /// پس مسیرِ جدا لازم است — ولی همان منطقِ رفرشِ ۴۰۱ اینجا هم اعمال می‌شود.
+  Future<String> _getText(String path) async {
+    Future<http.Response> run() =>
+        _client.get(Uri.parse('$_base$path'), headers: _headers());
+    var res = await run();
+    if (res.statusCode == 401 && await _refreshSession()) res = await run();
+    if (res.statusCode >= 400) _raise(res);
+    // پاسخ UTF-8 است ولی هدرِ charset ندارد؛ `res.body` بدونِ آن latin-1 می‌خوانَد.
+    return utf8.decode(res.bodyBytes);
+  }
+
   Future<dynamic> _post(String path, Object? body) => _exec(
         path,
         () => _client.post(
@@ -1192,6 +1204,37 @@ class ApiClient {
         'description': description,
     });
     return (j as Map).cast<String, dynamic>();
+  }
+
+  // ─────────────── پرداختِ QR ───────────────
+  /// متنِ کدِ QRِ «به من پرداخت کن» — همان چیزی که در تصویر کد می‌شود، برای
+  /// اشتراک‌گذاری/کپی. [amountMinor] ریال است و هر دو پارامتر اختیاری‌اند.
+  Future<String> walletQrPayload({int? amountMinor, String? note}) async {
+    final j = await _get('/api/v1/wallet/qr/payload${_qrQuery(amountMinor, note)}');
+    return ((j as Map)['payload'] ?? '') as String;
+  }
+
+  /// SVGِ کدِ QRِ دریافت. برخلافِ QRِ پروفایل این اندپوینت احرازِ هویت می‌خواهد
+  /// (کد به کاربرِ توکن گره خورده)، پس WebView نمی‌تواند مستقیم URL را بارگذاری
+  /// کند و بایت‌ها اینجا با هدرِ Authorization گرفته می‌شوند.
+  Future<String> walletQrSvg({int? amountMinor, String? note}) =>
+      _getText('/api/v1/wallet/qr${_qrQuery(amountMinor, note)}');
+
+  static String _qrQuery(int? amountMinor, String? note) {
+    final q = [
+      if (amountMinor != null && amountMinor > 0) 'amount=$amountMinor',
+      if (note != null && note.trim().isNotEmpty)
+        'note=${Uri.encodeComponent(note.trim())}',
+    ];
+    return q.isEmpty ? '' : '?${q.join('&')}';
+  }
+
+  /// بازگشاییِ بارِ اسکن‌شده به مقصدِ واقعی، **پیش از** کسرِ پول: سرور دامنه و
+  /// شناسه را اعتبارسنجی می‌کند و نام/آواتارِ گیرنده را برمی‌گردانَد تا کاربر
+  /// برچسبِ جعلیِ چسبانده‌شده کنارِ QR را باور نکند.
+  Future<QrPayTarget> resolveWalletQr(String payload) async {
+    final j = await _post('/api/v1/wallet/qr/resolve', {'payload': payload});
+    return QrPayTarget.fromJson((j as Map).cast<String, dynamic>());
   }
 
   /// سهم از درآمد در dilix-api معادل ندارد؛ فراخوان 404 می‌دهد و مصرف‌کننده

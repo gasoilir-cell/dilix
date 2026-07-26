@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../app.dart';
 import '../../models/models.dart';
 import 'holdings_screen.dart';
+import 'qr_receive_sheet.dart';
+import 'qr_scan_pay_screen.dart';
 import 'topup_screen.dart';
 
 import '../../core/l10n.dart';
@@ -217,6 +219,16 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
+  Future<void> _openScanPay() async {
+    final paid = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const QrScanPayScreen()),
+    );
+    if (paid == true && mounted) {
+      setState(() => _notice = tr('پرداخت انجام شد.'));
+      await _load();
+    }
+  }
+
   Future<void> _openTopup() async {
     final done = await Navigator.of(context).push<bool>(
       MaterialPageRoute(builder: (_) => const TopupScreen()),
@@ -240,6 +252,18 @@ class _WalletScreenState extends State<WalletScreen> {
       crossAxisSpacing: 12,
       childAspectRatio: 1.4,
       children: [
+        _actionTile(
+          icon: Icons.qr_code_scanner,
+          title: tr('اسکن و پرداخت'),
+          desc: tr('کدِ QRِ گیرنده را بخوانید'),
+          onTap: _openScanPay,
+        ),
+        _actionTile(
+          icon: Icons.qr_code_2,
+          title: tr('دریافت با QR'),
+          desc: tr('کدِ «به من پرداخت کن» با مبلغِ دلخواه'),
+          onTap: () => showReceiveQr(context),
+        ),
         _actionTile(
           icon: Icons.swap_horiz,
           title: tr('انتقالِ امن'),

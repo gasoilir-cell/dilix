@@ -1749,6 +1749,42 @@ class RewardWallet {
   }
 }
 
+/// مقصدِ یک کدِ QRِ پرداخت پس از بازگشایی توسطِ سرور (`QRResolved`).
+///
+/// [amountMinor] فقط وقتی مقدار دارد که گیرنده مبلغ را داخلِ کد گذاشته باشد؛
+/// در غیرِ این صورت پرداخت‌کننده خودش مبلغ را می‌نویسد.
+class QrPayTarget {
+  QrPayTarget({
+    required this.earthId,
+    required this.displayName,
+    required this.avatarUrl,
+    required this.amountMinor,
+    required this.note,
+    required this.isSelf,
+  });
+
+  final String earthId;
+  final String displayName;
+  final String? avatarUrl;
+
+  /// ریال (واحدِ خردِ کیف)، نه تومان.
+  final int? amountMinor;
+  final String? note;
+
+  /// اسکنِ QRِ خودی. سرور انتقال به خود را رد می‌کند، پس UI پیش از ارسال
+  /// توضیح می‌دهد تا کاربر با خطای مبهم روبه‌رو نشود.
+  final bool isSelf;
+
+  factory QrPayTarget.fromJson(Map<String, dynamic> j) => QrPayTarget(
+        earthId: (j['earth_id'] ?? '') as String,
+        displayName: (j['display_name'] ?? '') as String,
+        avatarUrl: j['avatar_url'] as String?,
+        amountMinor: (j['amount'] as num?)?.toInt(),
+        note: j['note'] as String?,
+        isSelf: (j['is_self'] ?? false) as bool,
+      );
+}
+
 /// سهم از درآمد (`RevenueShare`).
 class RevenueShare {
   RevenueShare({
