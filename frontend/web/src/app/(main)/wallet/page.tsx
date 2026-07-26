@@ -6,7 +6,7 @@ import {
   Wallet, ArrowDownLeft, ArrowUpRight, Clock,
   CheckCircle2, XCircle, Plus, Minus, Send, Eye,
   EyeOff, CreditCard, Loader2, RefreshCw, AlertCircle,
-  ArrowLeftRight, Coins, Copy, ArrowDownToLine, ExternalLink,
+  ArrowLeftRight, Coins, Copy, ArrowDownToLine, ExternalLink, QrCode,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { toPersianNum, formatAmount } from "@/lib/utils";
@@ -151,6 +151,13 @@ export default function WalletPage() {
   const [sendAmount, setSendAmount] = useState("");
   const [cryptoPay, setCryptoPay] = useState<CryptoPay | null>(null);
   const [copied, setCopied] = useState(false);
+  // کدِ QRِ «به من پرداخت کن»
+  const [qrOpen, setQrOpen] = useState(false);
+  const [qrSvg, setQrSvg] = useState<string | null>(null);
+  const [qrLink, setQrLink] = useState("");
+  const [qrAmount, setQrAmount] = useState("");
+  const [qrNote, setQrNote] = useState("");
+  const [qrLoading, setQrLoading] = useState(false);
 
   const loadWallet = useCallback(async () => {
     try {
@@ -432,6 +439,40 @@ export default function WalletPage() {
     }
   };
 
+  /**
+   * ساختِ کدِ QRِ دریافت.
+   *
+   * SVG را از سرور می‌گیریم (مسیر احراز می‌خواهد، پس نمی‌شود مستقیم در `src`ِ یک
+   * <img> گذاشتش) و به‌صورتِ data-URI رندر می‌کنیم، نه با تزریقِ DOM: این‌طور اگر
+   * روزی پاسخِ آن مسیر دست‌کاری شود، اسکریپتِ داخلش در صفحهٔ کیف‌پول اجرا نمی‌شود.
+   *
+   * بازسازی با دکمه انجام می‌شود نه با هر کلیدِ مبلغ، تا هر رقمِ تایپ‌شده یک
+   * درخواستِ تولیدِ تصویر به سرور نزند.
+   */
+  const buildQr = useCallback(async () => {
+    setQrLoading(true);
+    try {
+      const minor = Number(qrAmount) ? Math.round(Number(qrAmount) * scaleOf(walletCur)) : undefined;
+      const note = qrNote.trim() || undefined;
+      const [svgRes, payloadRes] = await Promise.all([
+        walletApi.qrSvg(minor, note),
+        walletApi.qrPayload(minor, note),
+      ]);
+      setQrSvg(svgRes.data);
+      setQrLink(payloadRes.data?.payload || "");
+    } catch (e: any) {
+      toast.error(getApiErrorMessage(e, t("wallet.qr.error")));
+    } finally {
+      setQrLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qrAmount, qrNote, walletCur]);
+
+  const openQr = () => {
+    setQrOpen(true);
+    if (!qrSvg) buildQr();
+  };
+
   // بازکردنِ شیتِ دریافت/ارسالِ ارز دیجیتال + گرفتنِ آدرسِ واریز
   const openCryptoSheet = async (currency: string, tab: "receive" | "send") => {
     setCryptoSheet({ currency, tab });
@@ -590,6 +631,20 @@ export default function WalletPage() {
             </button>
           ))}
         </div>
+
+        {/* دریافت با کد QR — کد را نشان بده تا پرداخت‌کننده اسکن کند */}
+        <button
+          onClick={openQr}
+          className="w-full flex items-center gap-3 py-3.5 px-4 rounded-xl bg-[#1C1C1E] hover:bg-[#2C2C2E] transition-colors border border-white/8 mb-5"
+        >
+          <div className="w-10 h-10 rounded-xl bg-sky-600 flex items-center justify-center flex-shrink-0">
+            <QrCode size={20} className="text-white" />
+          </div>
+          <div className="text-right min-w-0">
+            <p className="text-sm font-medium text-white/80">{t("wallet.qr.receive")}</p>
+            <p className="text-[11px] text-white/35 truncate">{t("wallet.qr.receiveHint")}</p>
+          </div>
+        </button>
 
         {/* ارزهای من (کیف‌پولِ چندارزی) */}
         {holdings && (
@@ -1054,6 +1109,82 @@ export default function WalletPage() {
                   </Button>
                 </div>
               )}
+            </div>
+          </>
+        )}
+
+        {/* شیتِ کدِ QRِ دریافت */}
+        {qrOpen && (
+          <>
+            <div className="fixed inset-0 bg-black/70 z-[60]" onClick={() => setQrOpen(false)} />
+            <div className="fixed bottom-0 inset-x-0 z-[70] bg-[#1C1C1E] rounded-t-2xl p-5 pb-[calc(var(--nav-height)+2rem)] border-t border-white/8 max-h-[88vh] overflow-y-auto">
+              <div className="w-10 h-1 bg-white/10 rounded-full mx-auto mb-5" />
+              <div className="flex items-center gap-2 mb-4">
+                <QrCode size={18} className="text-sky-400" />
+                <h2 className="text-lg font-bold text-white">{t("wallet.qr.receive")}</h2>
+              </div>
+
+              <div className="flex items-center justify-center mb-4">
+                <div className="bg-white rounded-2xl p-3 w-52 h-52 flex items-center justify-center">
+                  {qrLoading || !qrSvg ? (
+                    <Loader2 size={26} className="animate-spin text-sky-600" />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={`data:image/svg+xml;utf8,${encodeURIComponent(qrSvg)}`}
+                      alt={t("wallet.qr.receive")}
+                      className="w-full h-full"
+                    />
+                  )}
+                </div>
+              </div>
+
+              <p className="text-xs text-white/45 text-center leading-5 mb-4">{t("wallet.qr.scanHint")}</p>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs text-white/40 mb-1 block">{t("wallet.qr.amountOptional")}</label>
+                  <input
+                    value={qrAmount}
+                    onChange={(e) => setQrAmount(e.target.value.replace(/\D/g, ""))}
+                    placeholder={t("wallet.qr.anyAmount")}
+                    className="w-full bg-[#262626] border border-white/10 rounded-xl p-3.5 text-white text-center placeholder-white/30 focus:outline-none focus:border-sky-500"
+                    inputMode="numeric"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-white/40 mb-1 block">{t("wallet.descOptional")}</label>
+                  <input
+                    value={qrNote}
+                    onChange={(e) => setQrNote(e.target.value.slice(0, 60))}
+                    placeholder={t("wallet.descPlaceholder")}
+                    className="w-full bg-[#262626] border border-white/10 rounded-xl p-3.5 text-white placeholder-white/30 focus:outline-none focus:border-sky-500"
+                  />
+                </div>
+
+                <Button variant="secondary" size="md" fullWidth disabled={qrLoading} onClick={buildQr}>
+                  {qrLoading
+                    ? <><Loader2 size={16} className="animate-spin ml-2" />{t("wallet.qr.building")}</>
+                    : t("wallet.qr.rebuild")}
+                </Button>
+
+                {qrLink && (
+                  <div className="bg-white/5 rounded-xl p-3">
+                    <p className="text-[11px] text-white/40 mb-1.5">{t("wallet.qr.link")}</p>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 text-xs text-white/90 break-all ltr text-left font-mono" dir="ltr">
+                        {qrLink}
+                      </code>
+                      <button
+                        onClick={() => copyText(qrLink)}
+                        className="flex-shrink-0 w-9 h-9 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/70 transition-colors"
+                      >
+                        {copied ? <CheckCircle2 size={16} className="text-emerald-400" /> : <Copy size={16} />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </>
         )}
