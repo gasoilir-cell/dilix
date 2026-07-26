@@ -5,6 +5,7 @@
 2. به broker منتشر می‌کند (با msg_id = شناسه‌ی رویداد برای dedup).
 3. موفق → published؛ ناموفق → افزایش attempts؛ پس از سقف → dead (DLQ).
 """
+
 from __future__ import annotations
 
 import asyncio

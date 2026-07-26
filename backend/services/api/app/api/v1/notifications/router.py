@@ -6,10 +6,8 @@ POST /api/v1/notifications/{id}/read  علامت‌گذاری یک اعلان
 """
 import uuid as _uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, Field
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, Text, select, update
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -77,7 +75,7 @@ async def mark_all_read(
 ):
     await db.execute(
         update(Notification)
-        .where(Notification.user_id == current_user.id, Notification.is_read == False)
+        .where(Notification.user_id == current_user.id, Notification.is_read.is_(False))
         .values(is_read=True)
     )
     await db.commit()

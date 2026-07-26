@@ -1,6 +1,7 @@
 """تست‌های واحدِ M1 — بدونِ نیاز به دیتابیس/NATS:
 Outbox، adapterِ sandbox پرداخت، و ماشینِ حالتِ سفارش.
 """
+
 from __future__ import annotations
 
 import json

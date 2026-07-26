@@ -2,6 +2,7 @@
 
 این تست‌ها بدونِ هیچ تماسِ خارجی (LLM/Core) اجرا می‌شوند.
 """
+
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
@@ -14,6 +15,7 @@ client = TestClient(app)
 
 
 # ─────────────────────── Health & Catalog ──────────────────────────
+
 
 def test_health() -> None:
     r = client.get("/health")
@@ -38,6 +40,7 @@ def test_every_agent_has_prompt() -> None:
 
 # ─────────────────────── Supervisor routing ──────────────────────────
 
+
 def test_route_freight() -> None:
     assert route("می‌خواهم یک بار برای راننده ثبت کنم") == "freight"
 
@@ -61,6 +64,7 @@ def test_resolve_personal_falls_to_supervisor() -> None:
 
 # ─────────────────────── MCP tool catalog ──────────────────────────
 
+
 def test_tools_for_agent_freight() -> None:
     assert "freight.search" in tools_for_agent("freight")
 
@@ -75,6 +79,7 @@ def test_payment_tool_targets_escrow() -> None:
 
 
 # ─────────────────────── Invoke contract ──────────────────────────
+
 
 def test_invoke_returns_contract_shape() -> None:
     r = client.post(

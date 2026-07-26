@@ -7,7 +7,6 @@ GET    /api/v1/social/followers/{earth_id}  دنبال‌کنندگان
 GET    /api/v1/social/following/{earth_id}  دنبال‌شده‌ها
 GET    /api/v1/social/suggestions           پیشنهادِ افراد برای دنبال‌کردن
 """
-import uuid as _uuid
 import io as _io
 import re as _re
 from typing import Optional, List

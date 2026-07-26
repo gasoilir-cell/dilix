@@ -1,4 +1,5 @@
 """مدل ORM شبکه‌ی اجتماعی — پست، کامنت، ری‌اکشن، فالو (schema: social)."""
+
 from __future__ import annotations
 
 import uuid
@@ -26,7 +27,9 @@ class SocialPost(Base):
     __table_args__ = {"schema": "social"}
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    author_earth_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    author_earth_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
     post_type: Mapped[str] = mapped_column(String(16), default=POST_TEXT, nullable=False)
     content: Mapped[str | None] = mapped_column(Text, nullable=True)
     # [{type: image/video, ref: "minio-key", thumb: "..."}]
@@ -80,8 +83,12 @@ class Follow(Base):
     __table_args__ = {"schema": "social"}
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    follower_earth_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
-    followee_earth_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    follower_earth_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
+    followee_earth_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

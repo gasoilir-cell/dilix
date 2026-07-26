@@ -1,4 +1,5 @@
 """سرویس Earth — موقعیت‌یابی با fuzzing و POI (ADR-06)."""
+
 from __future__ import annotations
 
 import math
@@ -11,17 +12,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dilix_shared.errors import NotFoundError
 
 from app.modules.earth.models import (
-    PRECISION_CITY, PRECISION_DISTRICT, PRECISION_EXACT, PRECISION_REGION,
-    LocationPin, PointOfInterest,
+    PRECISION_CITY,
+    PRECISION_DISTRICT,
+    PRECISION_EXACT,
+    PRECISION_REGION,
+    LocationPin,
+    PointOfInterest,
 )
 from app.modules.earth.schemas import LocationUpdate, PoiCreate
 
 # میزانِ fuzzing بر حسبِ درجه برای هر سطحِ دقت
 _FUZZ_DEG: dict[str, float] = {
     PRECISION_EXACT: 0.0,
-    PRECISION_DISTRICT: 0.01,   # ~۱ کیلومتر
-    PRECISION_CITY: 0.05,       # ~۵ کیلومتر
-    PRECISION_REGION: 0.5,      # ~۵۰ کیلومتر
+    PRECISION_DISTRICT: 0.01,  # ~۱ کیلومتر
+    PRECISION_CITY: 0.05,  # ~۵ کیلومتر
+    PRECISION_REGION: 0.5,  # ~۵۰ کیلومتر
 }
 
 
@@ -55,9 +60,7 @@ async def update_location(
 async def _find_pin(db: AsyncSession, earth_id: uuid.UUID) -> LocationPin | None:
     # LocationPin کلیدِ اصلی‌اش `id` است؛ جستجو باید بر اساسِ ستونِ `earth_id`
     # انجام شود (نه `db.get` که با PK می‌گردد و هرگز match نمی‌کند).
-    result = await db.execute(
-        select(LocationPin).where(LocationPin.earth_id == earth_id)
-    )
+    result = await db.execute(select(LocationPin).where(LocationPin.earth_id == earth_id))
     return result.scalar_one_or_none()
 
 
@@ -84,10 +87,7 @@ async def nearby_pois(
     # فیلترِ فاصله روی پایتون (placeholder تا PostGIS فعال شود)
     deg_per_km = 1 / 111.0
     threshold = radius_km * deg_per_km
-    return [
-        p for p in pois
-        if math.hypot(p.lat - lat, p.lon - lon) <= threshold
-    ]
+    return [p for p in pois if math.hypot(p.lat - lat, p.lon - lon) <= threshold]
 
 
 async def create_poi(

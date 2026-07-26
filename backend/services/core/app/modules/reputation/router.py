@@ -1,4 +1,5 @@
 """روتر Reputation (سند ۵: /v1/reputation/...)."""
+
 from __future__ import annotations
 
 import uuid

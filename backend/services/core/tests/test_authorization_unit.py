@@ -1,6 +1,7 @@
 """تستِ واحدِ موتورِ تصمیمِ مجوز (PDP) — ماژولِ authorization پشتیبان است و
 endpoint ندارد، اما تابعِ خالصِ `is_allowed` منطقِ RBAC + ABAC دارد.
 """
+
 from __future__ import annotations
 
 from app.modules.authorization.policy import AccessRequest, is_allowed
@@ -51,6 +52,14 @@ def test_abac_allows_own_resource() -> None:
 
 
 def test_global_admin_bypasses_ownership_check() -> None:
-    assert is_allowed(
-        _req(subject_role="global_admin", action="x", subject_earth_id="u1", resource_owner_id="u2")
-    ) is True
+    assert (
+        is_allowed(
+            _req(
+                subject_role="global_admin",
+                action="x",
+                subject_earth_id="u1",
+                resource_owner_id="u2",
+            )
+        )
+        is True
+    )

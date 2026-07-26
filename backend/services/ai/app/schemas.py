@@ -2,6 +2,7 @@
 
 این قرارداد دقیقاً با `app/modules/ai/langgraph_client.py` در سرویسِ Core هم‌خوان است.
 """
+
 from __future__ import annotations
 
 from pydantic import BaseModel, Field

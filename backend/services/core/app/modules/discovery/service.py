@@ -7,6 +7,7 @@
 - هر فیلدِ پروفایل فقط در صورتِ حضور در visible_fields افشا می‌شود؛ و فیلترِ روی فیلدِ
   افشانشده، آن کاربر را از نتایج حذف می‌کند (نشت نمی‌کند).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -142,21 +143,23 @@ async def search_nearby(
         if language is not None and language not in (profile.languages or []):
             continue
 
-        out.append(NearbyPerson(
-            earth_id=ident.earth_id,
-            entity_type=ident.entity_type,
-            display_name=profile.display_name,
-            avatar_url=profile.avatar_url,
-            lat=pin.lat,
-            lon=pin.lon,
-            geo_precision=pin.geo_precision,
-            gender=profile.gender if "gender" in visible else None,
-            age_range=_age_to_range(age) if "age_range" in visible else None,
-            marital_status=profile.marital_status if "marital_status" in visible else None,
-            profession=profile.profession if "profession" in visible else None,
-            interests=list(profile.interests or []) if "interests" in visible else None,
-            languages=list(profile.languages or []),
-        ))
+        out.append(
+            NearbyPerson(
+                earth_id=ident.earth_id,
+                entity_type=ident.entity_type,
+                display_name=profile.display_name,
+                avatar_url=profile.avatar_url,
+                lat=pin.lat,
+                lon=pin.lon,
+                geo_precision=pin.geo_precision,
+                gender=profile.gender if "gender" in visible else None,
+                age_range=_age_to_range(age) if "age_range" in visible else None,
+                marital_status=profile.marital_status if "marital_status" in visible else None,
+                profession=profile.profession if "profession" in visible else None,
+                interests=list(profile.interests or []) if "interests" in visible else None,
+                languages=list(profile.languages or []),
+            )
+        )
         if len(out) >= limit:
             break
     return out

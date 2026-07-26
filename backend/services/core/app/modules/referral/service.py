@@ -1,4 +1,5 @@
 """سرویس رفرال — ثبت زنجیرِ رفرال و اعطایِ پاداشِ گره‌خورده به تراکنش (ADR-08)."""
+
 from __future__ import annotations
 
 import uuid
@@ -12,7 +13,10 @@ from dilix_shared.events import DomainEvent
 
 from app.core.events import publisher
 from app.modules.referral.models import (
-    MAX_REFERRAL_LEVELS, STATUS_PENDING, STATUS_REWARDED, Referral,
+    MAX_REFERRAL_LEVELS,
+    STATUS_PENDING,
+    STATUS_REWARDED,
+    Referral,
 )
 
 

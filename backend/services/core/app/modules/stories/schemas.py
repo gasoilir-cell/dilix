@@ -1,4 +1,5 @@
 """اسکیماهای Pydantic ماژول داستان."""
+
 from __future__ import annotations
 
 import uuid

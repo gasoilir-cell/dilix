@@ -4,6 +4,7 @@
 لیست/جستجو. engineِ مستقل با ATTACHِ schemaهای `marketplace` و `events` (Outbox) —
 بدونِ دستکاریِ هارنسِ مشترکِ conftest. ساختار دقیقاً مطابقِ test_payments_integration.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -105,8 +106,13 @@ async def test_create_listing_then_appears_in_list(mk_client) -> None:
 
 async def test_search_by_category_filters(mk_client) -> None:
     client, _ = mk_client
-    await client.post("/v1/marketplace/listings", json=_listing_body(title="ترجمهٔ متنِ تخصصی", category="translation"))
-    await client.post("/v1/marketplace/listings", json=_listing_body(title="طراحیِ کارتِ ویزیت", category="design"))
+    await client.post(
+        "/v1/marketplace/listings",
+        json=_listing_body(title="ترجمهٔ متنِ تخصصی", category="translation"),
+    )
+    await client.post(
+        "/v1/marketplace/listings", json=_listing_body(title="طراحیِ کارتِ ویزیت", category="design")
+    )
 
     res = await client.get("/v1/marketplace/listings", params={"category": "translation"})
     assert res.status_code == 200, res.text

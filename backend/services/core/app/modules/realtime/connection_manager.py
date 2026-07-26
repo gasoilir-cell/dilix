@@ -6,6 +6,7 @@
 در محیط multi-node باید fan-out از طریق NATS JetStream/pub-sub انجام شود.
 اینجا پیاده‌سازی درون‌حافظه‌ای برای single-node است که قابل جایگزینی است.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -73,11 +74,7 @@ class ConnectionManager:
         exclude: str | None = None,
     ) -> None:
         """ارسال پیام به چند کاربر (مثلاً اعضای یک اتاق پیام)."""
-        tasks = [
-            self.send_to(mid, payload)
-            for mid in members
-            if mid != exclude
-        ]
+        tasks = [self.send_to(mid, payload) for mid in members if mid != exclude]
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -93,9 +90,7 @@ class ConnectionManager:
             if uid == earth_id:
                 continue
             text = json.dumps(payload, ensure_ascii=False, default=str)
-            await asyncio.gather(
-                *[_safe_send(ws, text) for ws in sockets], return_exceptions=True
-            )
+            await asyncio.gather(*[_safe_send(ws, text) for ws in sockets], return_exceptions=True)
 
     # ─────────────────── presence info ───────────────
 

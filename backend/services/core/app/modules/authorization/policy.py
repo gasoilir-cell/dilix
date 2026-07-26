@@ -3,6 +3,7 @@
 در Milestone بعد به OPA/Cedar منتقل می‌شود؛ این‌جا یک ارزیاب درون‌فرایندی
 برای شروع است. ساختار ورودی/خروجی عمداً با OPA سازگار است.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -40,13 +41,15 @@ _COMMON = {
 
 ROLE_PERMISSIONS: dict[str, set[str]] = {
     "individual": _COMMON,
-    "driver": _COMMON | {
+    "driver": _COMMON
+    | {
         "freight.place_bid",
         "freight.confirm_pickup",
         "freight.confirm_delivery",
         "carrier.track",
     },
-    "cargo_owner": _COMMON | {
+    "cargo_owner": _COMMON
+    | {
         "freight.post",
         "freight.accept_bid",
         "freight.release_escrow",
@@ -55,7 +58,8 @@ ROLE_PERMISSIONS: dict[str, set[str]] = {
         "carrier.track",
         "earth.create_poi",
     },
-    "logistics": _COMMON | {
+    "logistics": _COMMON
+    | {
         "freight.post",
         "freight.place_bid",
         "freight.accept_bid",

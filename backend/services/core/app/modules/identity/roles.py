@@ -3,6 +3,7 @@
 منبعِ حقیقتِ «چه نقش‌هایی قابلِ سوییچ‌اند» در ``dilix_shared.earth_id.SELF_SERVICE_ROLES``
 است؛ این‌جا فقط برچسب/توضیحِ نمایشی افزوده می‌شود تا فرانت بتواند سوییچرِ نقش را بسازد.
 """
+
 from __future__ import annotations
 
 from dilix_shared.earth_id import SELF_SERVICE_ROLES, EntityType

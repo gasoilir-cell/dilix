@@ -1,4 +1,5 @@
 """Schemaهای Provider (سند ۵: /v1/providers/...)."""
+
 from __future__ import annotations
 
 import uuid

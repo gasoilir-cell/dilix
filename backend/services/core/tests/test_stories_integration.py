@@ -2,6 +2,7 @@
 
 مسیرهای اصلی (create/feed/user/view/viewers) + حلقه‌های مخاطب، happy-path واقعی با DB.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -74,8 +75,8 @@ async def test_viewers_forbidden_for_non_author(integration) -> None:
 
 async def test_private_circle_story_hidden_then_visible(integration) -> None:
     author = integration.earth_id
-    # مخاطبِ داستان: حلقهٔ family
-    story = await _create_story(integration, audience="family")
+    # مخاطبِ داستان: حلقهٔ family (شناسه لازم نیست؛ دیده‌شدن از راهِ feed سنجیده می‌شود)
+    await _create_story(integration, audience="family")
 
     # عضوی که در حلقه نیست، در feed آن را نمی‌بیند
     outsider = integration.as_user()
@@ -97,9 +98,7 @@ async def test_private_circle_story_hidden_then_visible(integration) -> None:
 
 async def test_circles_list_and_add(integration) -> None:
     member = uuid.uuid4()
-    r = await integration.client.post(
-        "/v1/stories/circles/friends", json={"earth_id": str(member)}
-    )
+    r = await integration.client.post("/v1/stories/circles/friends", json={"earth_id": str(member)})
     assert r.status_code == 201
 
     r = await integration.client.get("/v1/stories/circles")

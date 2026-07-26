@@ -1,4 +1,5 @@
 """منطق دامنه‌ی Identity. Invariantها این‌جا اعمال می‌شوند."""
+
 from __future__ import annotations
 
 import uuid
@@ -50,18 +51,14 @@ async def create_identity(
 
 
 async def get_identity(db: AsyncSession, earth_id: uuid.UUID) -> EarthIdentity:
-    result = await db.execute(
-        select(EarthIdentity).where(EarthIdentity.earth_id == earth_id)
-    )
+    result = await db.execute(select(EarthIdentity).where(EarthIdentity.earth_id == earth_id))
     identity = result.scalar_one_or_none()
     if identity is None:
         raise NotFoundError("Earth ID یافت نشد.")
     return identity
 
 
-async def update_profile(
-    db: AsyncSession, earth_id: uuid.UUID, data: ProfileUpdate
-) -> Profile:
+async def update_profile(db: AsyncSession, earth_id: uuid.UUID, data: ProfileUpdate) -> Profile:
     identity = await get_identity(db, earth_id)
     profile = identity.profile
     for field, value in data.model_dump(exclude_unset=True).items():
@@ -91,9 +88,7 @@ async def update_visibility(
     return vis
 
 
-async def change_role(
-    db: AsyncSession, earth_id: uuid.UUID, target: EntityType
-) -> EarthIdentity:
+async def change_role(db: AsyncSession, earth_id: uuid.UUID, target: EntityType) -> EarthIdentity:
     """سوییچِ نقشِ کاربر بینِ نقش‌های خودسرویس.
 
     Invariant امنیتی: کاربر فقط می‌تواند به نقشی در ``SELF_SERVICE_ROLES`` سوییچ کند.
@@ -101,9 +96,7 @@ async def change_role(
     قابلِ خوداعطا نیستند — جلوگیری از privilege escalation.
     """
     if target not in SELF_SERVICE_ROLES:
-        raise ForbiddenError(
-            "این نقش خوداعطا نیست؛ نیازمندِ احرازِ کسب‌وکار (KYB) یا اعطای مدیر است."
-        )
+        raise ForbiddenError("این نقش خوداعطا نیست؛ نیازمندِ احرازِ کسب‌وکار (KYB) یا اعطای مدیر است.")
 
     identity = await get_identity(db, earth_id)
     previous = identity.entity_type

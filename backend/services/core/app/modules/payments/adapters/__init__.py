@@ -3,6 +3,7 @@
 - `sandbox`: همیشه ثبت است (برای dev/تست).
 - `saman`: فقط اگر در تنظیمات پیکربندی شده باشد (ADR-07، درگاهِ پرداخت‌یاریِ شاپرک).
 """
+
 from __future__ import annotations
 
 from dilix_shared.adapter import AdapterRegistry

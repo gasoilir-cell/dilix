@@ -4,6 +4,7 @@ Dilix بیمه‌گر نیست: adapterِ بیمه‌گر کار را انجام
 external_ref را ثبت و رویداد منتشر می‌کند (از طریقِ Outbox). هر گذار با ماشینِ
 حالتِ خالص اعتبارسنجی می‌شود.
 """
+
 from __future__ import annotations
 
 import uuid

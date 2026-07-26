@@ -1,4 +1,5 @@
 """DTOهای API بیمه (Pydantic). مبالغ بر حسبِ کوچک‌ترین واحدِ پول."""
+
 from __future__ import annotations
 
 import uuid

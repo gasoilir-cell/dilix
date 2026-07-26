@@ -12,6 +12,7 @@
 طراحی‌شده برای تست‌پذیری: تابعِ سطح‌بالای :func:`verify` را می‌توان در تست
 monkeypatch کرد؛ منطقِ خالصِ نگاشتِ ادعاها در :func:`_claims_from_payload` است.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

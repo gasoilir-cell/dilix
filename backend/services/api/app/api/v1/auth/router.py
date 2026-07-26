@@ -6,7 +6,9 @@ POST /api/v1/auth/refresh
 GET  /api/v1/auth/me
 """
 from fastapi import APIRouter, Depends, HTTPException, Request, status, UploadFile, File, Form, Query
-import os, uuid as _uuid, shutil, re as _re
+import os
+import uuid as _uuid
+import re as _re
 from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession

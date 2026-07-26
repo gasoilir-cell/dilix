@@ -1,4 +1,5 @@
 """مدل ORM اعلان (schema: notification). رویداد-محور: consumer رویداد را می‌خواند و اعلان می‌سازد."""
+
 from __future__ import annotations
 
 import uuid
@@ -25,7 +26,9 @@ class Notification(Base):
     __table_args__ = {"schema": "notification"}
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    recipient_earth_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    recipient_earth_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
     channel: Mapped[str] = mapped_column(String(16), nullable=False)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)

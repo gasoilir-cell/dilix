@@ -1,4 +1,5 @@
 """روتر Identity (سند ۵: /v1/identity/...)."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends

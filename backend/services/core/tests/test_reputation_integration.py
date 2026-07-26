@@ -1,4 +1,5 @@
 """تستِ یکپارچهٔ HTTP برای reputation (نظر + امتیاز). schema: reputation."""
+
 from __future__ import annotations
 
 import uuid

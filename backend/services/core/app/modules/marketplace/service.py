@@ -4,6 +4,7 @@
   ارائه‌دهنده → ثبت سرویس → مشتری سفارش می‌دهد → escrow بسته می‌شود →
   ارائه‌دهنده تحویل می‌دهد → مشتری تأیید می‌کند → escrow آزاد (کارمزد Dilix کسر).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -16,9 +17,14 @@ from dilix_shared.events import DomainEvent
 
 from app.core.events import publisher
 from app.modules.marketplace.models import (
-    ORDER_ACCEPTED, ORDER_COMPLETED,
-    ORDER_DELIVERED, ORDER_IN_PROGRESS, ORDER_PENDING,
-    SERVICE_ACTIVE, ServiceListing, ServiceOrder,
+    ORDER_ACCEPTED,
+    ORDER_COMPLETED,
+    ORDER_DELIVERED,
+    ORDER_IN_PROGRESS,
+    ORDER_PENDING,
+    SERVICE_ACTIVE,
+    ServiceListing,
+    ServiceOrder,
 )
 from app.modules.marketplace.schemas import ListingCreate, OrderCreate
 from app.modules.payments.schemas import EscrowCreate
@@ -59,20 +65,19 @@ async def search_listings(
     q = select(ServiceListing).where(ServiceListing.status == SERVICE_ACTIVE)
     if category:
         q = q.where(ServiceListing.category == category)
-    result = await db.execute(q.order_by(ServiceListing.is_featured.desc(), ServiceListing.created_at.desc()).limit(50))
+    result = await db.execute(
+        q.order_by(ServiceListing.is_featured.desc(), ServiceListing.created_at.desc()).limit(50)
+    )
     listings = list(result.scalars().all())
     if keyword:
         kw = keyword.lower()
         listings = [
-            item for item in listings
-            if kw in item.title.lower() or kw in item.description.lower()
+            item for item in listings if kw in item.title.lower() or kw in item.description.lower()
         ]
     return listings
 
 
-async def list_orders(
-    db: AsyncSession, earth_id: uuid.UUID
-) -> list[ServiceOrder]:
+async def list_orders(db: AsyncSession, earth_id: uuid.UUID) -> list[ServiceOrder]:
     """سفارش‌هایی که کاربر در آن‌ها خریدار یا فروشنده است (جدیدترین اول)."""
     result = await db.execute(
         select(ServiceOrder)

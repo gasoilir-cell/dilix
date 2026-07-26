@@ -17,6 +17,7 @@
 با فعال‌سازی env var DILIX_AI_SERVICE_URL اتصال واقعی برقرار می‌شود؛
 در غیر این صورت stub محلی استفاده می‌شود.
 """
+
 from __future__ import annotations
 
 import logging
@@ -101,10 +102,26 @@ AGENT_SYSTEM_PROMPTS: dict[str, str] = {
 # هر ابزار به یک endpointِ داخلیِ Dilix نگاشت می‌شود (کنترلِ دسترسی در همان لایه).
 MCP_TOOLS: dict[str, dict] = {
     "freight.search": {"method": "GET", "path": "/v1/freight/cargo", "agents": [AGENT_FREIGHT]},
-    "insurance.quote": {"method": "POST", "path": "/v1/insurance/quotes", "agents": [AGENT_INSURANCE]},
-    "payment.create_order": {"method": "POST", "path": "/v1/payments/escrow", "agents": [AGENT_FINANCIAL]},
-    "discovery.find_people": {"method": "GET", "path": "/v1/discovery/nearby", "agents": [AGENT_MATCHMAKING, AGENT_TRAVEL]},
-    "reputation.get": {"method": "GET", "path": "/v1/reputation/scores/{earth_id}", "agents": list(ALL_AGENTS)},
+    "insurance.quote": {
+        "method": "POST",
+        "path": "/v1/insurance/quotes",
+        "agents": [AGENT_INSURANCE],
+    },
+    "payment.create_order": {
+        "method": "POST",
+        "path": "/v1/payments/escrow",
+        "agents": [AGENT_FINANCIAL],
+    },
+    "discovery.find_people": {
+        "method": "GET",
+        "path": "/v1/discovery/nearby",
+        "agents": [AGENT_MATCHMAKING, AGENT_TRAVEL],
+    },
+    "reputation.get": {
+        "method": "GET",
+        "path": "/v1/reputation/scores/{earth_id}",
+        "agents": list(ALL_AGENTS),
+    },
     "profile.get": {"method": "GET", "path": "/v1/identity/me", "agents": list(ALL_AGENTS)},
 }
 
@@ -136,6 +153,7 @@ def route_to_agent(user_message: str) -> str:
 
 
 # ─────────────────────── API Contract ──────────────────────────
+
 
 async def invoke_agent(
     *,

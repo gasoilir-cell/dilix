@@ -1,4 +1,5 @@
 """روتر Gamification — /v1/gamification/..."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends

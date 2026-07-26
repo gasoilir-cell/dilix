@@ -4,6 +4,7 @@
 قبول می‌کند → escrow بسته می‌شود → بارنامه صادر می‌شود → تحویل → تسویه.
 Dilix فقط ارکستریت می‌کند؛ وجه نزدِ بانک و بارنامه نزدِ متصدی است.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -16,12 +17,12 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.core.database import Base
 
 # وضعیت‌های بارِ کالا
-CARGO_OPEN = "open"            # منتشرشده، در انتظارِ bid
-CARGO_BIDDING = "bidding"      # حداقل یک bid دریافت‌شده
-CARGO_ASSIGNED = "assigned"    # bid قبول‌شده، escrow بسته‌شده
+CARGO_OPEN = "open"  # منتشرشده، در انتظارِ bid
+CARGO_BIDDING = "bidding"  # حداقل یک bid دریافت‌شده
+CARGO_ASSIGNED = "assigned"  # bid قبول‌شده، escrow بسته‌شده
 CARGO_IN_TRANSIT = "in_transit"
 CARGO_DELIVERED = "delivered"
-CARGO_SETTLED = "settled"      # تسویه‌ی کامل
+CARGO_SETTLED = "settled"  # تسویه‌ی کامل
 CARGO_CANCELLED = "cancelled"
 
 # وضعیت‌های bid
@@ -38,7 +39,9 @@ class CargoPost(Base):
     __table_args__ = {"schema": "freight"}
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    owner_earth_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    owner_earth_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 

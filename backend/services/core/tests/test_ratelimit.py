@@ -3,6 +3,7 @@
 آنچه اینجا سنجیده می‌شود سه ادعای امنیتی است: حدسِ رمز، ساختِ زنجیره‌ایِ چالشِ
 OTP، و بمبارانِ پیامکِ یک شماره — هر سه باید به ۴۲۹ برسند.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -20,6 +21,7 @@ def _reset():
 
 
 # ── هسته‌ی شمارنده ────────────────────────────────────────────────────────────
+
 
 async def test_hit_raises_after_limit() -> None:
     from app.core.ratelimit import Rule, hit
@@ -64,6 +66,7 @@ def test_rule_for_path_exact_and_prefix() -> None:
 
 # ── تشخیصِ IP ─────────────────────────────────────────────────────────────────
 
+
 class _Req:
     def __init__(self, peer: str | None, forwarded: str | None = None) -> None:
         self.client = type("C", (), {"host": peer})() if peer else None
@@ -81,6 +84,7 @@ def test_client_ip_trusts_forwarded_only_from_local_proxy() -> None:
 
 
 # ── سرتاسری: میان‌افزار روی مسیرِ واقعی ───────────────────────────────────────
+
 
 async def test_auth_endpoint_returns_429_after_limit(integration) -> None:
     """مسیرِ `token/refresh` انتخاب شده چون به دیتابیس دست نمی‌زند؛ آنچه سنجیده

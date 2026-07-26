@@ -1,4 +1,5 @@
 """تنظیماتِ dilix-ai-service. همه‌چیز از محیط خوانده می‌شود (Zero Trust)."""
+
 from __future__ import annotations
 
 from functools import lru_cache

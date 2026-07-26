@@ -3,6 +3,7 @@
 نکته: این لایه فقط احراز هویت پایه را پوشش می‌دهد. MFA، چرخش refresh،
 و E2EE در ماژول‌های اختصاصی پیاده می‌شوند.
 """
+
 from __future__ import annotations
 
 import uuid

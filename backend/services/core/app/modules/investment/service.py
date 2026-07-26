@@ -1,4 +1,5 @@
 """سرویس سرمایه‌گذاری — خرید/فروشِ واحدِ صندوق (ADR-09: فقط صندوقِ مجاز)."""
+
 from __future__ import annotations
 
 import uuid
@@ -51,14 +52,13 @@ async def buy(db: AsyncSession, *, earth_id: uuid.UUID, data: BuyRequest) -> Inv
     return pos
 
 
-async def sell(
-    db: AsyncSession, *, earth_id: uuid.UUID, data: SellRequest
-) -> InvestmentPosition:
+async def sell(db: AsyncSession, *, earth_id: uuid.UUID, data: SellRequest) -> InvestmentPosition:
     pos = await db.get(InvestmentPosition, data.position_id)
     if pos is None or pos.earth_id != earth_id:
         raise NotFoundError("موقعیتِ سرمایه‌گذاری یافت نشد.")
     if data.units > pos.units:
         from dilix_shared.errors import ConflictError
+
         raise ConflictError("تعدادِ واحدِ درخواستی بیش از موجودی است.")
 
     adapter = investment_registry.get(pos.provider_code)

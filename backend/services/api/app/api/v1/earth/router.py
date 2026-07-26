@@ -144,7 +144,7 @@ async def get_earth_users(
     """
     conditions = [
         User.status == "active",
-        User.privacy_on_map == True,
+        User.privacy_on_map.is_(True),
     ]
     if country:
         conditions.append(User.country_code == country.upper())

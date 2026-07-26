@@ -1,4 +1,5 @@
 """تستِ یکپارچهٔ HTTP برای gamification (امتیاز + نشان). schema: gamification."""
+
 from __future__ import annotations
 
 import pytest_asyncio

@@ -5,6 +5,7 @@
   • مخاطبِ followers حذف شد (نیازمندِ گرافِ فالوِ ماژولِ Social)؛ فقط public و حلقه‌ها.
   • ساختِ داستان با media_url در بدنه‌ی JSON (به‌جای آپلودِ فایل).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -158,12 +159,16 @@ async def user_stories(
 ) -> list[StoryOut]:
     now = _now()
     stories = (
-        await db.execute(
-            select(Story)
-            .where(and_(Story.author_earth_id == earth_id, Story.expires_at > now))
-            .order_by(Story.created_at.asc())
+        (
+            await db.execute(
+                select(Story)
+                .where(and_(Story.author_earth_id == earth_id, Story.expires_at > now))
+                .order_by(Story.created_at.asc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     if not stories:
         return []
 

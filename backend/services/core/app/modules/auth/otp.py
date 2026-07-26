@@ -8,6 +8,7 @@
 توسعه اگر کانالی پیکربندی نشده باشد، تحویل no-op است (کد لو نمی‌رود)؛ در production
 نبودِ پیکربندی خطا می‌دهد.
 """
+
 from __future__ import annotations
 
 import hashlib

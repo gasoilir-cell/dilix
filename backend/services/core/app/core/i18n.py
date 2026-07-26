@@ -6,6 +6,7 @@
 
 در نسخه‌ی کامل این catalog از فایل‌های .po/.mo یا Babel بارگذاری می‌شود.
 """
+
 from __future__ import annotations
 
 from fastapi import Request

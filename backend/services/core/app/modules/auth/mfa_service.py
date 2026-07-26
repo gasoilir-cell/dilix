@@ -9,6 +9,7 @@
 سیاست امنیتی: secret فقط یک‌بار در setup بازگشت داده می‌شود و سپس در DB رمزنگاری‌شده
 نگه داشته می‌شود (در پیاده‌سازی کامل با KMS؛ اینجا ساده‌سازی‌شده).
 """
+
 from __future__ import annotations
 
 import base64
@@ -40,6 +41,7 @@ async def _get_cred(db: AsyncSession, earth_id: uuid.UUID) -> Credential:
 
 # ─────────────────────────── Setup ────────────────────────────
 
+
 async def setup_mfa(db: AsyncSession, earth_id: uuid.UUID, email: str | None) -> dict:
     """مرحله‌ی اول: تولید secret و بازگرداندن QR URI."""
     cred = await _get_cred(db, earth_id)
@@ -59,6 +61,7 @@ async def setup_mfa(db: AsyncSession, earth_id: uuid.UUID, email: str | None) ->
     qr_data_url: str | None = None
     try:
         import qrcode  # type: ignore
+
         img = qrcode.make(uri)
         buf = io.BytesIO()
         img.save(buf, format="PNG")
@@ -75,6 +78,7 @@ async def setup_mfa(db: AsyncSession, earth_id: uuid.UUID, email: str | None) ->
 
 
 # ─────────────────────────── Enable ───────────────────────────
+
 
 async def enable_mfa(db: AsyncSession, earth_id: uuid.UUID, code: str) -> list[str]:
     """مرحله‌ی دوم: تأیید کد و فعال‌سازی. لیست backup codes برمی‌گردد."""
@@ -98,6 +102,7 @@ async def enable_mfa(db: AsyncSession, earth_id: uuid.UUID, code: str) -> list[s
 
 # ─────────────────────────── Verify ───────────────────────────
 
+
 async def verify_mfa(db: AsyncSession, earth_id: uuid.UUID, code: str) -> TokenPair:
     """تأیید کد پس از ورود اولیه. توکن کامل صادر می‌شود."""
     cred = await _get_cred(db, earth_id)
@@ -115,6 +120,7 @@ async def verify_mfa(db: AsyncSession, earth_id: uuid.UUID, code: str) -> TokenP
 
 
 # ─────────────────────────── Disable ──────────────────────────
+
 
 async def disable_mfa(db: AsyncSession, earth_id: uuid.UUID, code: str) -> None:
     """غیرفعال‌سازی MFA با تأیید کد فعلی."""

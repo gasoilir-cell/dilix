@@ -1,4 +1,5 @@
 """منطق احراز هویت: ثبت‌نام (با ساخت Earth ID)، ورود، توکن، OAuth و OTP."""
+
 from __future__ import annotations
 
 import uuid
@@ -42,9 +43,7 @@ async def register(db: AsyncSession, data: RegisterRequest) -> tuple[str, TokenP
     if data.phone:
         identifier_filters.append(Credential.phone == data.phone)
     if identifier_filters:
-        existing = await db.execute(
-            select(Credential).where(or_(*identifier_filters))
-        )
+        existing = await db.execute(select(Credential).where(or_(*identifier_filters)))
         if existing.scalar_one_or_none() is not None:
             raise ConflictError("کاربری با این ایمیل/تلفن وجود دارد.")
 
@@ -74,8 +73,10 @@ async def login(db: AsyncSession, data: LoginRequest) -> TokenPair:
     )
     cred = result.scalar_one_or_none()
     # حساب‌های فقط-فدراسیون/OTP رمز ندارند → ورود با رمز برایشان مجاز نیست.
-    if cred is None or not cred.password_hash or not verify_password(
-        data.password, cred.password_hash
+    if (
+        cred is None
+        or not cred.password_hash
+        or not verify_password(data.password, cred.password_hash)
     ):
         raise ForbiddenError("نام کاربری یا رمز عبور نادرست است.")
 
@@ -98,6 +99,7 @@ def _tokens_for(cred: Credential) -> TokenPair:
 
 
 # ─────────────────── ورودِ فدراسیون (OAuth2/OIDC) ───────────────────
+
 
 async def login_or_register_oauth(
     db: AsyncSession, claims: OAuthClaims, *, home_region: str | None = None
@@ -122,9 +124,7 @@ async def login_or_register_oauth(
     # ۲) تطبیق با ایمیلِ تأییدشده‌ی موجود (link حسابِ موجود)
     earth_id: uuid.UUID | None = None
     if claims.email and claims.email_verified:
-        existing = await db.execute(
-            select(Credential).where(Credential.email == claims.email)
-        )
+        existing = await db.execute(select(Credential).where(Credential.email == claims.email))
         cred = existing.scalar_one_or_none()
         if cred is not None:
             earth_id = cred.earth_id
@@ -161,14 +161,13 @@ async def login_or_register_oauth(
 
 # ─────────────────── کدِ یک‌بارمصرف (OTP) ───────────────────
 
+
 async def request_otp(db: AsyncSession, data: OtpRequest) -> OtpChallenge:
     """ساختِ چالشِ OTP و تحویلِ کد از طریقِ کانالِ خواسته‌شده."""
     otp_lib.validate_channel(data.channel)
     # سقفِ ارسال به یک مقصدِ مشخص، جدا از سقفِ IPِ میان‌افزار: چرخاندنِ IP ارزان
     # است ولی شماره‌ی قربانی ثابت می‌مانَد و هر پیامک هزینه‌ی واقعی دارد.
-    await ratelimit.hit(
-        f"otp:{data.channel}", data.destination, ratelimit.OTP_DESTINATION_RULE
-    )
+    await ratelimit.hit(f"otp:{data.channel}", data.destination, ratelimit.OTP_DESTINATION_RULE)
     settings = get_settings()
     code = otp_lib.generate_code()
     challenge = OtpChallenge(
@@ -213,6 +212,7 @@ async def verify_otp(db: AsyncSession, challenge_id: uuid.UUID, code: str) -> tu
 
 
 # ─────────────────── کمکی‌ها ───────────────────
+
 
 def _aware(dt: datetime) -> datetime:
     """تضمینِ timezone-aware (SQLite گاهی naive برمی‌گرداند)."""

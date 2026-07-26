@@ -14,6 +14,7 @@
 سقف عملاً در تعدادِ workerها ضرب می‌شود ولی همچنان کران‌دار است — و مهم‌تر اینکه
 قطعیِ Redis نباید ورودِ کاربران را قطع کند.
 """
+
 from __future__ import annotations
 
 import logging
@@ -65,6 +66,7 @@ def rule_for_path(path: str) -> Rule:
 
 # ─────────────────────── انبارهٔ شمارنده ───────────────────────
 
+
 class _MemoryStore:
     """شمارنده‌ی درون‌پردازه‌ای — برای آزمون و حالتِ نبودِ Redis."""
 
@@ -81,9 +83,7 @@ class _MemoryStore:
         # تمیزکاریِ تنبل: کلیدهای منقضی را وقتی جدول بزرگ شد دور می‌ریزیم تا
         # حافظه با IPهای یک‌بارمصرف بی‌کران رشد نکند.
         if len(self._hits) > 10_000:
-            self._hits = {
-                k: v for k, v in self._hits.items() if now - v[1] < window
-            }
+            self._hits = {k: v for k, v in self._hits.items() if now - v[1] < window}
         return count, max(1, int(window - (now - started)))
 
     async def reset(self) -> None:

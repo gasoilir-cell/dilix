@@ -6,6 +6,7 @@ created → escrowed → captured  (مسیرِ موفق)
 created/escrowed → failed
 Dilix فقط مرجعِ امانتِ بانک (external_ref) را نگه می‌دارد؛ هرگز خودِ وجه را.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -29,9 +30,7 @@ class PaymentOrder(Base):
     __tablename__ = "payment_order"
     __table_args__ = {"schema": "payments"}
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     payer_earth_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     payee_earth_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     amount_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)

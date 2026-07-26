@@ -1,4 +1,5 @@
 """سرویس عضویت — ارتقا و لغو."""
+
 from __future__ import annotations
 
 import uuid
@@ -11,7 +12,10 @@ from dilix_shared.events import DomainEvent
 
 from app.core.events import publisher
 from app.modules.membership.models import (
-    PLAN_CASHBACK_BPS, PLAN_FREE, STATUS_ACTIVE, STATUS_CANCELLED,
+    PLAN_CASHBACK_BPS,
+    PLAN_FREE,
+    STATUS_ACTIVE,
+    STATUS_CANCELLED,
     MembershipSubscription,
 )
 
@@ -22,9 +26,7 @@ async def _get_or_create(db: AsyncSession, earth_id: uuid.UUID) -> MembershipSub
     )
     sub = result.scalars().first()
     if sub is None:
-        sub = MembershipSubscription(
-            earth_id=earth_id, plan=PLAN_FREE, cashback_bps=0
-        )
+        sub = MembershipSubscription(earth_id=earth_id, plan=PLAN_FREE, cashback_bps=0)
         db.add(sub)
         await db.flush()
     return sub
@@ -35,6 +37,7 @@ async def upgrade(
 ) -> MembershipSubscription:
     if plan not in PLAN_CASHBACK_BPS:
         from dilix_shared.errors import ConflictError
+
         raise ConflictError(f"طرحِ نامعتبر: {plan}")
     sub = await _get_or_create(db, earth_id)
     sub.plan = plan

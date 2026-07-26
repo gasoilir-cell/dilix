@@ -3,6 +3,7 @@
 revenue-share (Vanguard-style): نرخِ سهمِ عضو از درآمدِ کارمزدِ پلتفرم بر پایه‌ی
 طرحِ عضویت و موقعیتِ سرمایه‌گذاری محاسبه می‌شود — نه پاداشِ عضوگیری.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -34,8 +35,8 @@ from app.modules.referral.models import (
 # نرخِ پایه‌ی سهم از درآمدِ کارمزد برحسبِ basis points، بر اساسِ طرحِ عضویت
 _PLAN_REVENUE_SHARE_BPS: dict[str, int] = {
     PLAN_FREE: 0,
-    PLAN_STANDARD: 50,    # ۰.۵٪
-    PLAN_PREMIUM: 150,    # ۱.۵٪
+    PLAN_STANDARD: 50,  # ۰.۵٪
+    PLAN_PREMIUM: 150,  # ۱.۵٪
 }
 # سقفِ افزایشِ سهم به‌ازای داشتنِ موقعیتِ سرمایه‌گذاری (Vanguard-style)
 _INVESTOR_BONUS_BPS = 100
@@ -49,9 +50,7 @@ def _invite_code(earth_id: uuid.UUID) -> str:
 async def referral_link(db: AsyncSession, earth_id: uuid.UUID) -> ReferralLinkOut:
     code = _invite_code(earth_id)
     count = await db.scalar(
-        select(func.count())
-        .select_from(Referral)
-        .where(Referral.referrer_earth_id == earth_id)
+        select(func.count()).select_from(Referral).where(Referral.referrer_earth_id == earth_id)
     )
     base = get_settings().public_app_url.rstrip("/")
     return ReferralLinkOut(

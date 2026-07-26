@@ -13,6 +13,7 @@ HTTP (REST):
     کلاینت → {"type": "ping"}
     سرور   → {"type": "pong", "payload": {}, "ts": "..."}
 """
+
 from __future__ import annotations
 
 import json
@@ -32,17 +33,17 @@ logger = logging.getLogger("dilix.realtime")
 router = APIRouter(tags=["realtime"])
 
 # پیام‌های signaling که فقط بینِ دو طرف relay می‌شوند (سرور رسانه را نمی‌بیند)
-_WEBRTC_SIGNALS = frozenset({
-    WsEventType.CALL_OFFER,
-    WsEventType.CALL_ANSWER,
-    WsEventType.CALL_END,
-    WsEventType.ICE_CANDIDATE,
-})
+_WEBRTC_SIGNALS = frozenset(
+    {
+        WsEventType.CALL_OFFER,
+        WsEventType.CALL_ANSWER,
+        WsEventType.CALL_END,
+        WsEventType.ICE_CANDIDATE,
+    }
+)
 
 
-async def _relay_signal(
-    signal_type: WsEventType, from_earth_id: str, payload: dict
-) -> None:
+async def _relay_signal(signal_type: WsEventType, from_earth_id: str, payload: dict) -> None:
     """انتقالِ پیامِ signaling به طرفِ مقابل (payload باید "to" داشته باشد)."""
     to_earth_id = payload.get("to")
     if not to_earth_id:
@@ -58,6 +59,7 @@ async def _relay_signal(
 
 
 # ──────────────────────── WebSocket ──────────────────────────
+
 
 @router.websocket("/v1/ws")
 async def websocket_endpoint(
@@ -86,11 +88,13 @@ async def websocket_endpoint(
 
             # ── کنترل پیام‌های ورودی ──
             if msg.type == WsEventType.PING:
-                await ws.send_json({
-                    "type": WsEventType.PONG,
-                    "payload": {},
-                    "ts": datetime.now(timezone.utc).isoformat(),
-                })
+                await ws.send_json(
+                    {
+                        "type": WsEventType.PONG,
+                        "payload": {},
+                        "ts": datetime.now(timezone.utc).isoformat(),
+                    }
+                )
 
             elif msg.type == WsEventType.TYPING_START:
                 room_id = msg.payload.get("room_id", "")
@@ -116,6 +120,7 @@ async def websocket_endpoint(
 
 
 # ──────────────────────── Presence REST ──────────────────────
+
 
 @router.get("/v1/realtime/presence/{target_earth_id}", response_model=PresenceResponse)
 async def get_presence(

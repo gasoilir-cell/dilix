@@ -1,4 +1,5 @@
 """روتر Discovery — /v1/discovery/... (سند ۵ §۴)."""
+
 from __future__ import annotations
 
 import uuid

@@ -1,4 +1,5 @@
 """Schemaهای Realtime WebSocket — رویدادهای دریافتی و ارسالی (سند ۵)."""
+
 from __future__ import annotations
 
 from enum import Enum
@@ -34,12 +35,14 @@ class WsEventType(str, Enum):
 
 class WsIncoming(BaseModel):
     """پیام ورودی از کلاینت."""
+
     type: WsEventType
     payload: dict[str, Any] = {}
 
 
 class WsOutgoing(BaseModel):
     """پیام خروجی به کلاینت."""
+
     type: WsEventType
     payload: dict[str, Any] = {}
     ts: str = ""

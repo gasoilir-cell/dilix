@@ -6,6 +6,7 @@
 
 Dilix وجه و بارنامه را نگه نمی‌دارد؛ فقط ارکستریت می‌کند.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -20,9 +21,18 @@ from app.core.events import publisher
 from app.modules.carrier.schemas import ShipmentCreate
 from app.modules.carrier import service as carrier_svc
 from app.modules.freight.models import (
-    BID_ACCEPTED, BID_PENDING, BID_REJECTED,
-    CARGO_ASSIGNED, CARGO_BIDDING, CARGO_DELIVERED, CARGO_IN_TRANSIT, CARGO_OPEN, CARGO_SETTLED,
-    CargoPost, FreightBid, FreightLocation,
+    BID_ACCEPTED,
+    BID_PENDING,
+    BID_REJECTED,
+    CARGO_ASSIGNED,
+    CARGO_BIDDING,
+    CARGO_DELIVERED,
+    CARGO_IN_TRANSIT,
+    CARGO_OPEN,
+    CARGO_SETTLED,
+    CargoPost,
+    FreightBid,
+    FreightLocation,
 )
 from app.modules.freight.schemas import CargoPostCreate, FreightBidCreate, LocationUpdate
 from app.modules.freight.state import can_transition
@@ -157,8 +167,12 @@ async def accept_bid(
     cargo.accepted_bid_id = bid_id
 
     await _set_cargo_status(
-        db, cargo, CARGO_ASSIGNED, "freight.BidAccepted",
-        bid_id=str(bid_id), driver_id=str(bid.driver_earth_id),
+        db,
+        cargo,
+        CARGO_ASSIGNED,
+        "freight.BidAccepted",
+        bid_id=str(bid_id),
+        driver_id=str(bid.driver_earth_id),
     )
     return cargo
 
@@ -202,16 +216,18 @@ async def release_escrow(
 
 async def list_open(db: AsyncSession) -> list[CargoPost]:
     result = await db.execute(
-        select(CargoPost).where(
-            CargoPost.status.in_([CARGO_OPEN, CARGO_BIDDING])
-        ).order_by(CargoPost.created_at.desc()).limit(100)
+        select(CargoPost)
+        .where(CargoPost.status.in_([CARGO_OPEN, CARGO_BIDDING]))
+        .order_by(CargoPost.created_at.desc())
+        .limit(100)
     )
     return list(result.scalars().all())
 
 
 async def list_bids(db: AsyncSession, cargo_id: uuid.UUID) -> list[FreightBid]:
     result = await db.execute(
-        select(FreightBid).where(FreightBid.cargo_post_id == cargo_id)
+        select(FreightBid)
+        .where(FreightBid.cargo_post_id == cargo_id)
         .order_by(FreightBid.created_at.asc())
     )
     return list(result.scalars().all())
@@ -257,9 +273,7 @@ async def update_location(
     return loc
 
 
-async def get_last_location(
-    db: AsyncSession, cargo_id: uuid.UUID
-) -> FreightLocation | None:
+async def get_last_location(db: AsyncSession, cargo_id: uuid.UUID) -> FreightLocation | None:
     """آخرین موقعیت GPS بار را برمی‌گرداند."""
     result = await db.execute(
         select(FreightLocation)

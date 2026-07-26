@@ -1,4 +1,5 @@
 """تستِ یکپارچهٔ HTTP برای earth (موقعیت + POI). schema: earth."""
+
 from __future__ import annotations
 
 import pytest_asyncio
@@ -38,9 +39,7 @@ async def test_create_poi_then_nearby(earth_client) -> None:
     assert res.status_code == 201, res.text
     poi_id = res.json()["id"]
 
-    near = await client.get(
-        "/v1/earth/pois", params={"lat": 35.72, "lon": 51.42, "radius_km": 5}
-    )
+    near = await client.get("/v1/earth/pois", params={"lat": 35.72, "lon": 51.42, "radius_km": 5})
     assert near.status_code == 200, near.text
     assert poi_id in [p["id"] for p in near.json()]
 

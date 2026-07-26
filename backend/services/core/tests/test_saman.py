@@ -1,4 +1,5 @@
 """تست‌های واحدِ M2 — توابعِ خالصِ adapterِ سامان (نگاشت payload و امضای HMAC)."""
+
 from __future__ import annotations
 
 from app.modules.payments.adapters.saman import build_escrow_payload, sign_body

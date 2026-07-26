@@ -1,4 +1,5 @@
 """روتر Notification — /v1/notifications/..."""
+
 from __future__ import annotations
 
 import uuid

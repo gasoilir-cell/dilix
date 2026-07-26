@@ -1,4 +1,5 @@
 """روتر Investment — /v1/investment/... (ADR-09: فقط صندوقِ مجاز)."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query

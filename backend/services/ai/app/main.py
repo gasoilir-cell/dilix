@@ -4,6 +4,7 @@
   درخواست:  {agent_type, conversation_id, earth_id, system_prompt, history, message}
   پاسخ:    {reply, tool_calls, metadata}
 """
+
 from __future__ import annotations
 
 import logging
@@ -11,7 +12,13 @@ import logging
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from app.agents import ALL_AGENTS, AGENT_SYSTEM_PROMPTS, MCP_TOOLS, system_prompt_for, tools_for_agent
+from app.agents import (
+    ALL_AGENTS,
+    AGENT_SYSTEM_PROMPTS,
+    MCP_TOOLS,
+    system_prompt_for,
+    tools_for_agent,
+)
 from app.config import get_settings
 from app.llm import complete
 from app.schemas import InvokeRequest, InvokeResponse
@@ -73,7 +80,10 @@ async def list_agents() -> dict:
             }
             for agent in ALL_AGENTS
         ],
-        "tools": {name: {k: v for k, v in spec.items() if k != "agents"} for name, spec in MCP_TOOLS.items()},
+        "tools": {
+            name: {k: v for k, v in spec.items() if k != "agents"}
+            for name, spec in MCP_TOOLS.items()
+        },
     }
 
 

@@ -1,4 +1,5 @@
 """سرویس Social — پست، کامنت، ری‌اکشن، فالو."""
+
 from __future__ import annotations
 
 import uuid
@@ -40,9 +41,7 @@ async def _load_post(db: AsyncSession, post_id: uuid.UUID) -> SocialPost:
     return post
 
 
-async def delete_post(
-    db: AsyncSession, post_id: uuid.UUID, actor_earth_id: uuid.UUID
-) -> None:
+async def delete_post(db: AsyncSession, post_id: uuid.UUID, actor_earth_id: uuid.UUID) -> None:
     post = await _load_post(db, post_id)
     if post.author_earth_id != actor_earth_id:
         raise ForbiddenError("فقط نویسنده می‌تواند پست را حذف کند.")
@@ -125,16 +124,13 @@ async def feed(
     اگر `post_type` داده شود (مثلاً `reel`)، فقط همان نوع برگردانده می‌شود.
     """
     followees_result = await db.execute(
-        select(Follow.followee_earth_id).where(
-            Follow.follower_earth_id == viewer_earth_id
-        )
+        select(Follow.followee_earth_id).where(Follow.follower_earth_id == viewer_earth_id)
     )
     followees = [r for r in followees_result.scalars().all()]
     if not followees:
         return []
-    stmt = (
-        select(SocialPost)
-        .where(SocialPost.author_earth_id.in_(followees), SocialPost.deleted.is_(False))
+    stmt = select(SocialPost).where(
+        SocialPost.author_earth_id.in_(followees), SocialPost.deleted.is_(False)
     )
     if post_type is not None:
         stmt = stmt.where(SocialPost.post_type == post_type)

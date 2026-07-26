@@ -4,6 +4,7 @@ Dilix متصدیِ حمل نیست: adapterِ متصدی بارنامه صادر
 waybill_no را ثبت و رویداد منتشر می‌کند (از طریقِ Outbox). track وضعیتِ زنده را
 از متصدی می‌گیرد و در صورتِ معتبربودنِ گذار، حالتِ محلی را همگام می‌کند.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -70,9 +71,7 @@ async def create_shipment(
     return shipment
 
 
-async def track(
-    db: AsyncSession, shipment_id: uuid.UUID, actor_earth_id: uuid.UUID
-) -> Shipment:
+async def track(db: AsyncSession, shipment_id: uuid.UUID, actor_earth_id: uuid.UUID) -> Shipment:
     shipment = await db.get(Shipment, shipment_id)
     if shipment is None:
         raise NotFoundError("محموله یافت نشد.")

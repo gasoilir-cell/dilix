@@ -1,4 +1,5 @@
 """تست‌های واحدِ بدون نیاز به دیتابیس: Earth ID، امنیت، و موتور مجوز."""
+
 from __future__ import annotations
 
 import uuid

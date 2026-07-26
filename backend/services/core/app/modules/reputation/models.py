@@ -3,6 +3,7 @@
 هر کاربر در هر دامنه (logistics, financial, social, trust) امتیاز جداگانه دارد.
 امتیاز به تراکنش‌های واقعی گره خورده است — نه تعامل ساده.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -15,10 +16,10 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.core.database import Base
 
 # دامنه‌های امتیاز
-DOMAIN_LOGISTICS = "logistics"    # بار و حمل
-DOMAIN_FINANCIAL = "financial"   # تراکنش مالی
-DOMAIN_SOCIAL = "social"         # تعامل اجتماعی
-DOMAIN_TRUST = "trust"           # امتیاز کلی اعتماد
+DOMAIN_LOGISTICS = "logistics"  # بار و حمل
+DOMAIN_FINANCIAL = "financial"  # تراکنش مالی
+DOMAIN_SOCIAL = "social"  # تعامل اجتماعی
+DOMAIN_TRUST = "trust"  # امتیاز کلی اعتماد
 
 
 class ReputationScore(Base):
@@ -52,7 +53,9 @@ class Review(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     # کاربری که امتیاز گرفته
-    reviewee_earth_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    reviewee_earth_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
     # کاربری که امتیاز داده
     reviewer_earth_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     domain: Mapped[str] = mapped_column(String(32), nullable=False)

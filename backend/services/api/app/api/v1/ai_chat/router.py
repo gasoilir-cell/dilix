@@ -6,11 +6,11 @@ GET  /api/v1/ai/history تاریخچه مکالمات
 import uuid as _uuid
 import re
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
-from sqlalchemy import Column, DateTime, ForeignKey, String, Text, Integer, select
+from sqlalchemy import Column, DateTime, ForeignKey, String, Text, select
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 

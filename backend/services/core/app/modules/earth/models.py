@@ -5,6 +5,7 @@ Privacy-by-design:
 - geo_precision: exact | district | city | region (پیش‌فرض: region).
 - بزرگ‌نماییِ دقیق را VisibilitySettings (identity) کنترل می‌کند.
 """
+
 from __future__ import annotations
 
 import uuid

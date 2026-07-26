@@ -1,4 +1,5 @@
 """تستِ یکپارچهٔ HTTP برای provider (ثبتِ ارائه‌دهنده + API). schema: provider."""
+
 from __future__ import annotations
 
 import pytest_asyncio
@@ -37,9 +38,7 @@ async def test_register_then_add_api(prov_client) -> None:
 
 
 async def test_provider_auth_required() -> None:
-    await assert_auth_required(
-        "POST", "/v1/providers/register"
-    )
+    await assert_auth_required("POST", "/v1/providers/register")
 
 
 async def test_provider_credential_returns_raw_key(prov_client) -> None:
@@ -49,9 +48,7 @@ async def test_provider_credential_returns_raw_key(prov_client) -> None:
         json={"legal_name": "کریرِ نمونه", "provider_type": "carrier"},
     )
     provider_id = reg.json()["id"]
-    cred = await client.post(
-        f"/v1/providers/{provider_id}/credentials", json={"env": "sandbox"}
-    )
+    cred = await client.post(f"/v1/providers/{provider_id}/credentials", json={"env": "sandbox"})
     assert cred.status_code == 201, cred.text
     assert cred.json()["api_key"]
     assert cred.json()["env"] == "sandbox"

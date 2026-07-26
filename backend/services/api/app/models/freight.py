@@ -4,8 +4,8 @@ Dilix — مدل حمل بار (CargoPost)
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy import (
-    BigInteger, Boolean, Column, DateTime, Enum,
-    Float, ForeignKey, Integer, String, Text,
+    BigInteger, Column, DateTime, Enum,
+    Float, ForeignKey, String, Text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 

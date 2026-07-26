@@ -3,6 +3,7 @@
 اگر `DILIX_AI_LLM_API_KEY` تنظیم نشده باشد، سرویس بدونِ تماسِ خارجی با پاسخِ
 rule-based کار می‌کند تا در محیطِ بدونِ کلید هم قابلِ اجرا و تست باشد.
 """
+
 from __future__ import annotations
 
 import logging
@@ -57,7 +58,11 @@ async def complete(*, system_prompt: str, messages: list[dict[str, str]]) -> tup
     except (KeyError, IndexError) as exc:
         logger.error("LLM unexpected response shape: %s", exc)
     # هر خطایی → fallback تا گفتگو قطع نشود
-    return _fallback(system_prompt, messages), {"engine": "fallback", "model": None, "degraded": True}
+    return _fallback(system_prompt, messages), {
+        "engine": "fallback",
+        "model": None,
+        "degraded": True,
+    }
 
 
 def _fallback(system_prompt: str, messages: list[dict[str, str]]) -> str:

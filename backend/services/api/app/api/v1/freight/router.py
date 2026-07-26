@@ -27,7 +27,7 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import (
-    select, or_, func, Column, BigInteger, Integer, Float, Boolean, String,
+    select, func, Column, BigInteger, Integer, Float, Boolean, String,
     DateTime, Enum, ForeignKey, Text,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -100,7 +100,6 @@ async def _release_escrow(db: AsyncSession, post: CargoPost):
         return
     amount = int(post.escrow_amount)
     commission = amount * FREIGHT_COMMISSION_PCT // 100
-    payout = amount - commission
 
     # صاحبِ بار: خروجِ وجه از escrow
     ow = await _wallet_of(db, post.owner_id)

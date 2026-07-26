@@ -22,7 +22,7 @@ from app.models.user import User
 from app.models.wallet import Wallet, WalletTransaction
 from app.models.holdings import WalletHolding, HoldingTransaction
 from app.services.fx import get_rate_map, convert_minor, unit_rate, minor_scale
-from app.services.crypto_wallet import is_crypto, network_of, deposit_address, CRYPTO_SET
+from app.services.crypto_wallet import is_crypto, network_of, deposit_address
 
 router = APIRouter(prefix="/holdings", tags=["holdings"])
 

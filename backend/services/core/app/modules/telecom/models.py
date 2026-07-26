@@ -1,4 +1,5 @@
 """مدل ORM تلکام — تاریخچهٔ شارژ و eSIM (schema: telecom)."""
+
 from __future__ import annotations
 import uuid
 from datetime import datetime

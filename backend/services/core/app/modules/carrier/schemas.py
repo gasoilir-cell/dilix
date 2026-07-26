@@ -1,4 +1,5 @@
 """DTOهای API حمل‌ونقل (Pydantic)."""
+
 from __future__ import annotations
 
 import uuid

@@ -4,6 +4,7 @@
 با ATTACHِ schemaهای `telecom` و `events` (Outbox). ساختار دقیقاً مطابقِ
 test_payments_integration.
 """
+
 from __future__ import annotations
 
 import uuid

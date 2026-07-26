@@ -5,6 +5,7 @@
 - `AdapterError`: خطای یکنواخت برای شکستِ سمتِ ارائه‌دهنده.
 - `AdapterRegistry`: نگاشتِ کدِ ارائه‌دهنده → نمونه‌ی Adapter.
 """
+
 from __future__ import annotations
 
 from typing import Generic, TypeVar

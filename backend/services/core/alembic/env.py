@@ -1,4 +1,5 @@
 """پیکربندی Alembic برای مهاجرت‌های async (سند ۳: expand/contract)."""
+
 from __future__ import annotations
 
 import asyncio

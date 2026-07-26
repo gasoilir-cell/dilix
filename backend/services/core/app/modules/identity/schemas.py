@@ -1,4 +1,5 @@
 """Schemaهای ورودی/خروجی Identity (Pydantic) — مرز API (سند ۵)."""
+
 from __future__ import annotations
 
 import uuid

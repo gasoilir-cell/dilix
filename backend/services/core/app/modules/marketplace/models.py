@@ -3,6 +3,7 @@
 Dilix بستر است؛ فریلنسر/ارائه‌دهنده خدمت را ثبت می‌کند و مشتری سفارش می‌دهد.
 کارمزد Dilix از escrow کسر می‌شود؛ پول نزد بانک است.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -45,7 +46,9 @@ class ServiceListing(Base):
     __table_args__ = {"schema": "marketplace"}
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    provider_earth_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    provider_earth_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     category: Mapped[str] = mapped_column(String(32), nullable=False)
@@ -81,7 +84,9 @@ class ServiceOrder(Base):
         nullable=False,
         index=True,
     )
-    buyer_earth_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    buyer_earth_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
     provider_earth_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     # نیاز خریدار
     requirements: Mapped[str | None] = mapped_column(Text, nullable=True)

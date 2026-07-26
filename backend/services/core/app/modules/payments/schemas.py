@@ -1,4 +1,5 @@
 """DTOهای API پرداخت (Pydantic). مبلغ بر حسبِ کوچک‌ترین واحدِ پول است."""
+
 from __future__ import annotations
 
 import uuid

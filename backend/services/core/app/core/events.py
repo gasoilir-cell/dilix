@@ -4,6 +4,7 @@
 تغییرِ دامنه می‌نویسد. ارسالِ واقعی به broker را relay جداگانه انجام می‌دهد
 (`app/core/relay.py`). این از مشکلِ dual-write جلوگیری می‌کند.
 """
+
 from __future__ import annotations
 
 import logging

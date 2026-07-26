@@ -32,7 +32,7 @@ from app.providers.payment.base import (
 from app.providers.payment.zarinpal import ZarinpalProvider
 from app.providers.payment.stripe import StripeProvider
 from app.services.fx import get_rate_map, convert_minor, unit_rate
-from app.services.crypto_wallet import is_crypto, network_of, deposit_address, CRYPTO_SET
+from app.services.crypto_wallet import network_of, deposit_address, CRYPTO_SET
 from app.services.mlm import distribute_commission
 
 router = APIRouter(prefix="/paygate", tags=["paygate"])

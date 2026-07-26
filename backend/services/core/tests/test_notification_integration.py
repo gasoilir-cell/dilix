@@ -1,4 +1,5 @@
 """تستِ یکپارچهٔ HTTP برای notification (صندوقِ پیام). schema: notification."""
+
 from __future__ import annotations
 
 import pytest_asyncio

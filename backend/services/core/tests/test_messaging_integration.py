@@ -6,6 +6,7 @@
 engineِ مستقل با ATTACHِ schemaهای `messaging` و `events` (Outbox) — ساختار مطابقِ
 test_marketplace_integration.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -85,9 +86,7 @@ def _set_user(state: dict, uid: uuid.UUID) -> None:
 
 
 async def _make_room(client: AsyncClient, title: str) -> str:
-    res = await client.post(
-        "/v1/messaging/rooms", json={"room_type": "group", "title": title}
-    )
+    res = await client.post("/v1/messaging/rooms", json={"room_type": "group", "title": title})
     assert res.status_code == 201, res.text
     return res.json()["id"]
 
@@ -128,9 +127,7 @@ async def test_list_rooms_orders_by_latest_activity(mg_client) -> None:
     room_2 = await _make_room(client, "اتاقِ ۲")
 
     # پیامِ جدید در اتاقِ ۱ → باید به بالای فهرست بیاید
-    send = await client.post(
-        f"/v1/messaging/rooms/{room_1}/messages", json={"content": "سلام"}
-    )
+    send = await client.post(f"/v1/messaging/rooms/{room_1}/messages", json={"content": "سلام"})
     assert send.status_code == 201, send.text
 
     res = await client.get("/v1/messaging/rooms")

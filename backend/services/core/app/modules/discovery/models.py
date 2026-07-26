@@ -1,4 +1,5 @@
 """مدل ORM Discovery — درخواستِ تماس بینِ افرادِ کشف‌شده (schema: discovery)."""
+
 from __future__ import annotations
 
 import uuid

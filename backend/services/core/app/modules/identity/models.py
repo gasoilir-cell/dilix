@@ -3,6 +3,7 @@
 Aggregate Root: EarthIdentity. Invariant: تغییر kyc_level فقط با مدرک تأییدشده
 (در لایه‌ی service اعمال می‌شود).
 """
+
 from __future__ import annotations
 
 import uuid

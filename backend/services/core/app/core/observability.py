@@ -9,6 +9,7 @@
 با DILIX_OTEL_ENABLED=true فعال می‌شود.
 در development به‌صورت پیش‌فرض غیرفعال است تا dependency اجباری نباشد.
 """
+
 from __future__ import annotations
 
 import logging
@@ -34,12 +35,14 @@ def setup_telemetry(app, settings) -> None:
         from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 
         # ── Resource ──
-        resource = Resource.create({
-            SERVICE_NAME: settings.otel_service_name,
-            "service.version": "0.4.0",
-            "deployment.environment": settings.environment,
-            "service.region": settings.region,
-        })
+        resource = Resource.create(
+            {
+                SERVICE_NAME: settings.otel_service_name,
+                "service.version": "0.4.0",
+                "deployment.environment": settings.environment,
+                "service.region": settings.region,
+            }
+        )
 
         # ── TracerProvider ──
         provider = TracerProvider(resource=resource)
@@ -47,12 +50,14 @@ def setup_telemetry(app, settings) -> None:
         # ── Exporter (OTLP gRPC → Collector → Jaeger/Tempo) ──
         try:
             from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+
             exporter = OTLPSpanExporter(endpoint=settings.otel_exporter_otlp_endpoint)
             provider.add_span_processor(BatchSpanProcessor(exporter))
             logger.info("OTLP exporter → %s", settings.otel_exporter_otlp_endpoint)
         except ImportError:
             # اگر exporter نصب نیست، فقط console
             from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
+
             provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
             logger.warning("OTLP exporter not available — using ConsoleSpanExporter")
 
@@ -82,6 +87,7 @@ def get_tracer(name: str = "dilix.core"):
     """دریافت tracer برای span دستی."""
     try:
         from opentelemetry import trace
+
         return trace.get_tracer(name)
     except ImportError:
         return _NoopTracer()
@@ -89,9 +95,12 @@ def get_tracer(name: str = "dilix.core"):
 
 class _NoopTracer:
     """Tracer بی‌عملکرد برای زمانی که OTEL نصب نیست."""
+
     def start_as_current_span(self, name: str, **_):
         from contextlib import contextmanager
+
         @contextmanager
         def _noop():
             yield None
+
         return _noop()

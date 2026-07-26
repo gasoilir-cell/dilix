@@ -5,6 +5,7 @@
   • احراز هویت با `get_current_user` (CurrentUser) و session با `get_session`.
   • افزودنِ استیکر با media_url در بدنه‌ی JSON (به‌جای آپلودِ فایل).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -38,13 +39,17 @@ async def _starred_ids(db: AsyncSession, user_id: uuid.UUID, sticker_ids: list) 
     if not sticker_ids:
         return set()
     rows = (
-        await db.execute(
-            select(StarredSticker.sticker_id).where(
-                StarredSticker.user_earth_id == user_id,
-                StarredSticker.sticker_id.in_(sticker_ids),
+        (
+            await db.execute(
+                select(StarredSticker.sticker_id).where(
+                    StarredSticker.user_earth_id == user_id,
+                    StarredSticker.sticker_id.in_(sticker_ids),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return set(rows)
 
 
@@ -52,13 +57,17 @@ async def _installed_ids(db: AsyncSession, user_id: uuid.UUID, pack_ids: list) -
     if not pack_ids:
         return set()
     rows = (
-        await db.execute(
-            select(InstalledPack.pack_id).where(
-                InstalledPack.user_earth_id == user_id,
-                InstalledPack.pack_id.in_(pack_ids),
+        (
+            await db.execute(
+                select(InstalledPack.pack_id).where(
+                    InstalledPack.user_earth_id == user_id,
+                    InstalledPack.pack_id.in_(pack_ids),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return set(rows)
 
 
@@ -117,12 +126,16 @@ async def my_packs(
     db: AsyncSession = Depends(get_session),
 ) -> list[PackOut]:
     packs = (
-        await db.execute(
-            select(StickerPack)
-            .where(StickerPack.owner_earth_id == user.earth_id)
-            .order_by(StickerPack.updated_at.desc())
+        (
+            await db.execute(
+                select(StickerPack)
+                .where(StickerPack.owner_earth_id == user.earth_id)
+                .order_by(StickerPack.updated_at.desc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return [_pack_out(p, user.earth_id, set()) for p in packs]
 
 
@@ -132,13 +145,17 @@ async def installed_packs(
     db: AsyncSession = Depends(get_session),
 ) -> list[PackOut]:
     packs = (
-        await db.execute(
-            select(StickerPack)
-            .join(InstalledPack, InstalledPack.pack_id == StickerPack.id)
-            .where(InstalledPack.user_earth_id == user.earth_id)
-            .order_by(InstalledPack.created_at.desc())
+        (
+            await db.execute(
+                select(StickerPack)
+                .join(InstalledPack, InstalledPack.pack_id == StickerPack.id)
+                .where(InstalledPack.user_earth_id == user.earth_id)
+                .order_by(InstalledPack.created_at.desc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     installed = {p.id for p in packs}
     return [_pack_out(p, user.earth_id, installed) for p in packs]
 
@@ -157,9 +174,7 @@ async def public_packs(
     )
     if q and q.strip():
         like = f"%{q.strip()}%"
-        stmt = stmt.where(
-            or_(StickerPack.title.ilike(like), StickerPack.description.ilike(like))
-        )
+        stmt = stmt.where(or_(StickerPack.title.ilike(like), StickerPack.description.ilike(like)))
     stmt = (
         stmt.order_by(StickerPack.install_count.desc(), StickerPack.updated_at.desc())
         .limit(limit)
@@ -184,10 +199,14 @@ async def pack_detail(
             raise HTTPException(status_code=403, detail="این بسته خصوصی است")
 
     stickers = (
-        await db.execute(
-            select(Sticker).where(Sticker.pack_id == pack_id).order_by(Sticker.created_at.asc())
+        (
+            await db.execute(
+                select(Sticker).where(Sticker.pack_id == pack_id).order_by(Sticker.created_at.asc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     starred = await _starred_ids(db, user.earth_id, [s.id for s in stickers])
     installed = await _installed_ids(db, user.earth_id, [pack_id])
     base = _pack_out(p, user.earth_id, installed)
@@ -321,13 +340,17 @@ async def my_starred(
     db: AsyncSession = Depends(get_session),
 ) -> list[StickerOut]:
     rows = (
-        await db.execute(
-            select(Sticker)
-            .join(StarredSticker, StarredSticker.sticker_id == Sticker.id)
-            .where(StarredSticker.user_earth_id == user.earth_id)
-            .order_by(StarredSticker.created_at.desc())
+        (
+            await db.execute(
+                select(Sticker)
+                .join(StarredSticker, StarredSticker.sticker_id == Sticker.id)
+                .where(StarredSticker.user_earth_id == user.earth_id)
+                .order_by(StarredSticker.created_at.desc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return [_sticker_out(s, {s.id for s in rows}) for s in rows]
 
 

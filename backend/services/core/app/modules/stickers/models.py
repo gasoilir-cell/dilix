@@ -3,6 +3,7 @@
 برگرفته از پیش‌نویسِ `_stickers_model.py` و هم‌راستا با قراردادهای Core
 (SQLAlchemy 2.0، شناسه‌ی کاربر به‌صورتِ earth_id بدونِ JOINِ بین‌Contextی).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -26,7 +27,9 @@ class StickerPack(Base):
     __table_args__ = {"schema": "stickers"}
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    owner_earth_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    owner_earth_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
     title: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str | None] = mapped_column(String(300), nullable=True)
     cover_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
@@ -55,7 +58,9 @@ class Sticker(Base):
         nullable=False,
         index=True,
     )
-    owner_earth_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    owner_earth_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
     media_url: Mapped[str] = mapped_column(String(500), nullable=False)
     media_type: Mapped[str] = mapped_column(String(32), default=MEDIA_IMAGE, nullable=False)
     emoji_tag: Mapped[str | None] = mapped_column(String(32), nullable=True)

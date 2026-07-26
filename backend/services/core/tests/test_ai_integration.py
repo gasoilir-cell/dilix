@@ -23,7 +23,9 @@ async def test_ai_chat_persists_user_and_assistant_messages(integration, monkeyp
     assert r.status_code == 201, r.text
     conv_id = r.json()["id"]
 
-    r = await integration.client.post(f"/v1/ai/conversations/{conv_id}/chat", json={"message": "سلام"})
+    r = await integration.client.post(
+        f"/v1/ai/conversations/{conv_id}/chat", json={"message": "سلام"}
+    )
     assert r.status_code == 200, r.text
     reply = r.json()
     assert reply["role"] == "assistant"
@@ -50,5 +52,7 @@ async def test_ai_chat_rejects_other_users_conversation(integration, monkeypatch
     conv_id = r.json()["id"]
 
     integration.as_user(uuid.uuid4())
-    r = await integration.client.post(f"/v1/ai/conversations/{conv_id}/chat", json={"message": "سلام"})
+    r = await integration.client.post(
+        f"/v1/ai/conversations/{conv_id}/chat", json={"message": "سلام"}
+    )
     assert r.status_code == 403

@@ -1,4 +1,5 @@
 """سرویس اعلان — ایجاد و علامت‌گذاریِ خواندن."""
+
 from __future__ import annotations
 
 import uuid

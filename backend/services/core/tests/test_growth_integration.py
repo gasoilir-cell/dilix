@@ -5,6 +5,7 @@
 `referral`/`membership`/`investment` — بدونِ دستکاریِ هارنسِ مشترکِ conftest.
 ساختار مطابقِ test_telecom_integration.
 """
+
 from __future__ import annotations
 
 import uuid

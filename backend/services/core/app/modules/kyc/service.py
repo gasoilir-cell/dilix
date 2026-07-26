@@ -1,4 +1,5 @@
 """سرویس KYC — ارسال درخواست، بررسی، تأیید/رد و به‌روزرسانیِ kyc_level."""
+
 from __future__ import annotations
 
 import uuid
@@ -95,9 +96,7 @@ async def review(
     return req
 
 
-async def my_requests(
-    db: AsyncSession, subject_earth_id: uuid.UUID
-) -> list[KycRequest]:
+async def my_requests(db: AsyncSession, subject_earth_id: uuid.UUID) -> list[KycRequest]:
     result = await db.execute(
         select(KycRequest)
         .where(KycRequest.subject_earth_id == subject_earth_id)

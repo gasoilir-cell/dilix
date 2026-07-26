@@ -1,4 +1,5 @@
 """ماشینِ حالتِ محموله — منطقِ خالص و بدونِ وابستگیِ ORM (تست‌پذیر)."""
+
 from __future__ import annotations
 
 from app.modules.carrier.models import (

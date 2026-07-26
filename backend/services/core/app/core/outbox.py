@@ -4,6 +4,7 @@
 جداگانه (`app/core/relay.py`) آن را به NATS JetStream می‌فرستد. این تضمین می‌کند
 که «تغییر state» و «انتشار رویداد» هرگز از هم جدا نمی‌افتند (no dual-write).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -27,9 +28,7 @@ class OutboxEvent(Base):
     __tablename__ = "outbox_event"
     __table_args__ = {"schema": "events"}
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     schema_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     region: Mapped[str | None] = mapped_column(String(8), nullable=True)

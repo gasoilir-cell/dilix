@@ -1,4 +1,5 @@
 """روتر Insurance (سند ۵: /v1/insurance/...). Dilix فقط به بیمه‌گرِ مجوزدار وصل می‌شود."""
+
 from __future__ import annotations
 
 import uuid

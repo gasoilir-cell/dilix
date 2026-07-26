@@ -1,4 +1,5 @@
 """تنظیمات سرویس Core. مقادیر از محیط خوانده می‌شوند (Zero Trust: هیچ secret در کد)."""
+
 from __future__ import annotations
 
 from functools import lru_cache
@@ -16,15 +17,13 @@ class Settings(BaseSettings):
     environment: str = Field(default="development")
 
     # پایگاه‌داده
-    database_url: str = Field(
-        default="postgresql+asyncpg://dilix:dilix@localhost:5432/dilix_core"
-    )
+    database_url: str = Field(default="postgresql+asyncpg://dilix:dilix@localhost:5432/dilix_core")
     redis_url: str = Field(default="redis://localhost:6379/0")
 
     # امنیت (سند ۶)
     jwt_secret: str = Field(default="dev-only-change-me")
     jwt_algorithm: str = "HS256"
-    access_token_ttl_seconds: int = 900   # ≤ 15m مطابق سند امنیت
+    access_token_ttl_seconds: int = 900  # ≤ 15m مطابق سند امنیت
     refresh_token_ttl_seconds: int = 60 * 60 * 24 * 14
 
     # Event Backbone
@@ -61,9 +60,15 @@ class Settings(BaseSettings):
     # ─────────────────── ورودِ فدراسیون (OAuth2/OIDC) ───────────────────
     # هر کدام Client ID مجاز است؛ چند ID با کاما جدا می‌شود (وب/iOS/اندروید).
     google_client_ids: str = Field(default="", description="Client IDهای مجازِ Google (با کاما)")
-    microsoft_client_ids: str = Field(default="", description="Client IDهای مجازِ Microsoft (با کاما)")
-    microsoft_tenant: str = Field(default="common", description="common | organizations | <tenant-id>")
-    apple_client_ids: str = Field(default="", description="Service/Bundle IDهای مجازِ Apple (با کاما)")
+    microsoft_client_ids: str = Field(
+        default="", description="Client IDهای مجازِ Microsoft (با کاما)"
+    )
+    microsoft_tenant: str = Field(
+        default="common", description="common | organizations | <tenant-id>"
+    )
+    apple_client_ids: str = Field(
+        default="", description="Service/Bundle IDهای مجازِ Apple (با کاما)"
+    )
     facebook_app_id: str = Field(default="", description="App ID فیسبوک برای اعتبارسنجیِ توکن")
     facebook_app_secret: str = Field(default="", description="App Secret فیسبوک")
 

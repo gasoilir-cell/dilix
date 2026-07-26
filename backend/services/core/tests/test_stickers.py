@@ -4,6 +4,7 @@
 روی SQLite قابلِ ساخت نیستند)، پس منطقِ mapping با ORMِ mock (SimpleNamespace)
 و وجودِ endpointها از طریقِ `app.openapi()` بررسی می‌شود (ضدِ drift).
 """
+
 from __future__ import annotations
 
 import uuid

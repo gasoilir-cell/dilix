@@ -4,6 +4,7 @@
   α = 0.1 برای کاربران قدیمی (review_count ≥ 20) | 0.3 برای جدیدتر
   امتیاز_نرمالیزه: rating (1–5) → (rating–1) × 250 (محدوده ۰–۱۰۰۰)
 """
+
 from __future__ import annotations
 
 import uuid
@@ -18,8 +19,8 @@ from app.core.events import publisher
 from app.modules.reputation.models import DOMAIN_TRUST, Review, ReputationScore
 from app.modules.reputation.schemas import ReviewCreate
 
-ALPHA_NEW = 0.3    # وزن برای کاربران با review_count < 20
-ALPHA_OLD = 0.1    # وزن برای کاربران با review_count ≥ 20
+ALPHA_NEW = 0.3  # وزن برای کاربران با review_count < 20
+ALPHA_OLD = 0.1  # وزن برای کاربران با review_count ≥ 20
 THRESHOLD = 20
 
 
@@ -77,9 +78,7 @@ async def submit_review(
     return review
 
 
-async def _update_score(
-    db: AsyncSession, earth_id: uuid.UUID, domain: str, rating: int
-) -> None:
+async def _update_score(db: AsyncSession, earth_id: uuid.UUID, domain: str, rating: int) -> None:
     result = await db.execute(
         select(ReputationScore).where(
             ReputationScore.earth_id == earth_id,
@@ -90,12 +89,14 @@ async def _update_score(
 
     normalized = _normalize_rating(rating)
     if score_row is None:
-        db.add(ReputationScore(
-            earth_id=earth_id,
-            domain=domain,
-            score=normalized,
-            review_count=1,
-        ))
+        db.add(
+            ReputationScore(
+                earth_id=earth_id,
+                domain=domain,
+                score=normalized,
+                review_count=1,
+            )
+        )
     else:
         alpha = ALPHA_OLD if score_row.review_count >= THRESHOLD else ALPHA_NEW
         score_row.score = int(score_row.score * (1 - alpha) + normalized * alpha)
@@ -104,9 +105,7 @@ async def _update_score(
 
 
 async def get_scores(db: AsyncSession, earth_id: uuid.UUID) -> list[ReputationScore]:
-    result = await db.execute(
-        select(ReputationScore).where(ReputationScore.earth_id == earth_id)
-    )
+    result = await db.execute(select(ReputationScore).where(ReputationScore.earth_id == earth_id))
     return list(result.scalars().all())
 
 

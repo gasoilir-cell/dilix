@@ -4,6 +4,7 @@ Dilix کارگزار یا صندوق نیست. فقط درخواستِ خرید/
 مجوزداری که adapter آن ثبت شده می‌فرستد. هیچ سرمایه‌گذاری مستقیم یا
 بدونِ صندوق انجام نمی‌شود.
 """
+
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -13,7 +14,7 @@ from dataclasses import dataclass
 class UnitBuyRequest:
     investor_ref: str
     fund_code: str
-    amount_minor: int   # مبلغِ خرید (نه تعدادِ واحد)
+    amount_minor: int  # مبلغِ خرید (نه تعدادِ واحد)
     currency: str
 
 
@@ -27,9 +28,9 @@ class UnitSellRequest:
 @dataclass(frozen=True, slots=True)
 class TradeResult:
     trade_ref: str
-    status: str    # pending | executed | failed
+    status: str  # pending | executed | failed
     units: float | None = None
-    nav_minor: int | None = None   # ارزشِ خالصِ هر واحد
+    nav_minor: int | None = None  # ارزشِ خالصِ هر واحد
 
 
 class InvestmentPort(ABC):

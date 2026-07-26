@@ -5,6 +5,7 @@ quoted → issued → claimed
 quoted/issued → cancelled
 Dilix فقط مرجعِ بیمه‌نامه نزدِ بیمه‌گر (external_ref) را نگه می‌دارد.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -26,9 +27,7 @@ class InsurancePolicy(Base):
     __tablename__ = "insurance_policy"
     __table_args__ = {"schema": "insurance"}
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     holder_earth_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     provider_code: Mapped[str] = mapped_column(String(32), nullable=False)
     product_code: Mapped[str] = mapped_column(String(64), nullable=False)

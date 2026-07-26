@@ -3,6 +3,7 @@
 کانالِ AI جدا از پیام‌رسانِ E2EE است (ADR-05). محتوای cleartext در این جدول
 ذخیره می‌شود تا RAG و fine-tuning امکان‌پذیر باشد.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -18,10 +19,10 @@ ROLE_USER = "user"
 ROLE_ASSISTANT = "assistant"
 ROLE_SYSTEM = "system"
 
-AGENT_PERSONAL = "personal"       # دستیارِ شخصی
-AGENT_FREIGHT = "freight"         # دستیارِ لجستیک
-AGENT_INSURANCE = "insurance"     # دستیارِ بیمه
-AGENT_FINANCIAL = "financial"     # دستیارِ مالی
+AGENT_PERSONAL = "personal"  # دستیارِ شخصی
+AGENT_FREIGHT = "freight"  # دستیارِ لجستیک
+AGENT_INSURANCE = "insurance"  # دستیارِ بیمه
+AGENT_FINANCIAL = "financial"  # دستیارِ مالی
 
 
 class AiConversation(Base):
@@ -47,8 +48,10 @@ class AiMessage(Base):
     __table_args__ = {"schema": "ai"}
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    conversation_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
-    role: Mapped[str] = mapped_column(String(16), nullable=False)   # user | assistant | system
+    conversation_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
+    role: Mapped[str] = mapped_column(String(16), nullable=False)  # user | assistant | system
     content: Mapped[str] = mapped_column(Text, nullable=False)
     # ابزارهایی که agent فراخواند (MCP tool calls)
     tool_calls: Mapped[dict] = mapped_column(JSONB, default=list, nullable=False)

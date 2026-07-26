@@ -3,6 +3,7 @@
 طبق سند ۳: Database-per-Context. سرویس Core شامل schemaهای
 identity / auth / authz / provider است؛ هیچ JOIN بین‌Contextی نباید نوشته شود.
 """
+
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator

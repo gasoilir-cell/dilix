@@ -1,4 +1,5 @@
 """اسکیماهای Discovery."""
+
 from __future__ import annotations
 
 import uuid

@@ -6,6 +6,7 @@ B چند پست از نوع‌های مختلف (reel، text، video) منتشر
 فیدِ بدونِ فیلتر همهٔ پست‌ها را دارد. engineِ مستقل با ATTACHِ schemaهای `social` و
 `events` (Outbox) — ساختار مطابقِ test_messaging_integration.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -85,9 +86,7 @@ def _set_user(state: dict, uid: uuid.UUID) -> None:
 
 
 async def _create_post(client: AsyncClient, post_type: str, content: str) -> str:
-    res = await client.post(
-        "/v1/social/posts", json={"post_type": post_type, "content": content}
-    )
+    res = await client.post("/v1/social/posts", json={"post_type": post_type, "content": content})
     assert res.status_code == 201, res.text
     return res.json()["id"]
 

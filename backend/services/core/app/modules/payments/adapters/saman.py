@@ -7,6 +7,7 @@ Dilix وجه نگه نمی‌دارد؛ این adapter فقط دستورِ ای�
 نکته: فقط وقتی `DILIX_SAMAN_BASE_URL` و `DILIX_SAMAN_SECRET` تنظیم باشند ثبت می‌شود
 (در `adapters/__init__.py`).
 """
+
 from __future__ import annotations
 
 import hashlib

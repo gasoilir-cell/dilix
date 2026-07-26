@@ -2,6 +2,7 @@
 
 GET برای کاربرِ تازه به‌صورتِ خودکار اشتراکِ رایگانِ پیش‌فرض می‌سازد.
 """
+
 from __future__ import annotations
 
 import pytest_asyncio

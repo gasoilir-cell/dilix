@@ -3,6 +3,7 @@
 E2EE: پیام‌های کاربر↔کاربر رمزنگاری‌شده‌اند (MLS/Signal-style)؛ سرور فقط
 ciphertext نگه می‌دارد. کانالِ AI جدا و بدونِ E2EE است (ذخیره‌ی plaintext برای RAG).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -14,9 +15,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
 
-ROOM_DIRECT = "direct"    # 1:1
+ROOM_DIRECT = "direct"  # 1:1
 ROOM_GROUP = "group"
-ROOM_AI = "ai_chat"      # کانالِ AI — بدونِ E2EE
+ROOM_AI = "ai_chat"  # کانالِ AI — بدونِ E2EE
 
 MSG_TEXT = "text"
 MSG_FILE = "file"

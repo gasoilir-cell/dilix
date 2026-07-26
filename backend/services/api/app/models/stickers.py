@@ -9,7 +9,7 @@
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy import (
-    Boolean, Column, DateTime, ForeignKey, Integer, String, Text, Index,
+    Boolean, Column, DateTime, ForeignKey, Integer, String, Index,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from app.core.database import Base

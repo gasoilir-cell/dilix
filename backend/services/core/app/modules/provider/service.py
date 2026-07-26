@@ -1,4 +1,5 @@
 """منطق ثبت‌نام ارائه‌دهنده و API. KYB در وضعیت pending شروع می‌شود."""
+
 from __future__ import annotations
 
 import hashlib
@@ -34,9 +35,7 @@ def _hash_key(raw_key: str) -> str:
     return hashlib.sha256(raw_key.encode("utf-8")).hexdigest()
 
 
-async def register_provider(
-    db: AsyncSession, data: ProviderRegisterRequest
-) -> Provider:
+async def register_provider(db: AsyncSession, data: ProviderRegisterRequest) -> Provider:
     provider = Provider(
         legal_name=data.legal_name,
         provider_type=data.provider_type,
@@ -80,9 +79,7 @@ async def register_api(
 
 
 async def list_apis(db: AsyncSession, provider_id: uuid.UUID) -> list[ProviderApi]:
-    result = await db.execute(
-        select(ProviderApi).where(ProviderApi.provider_id == provider_id)
-    )
+    result = await db.execute(select(ProviderApi).where(ProviderApi.provider_id == provider_id))
     return list(result.scalars().all())
 
 
@@ -93,9 +90,7 @@ async def _get_provider_or_404(db: AsyncSession, provider_id: uuid.UUID) -> Prov
     return provider
 
 
-async def sandbox_test(
-    db: AsyncSession, provider_id: uuid.UUID, api_id: uuid.UUID
-) -> dict:
+async def sandbox_test(db: AsyncSession, provider_id: uuid.UUID, api_id: uuid.UUID) -> dict:
     """اجرای تستِ دسترس‌پذیریِ sandbox روی spec_url ثبت‌شده‌ی API."""
     await _get_provider_or_404(db, provider_id)
     api = await db.get(ProviderApi, api_id)

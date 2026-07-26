@@ -2,6 +2,7 @@
 
 جدا از ORM نگه داشته می‌شود تا invariantهای گذارِ حالت مستقل تست شوند.
 """
+
 from __future__ import annotations
 
 from app.modules.payments.models import (

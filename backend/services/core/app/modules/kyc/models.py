@@ -9,6 +9,7 @@ KYC از سطح ۰ تا ۳ است:
 تغییر `kyc_level` روی EarthIdentity فقط از طریقِ تأییدِ KycRequest
 توسطِ admin/moderator مجاز است.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -31,7 +32,9 @@ class KycRequest(Base):
     __table_args__ = {"schema": "kyc"}
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    subject_earth_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    subject_earth_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
     requested_level: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     status: Mapped[str] = mapped_column(String(16), default=STATUS_PENDING, nullable=False)
 

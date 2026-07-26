@@ -1,4 +1,5 @@
 """Schemaهای Auth (سند ۵: /v1/auth/...)."""
+
 from __future__ import annotations
 
 import uuid

@@ -2,6 +2,7 @@
 
 مسیرهای اصلی (create/list/get) + چرخهٔ نصب و ستاره، happy-path واقعی با DB.
 """
+
 from __future__ import annotations
 
 import uuid

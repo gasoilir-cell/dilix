@@ -12,9 +12,8 @@ GET  /api/v1/insurance/products     کاتالوگ انواع بیمه‌نام�
 import uuid as _uuid
 from datetime import datetime, timezone
 from typing import Optional, List
-from enum import Enum as PyEnum
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, String, Text, BigInteger
 from sqlalchemy.dialects.postgresql import UUID, JSONB

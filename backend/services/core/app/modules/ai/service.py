@@ -4,6 +4,7 @@
 سرویسِ مستقل (dilix-ai-service) اجرا می‌شود و از طریقِ HTTP فراخوانده می‌شود.
 با تنظیم DILIX_AI_SERVICE_URL اتصال واقعی برقرار می‌شود؛ در غیر این صورت stub.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -44,9 +45,7 @@ async def chat(
     if conv.earth_id != earth_id:
         raise ForbiddenError("دسترسی مجاز نیست.")
 
-    user_msg = AiMessage(
-        conversation_id=conversation_id, role=ROLE_USER, content=data.message
-    )
+    user_msg = AiMessage(conversation_id=conversation_id, role=ROLE_USER, content=data.message)
     db.add(user_msg)
     await db.flush()
 
@@ -57,10 +56,7 @@ async def chat(
         .order_by(AiMessage.sent_at.desc())
         .limit(20)
     )
-    hist = [
-        {"role": m.role, "content": m.content}
-        for m in reversed(history_rows.scalars().all())
-    ]
+    hist = [{"role": m.role, "content": m.content} for m in reversed(history_rows.scalars().all())]
 
     reply_content = await invoke_agent(
         agent_type=conv.agent_type,
@@ -97,9 +93,7 @@ async def history(
     return list(result.scalars().all())
 
 
-async def my_conversations(
-    db: AsyncSession, earth_id: uuid.UUID
-) -> list[AiConversation]:
+async def my_conversations(db: AsyncSession, earth_id: uuid.UUID) -> list[AiConversation]:
     result = await db.execute(
         select(AiConversation)
         .where(AiConversation.earth_id == earth_id)

@@ -1,4 +1,5 @@
 """روتر Freight — /v1/freight/..."""
+
 from __future__ import annotations
 
 import uuid
@@ -10,8 +11,12 @@ from app.core.database import get_session
 from app.modules.auth.deps import CurrentUser, get_current_user
 from app.modules.freight import service
 from app.modules.freight.schemas import (
-    CargoPostCreate, CargoPostOut, FreightBidCreate, FreightBidOut,
-    LocationUpdate, LocationOut,
+    CargoPostCreate,
+    CargoPostOut,
+    FreightBidCreate,
+    FreightBidOut,
+    LocationUpdate,
+    LocationOut,
 )
 
 router = APIRouter(prefix="/v1/freight", tags=["freight"])
@@ -32,7 +37,9 @@ async def list_open(
     user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_session),
 ) -> list[CargoPostOut]:
-    return [CargoPostOut.model_validate(c, from_attributes=True) for c in await service.list_open(db)]
+    return [
+        CargoPostOut.model_validate(c, from_attributes=True) for c in await service.list_open(db)
+    ]
 
 
 @router.get("/cargo/{cargo_id}/bids", response_model=list[FreightBidOut])
@@ -41,7 +48,10 @@ async def list_bids(
     user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_session),
 ) -> list[FreightBidOut]:
-    return [FreightBidOut.model_validate(b, from_attributes=True) for b in await service.list_bids(db, cargo_id)]
+    return [
+        FreightBidOut.model_validate(b, from_attributes=True)
+        for b in await service.list_bids(db, cargo_id)
+    ]
 
 
 @router.post("/cargo/{cargo_id}/bids", response_model=FreightBidOut, status_code=201)

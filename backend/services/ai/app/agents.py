@@ -3,6 +3,7 @@
 این ماژول منبعِ حقیقتِ سمتِ ai-service است و باید با
 `dilix-core/app/modules/ai/langgraph_client.py` هم‌خوان بماند.
 """
+
 from __future__ import annotations
 
 # ─────────────────────── Agent Types ──────────────────────────

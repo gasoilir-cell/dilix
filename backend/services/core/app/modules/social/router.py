@@ -1,4 +1,5 @@
 """روتر Social — /v1/social/..."""
+
 from __future__ import annotations
 
 import uuid
@@ -10,7 +11,11 @@ from app.core.database import get_session
 from app.modules.auth.deps import CurrentUser, get_current_user
 from app.modules.social import service
 from app.modules.social.schemas import (
-    CommentCreate, CommentOut, PostCreate, PostOut, ReactionCreate,
+    CommentCreate,
+    CommentOut,
+    PostCreate,
+    PostOut,
+    ReactionCreate,
 )
 
 router = APIRouter(prefix="/v1/social", tags=["social"])

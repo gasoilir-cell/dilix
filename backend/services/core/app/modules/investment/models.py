@@ -1,4 +1,5 @@
 """مدل ORM سرمایه‌گذاری — موقعیت و معامله (schema: investment)."""
+
 from __future__ import annotations
 import uuid
 from datetime import datetime

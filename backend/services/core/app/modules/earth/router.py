@@ -1,4 +1,5 @@
 """روتر Earth/Location — /v1/earth/..."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query

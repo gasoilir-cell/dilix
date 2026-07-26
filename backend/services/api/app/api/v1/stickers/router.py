@@ -23,7 +23,7 @@ from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Form
 from pydantic import BaseModel, Field
-from sqlalchemy import select, func, delete as sa_delete, and_, or_
+from sqlalchemy import select, delete as sa_delete, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db

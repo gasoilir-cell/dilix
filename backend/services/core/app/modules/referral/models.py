@@ -3,6 +3,7 @@
 Invariant: reward فقط وقتی `reward_event_id` وجود دارد ثبت می‌شود.
 این از مدلِ هرمی (پاداشِ صرفِ عضوگیری) جلوگیری می‌کند.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -26,8 +27,12 @@ class Referral(Base):
     __table_args__ = {"schema": "referral"}
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    referrer_earth_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
-    referred_earth_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, unique=True)
+    referrer_earth_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
+    referred_earth_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, unique=True
+    )
     level: Mapped[int] = mapped_column(SmallInteger, nullable=False)  # 1/2/3
 
     status: Mapped[str] = mapped_column(String(16), default=STATUS_PENDING, nullable=False)

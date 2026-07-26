@@ -884,7 +884,7 @@ async def list_rooms(
         my_cleared = cleared_by_room.get(room.id)
         last_msg_q = (
             select(Message)
-            .where(and_(Message.room_id == room.id, Message.is_deleted == False))
+            .where(and_(Message.room_id == room.id, Message.is_deleted.is_(False)))
             .order_by(Message.created_at.desc())
             .limit(1)
         )
@@ -898,7 +898,7 @@ async def list_rooms(
         unread_filter = [
             Message.room_id == room.id,
             Message.sender_id != me.id,
-            Message.is_deleted == False,
+            Message.is_deleted.is_(False),
         ]
         if my_read is not None:
             unread_filter.append(Message.created_at > my_read)
@@ -1190,7 +1190,7 @@ async def search_messages(
         .join(User, User.id == Message.sender_id)
         .where(and_(
             Message.room_id == rid,
-            Message.is_deleted == False,
+            Message.is_deleted.is_(False),
             Message.content.isnot(None),
             Message.content.ilike(like),
         ))
@@ -1267,7 +1267,7 @@ async def toggle_pin(
         select(func.count(Message.id)).where(and_(
             Message.room_id == room_id_local,
             Message.pinned_at.isnot(None),
-            Message.is_deleted == False,
+            Message.is_deleted.is_(False),
         ))
     )).scalar_one_or_none() or 0
     return PinStateOut(is_pinned=is_pinned_now, pinned_count=cnt)
@@ -1291,7 +1291,7 @@ async def list_pins(
         .join(User, User.id == Message.sender_id)
         .where(and_(
             Message.room_id == rid,
-            Message.is_deleted == False,
+            Message.is_deleted.is_(False),
             Message.pinned_at.isnot(None),
         ))
         .order_by(Message.pinned_at.desc())

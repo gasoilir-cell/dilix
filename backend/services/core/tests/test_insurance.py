@@ -1,4 +1,5 @@
 """تست‌های واحدِ M2 — بیمه: adapterِ sandbox و ماشینِ حالت (بدونِ DB)."""
+
 from __future__ import annotations
 
 import pytest

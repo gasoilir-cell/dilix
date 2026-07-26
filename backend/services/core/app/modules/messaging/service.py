@@ -1,4 +1,5 @@
 """سرویس پیام‌رسان. WebSocket/WebRTC realtime در لایه‌ی Gateway جداگانه است."""
+
 from __future__ import annotations
 
 import uuid
@@ -11,7 +12,10 @@ from dilix_shared.events import DomainEvent
 
 from app.core.events import publisher
 from app.modules.messaging.models import (
-    ROOM_AI, Message, MessageRoom, RoomMember,
+    ROOM_AI,
+    Message,
+    MessageRoom,
+    RoomMember,
 )
 from app.modules.messaging.schemas import MessageSend, RoomCreate
 

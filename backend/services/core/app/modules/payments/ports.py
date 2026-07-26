@@ -4,6 +4,7 @@
 دارای مجوز در حسابِ امانی (escrow) می‌نشیند و فقط با دستورِ release آزاد می‌شود.
 این Port را هر ارائه‌دهنده‌ی پرداخت (سامان، ...) پیاده می‌کند.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

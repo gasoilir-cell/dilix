@@ -27,7 +27,12 @@ async def test_webrtc_signal_relay_adds_sender(monkeypatch) -> None:
             "user-b",
             {
                 "type": WsEventType.CALL_OFFER,
-                "payload": {"to": "user-b", "call_id": "c1", "sdp": {"type": "offer"}, "from": "user-a"},
+                "payload": {
+                    "to": "user-b",
+                    "call_id": "c1",
+                    "sdp": {"type": "offer"},
+                    "from": "user-a",
+                },
                 "ts": sent[0][1]["ts"],
             },
         )

@@ -5,6 +5,7 @@ created → dispatched → in_transit → delivered
 created/dispatched/in_transit → cancelled
 Dilix فقط شماره‌ی بارنامه نزدِ متصدی (waybill_no) را نگه می‌دارد.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -27,9 +28,7 @@ class Shipment(Base):
     __tablename__ = "shipment"
     __table_args__ = {"schema": "carrier"}
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     shipper_earth_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     provider_code: Mapped[str] = mapped_column(String(32), nullable=False)
 

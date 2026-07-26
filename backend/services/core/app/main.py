@@ -3,6 +3,7 @@
 همهٔ ماژول‌های دامنه در یک deployable با مرزهای ماژولارِ سفت قرار دارند.
 در مراحلِ بعدی هر ماژول می‌تواند به microservice مستقل تبدیل شود.
 """
+
 from __future__ import annotations
 
 import logging
@@ -70,7 +71,9 @@ app = FastAPI(
 # ── CORS ──
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if not settings.is_production else [
+    allow_origins=["*"]
+    if not settings.is_production
+    else [
         "https://dilix.app",
         "https://app.dilix.app",
         "https://panel.dilix.app",
@@ -182,6 +185,7 @@ async def readiness() -> dict:
     """Kubernetes readiness probe."""
     from app.core.database import engine
     import sqlalchemy
+
     try:
         async with engine.connect() as conn:
             await conn.execute(sqlalchemy.text("SELECT 1"))

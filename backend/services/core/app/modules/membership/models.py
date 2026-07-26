@@ -2,6 +2,7 @@
 
 طرح‌های عضویت: free, standard, premium. هر طرح cashback_bps (basis points) دارد.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -23,8 +24,8 @@ STATUS_CANCELLED = "cancelled"
 
 PLAN_CASHBACK_BPS: dict[str, int] = {
     PLAN_FREE: 0,
-    PLAN_STANDARD: 100,   # ۱٪ cashback
-    PLAN_PREMIUM: 250,    # ۲.۵٪ cashback
+    PLAN_STANDARD: 100,  # ۱٪ cashback
+    PLAN_PREMIUM: 250,  # ۲.۵٪ cashback
 }
 
 

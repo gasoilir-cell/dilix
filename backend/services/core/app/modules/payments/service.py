@@ -4,6 +4,7 @@ Dilix وجه را نگه نمی‌دارد: adapterِ بانک امانت می�
 external_ref را ثبت و رویداد منتشر می‌کند (از طریقِ Outbox). هر گذارِ حالت با
 ماشینِ حالتِ خالص اعتبارسنجی می‌شود.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -37,9 +38,7 @@ def _adapter_error_to_domain(exc: AdapterError) -> ProviderError:
     return ProviderError(exc.detail)
 
 
-async def _set_status(
-    db: AsyncSession, order: PaymentOrder, target: str, event_name: str
-) -> None:
+async def _set_status(db: AsyncSession, order: PaymentOrder, target: str, event_name: str) -> None:
     if not can_transition(order.status, target):
         raise ConflictError(f"گذارِ نامعتبر: {order.status} → {target}")
     order.status = target
@@ -103,9 +102,7 @@ async def _load_owned(
     return order
 
 
-async def capture(
-    db: AsyncSession, order_id: uuid.UUID, actor_earth_id: uuid.UUID
-) -> PaymentOrder:
+async def capture(db: AsyncSession, order_id: uuid.UUID, actor_earth_id: uuid.UUID) -> PaymentOrder:
     order = await _load_owned(db, order_id, actor_earth_id)
     adapter = payment_registry.get(order.provider_code)
     try:
@@ -116,9 +113,7 @@ async def capture(
     return order
 
 
-async def refund(
-    db: AsyncSession, order_id: uuid.UUID, actor_earth_id: uuid.UUID
-) -> PaymentOrder:
+async def refund(db: AsyncSession, order_id: uuid.UUID, actor_earth_id: uuid.UUID) -> PaymentOrder:
     order = await _load_owned(db, order_id, actor_earth_id)
     adapter = payment_registry.get(order.provider_code)
     try:

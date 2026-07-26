@@ -3,7 +3,6 @@ Dilix — مدل کاربر (User)
 Earth ID — هویت یکپارچه جهانی
 """
 import uuid
-from datetime import datetime, timezone
 from sqlalchemy import (
     Boolean, Column, DateTime, Enum, ForeignKey, Integer,
     String, Text, JSON, Index, func,

@@ -1,4 +1,5 @@
 """روتر AI — /v1/ai/..."""
+
 from __future__ import annotations
 
 import uuid
@@ -10,7 +11,10 @@ from app.core.database import get_session
 from app.modules.auth.deps import CurrentUser, get_current_user
 from app.modules.ai import service
 from app.modules.ai.schemas import (
-    AiMessageOut, ChatRequest, ConversationCreate, ConversationOut,
+    AiMessageOut,
+    ChatRequest,
+    ConversationCreate,
+    ConversationOut,
 )
 
 router = APIRouter(prefix="/v1/ai", tags=["ai"])

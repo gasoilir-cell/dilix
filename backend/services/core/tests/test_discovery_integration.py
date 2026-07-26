@@ -5,6 +5,7 @@
 ATTACHِ schemaهای لازمِ join (`earth`/`identity`/`social`/`discovery`/`events`) +
 shimِ `JSONB→JSON`. ساختار مطابقِ test_telecom_integration.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -102,5 +103,7 @@ async def test_contact_request_to_self_rejected(disc_client) -> None:
 
 async def test_contact_request_unknown_target_404(disc_client) -> None:
     client, _ = disc_client
-    res = await client.post(f"/v1/discovery/{uuid.uuid4()}/contact-request", json={"message": "سلام"})
+    res = await client.post(
+        f"/v1/discovery/{uuid.uuid4()}/contact-request", json={"message": "سلام"}
+    )
     assert res.status_code == 404, res.text

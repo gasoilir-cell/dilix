@@ -1,4 +1,5 @@
 """Dependencyهای احراز هویت برای روترها (استخراج کاربر جاری از JWT)."""
+
 from __future__ import annotations
 
 import uuid

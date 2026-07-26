@@ -1,4 +1,5 @@
 """Schemaهای Reputation (سند ۵)."""
+
 from __future__ import annotations
 
 import uuid

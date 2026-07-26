@@ -1,4 +1,5 @@
 """تستِ یکپارچهٔ HTTP برای referral (ثبتِ زنجیرهٔ دعوت). schema: referral."""
+
 from __future__ import annotations
 
 import uuid

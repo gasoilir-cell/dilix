@@ -14,6 +14,7 @@ Endpoints:
   GET  /device-keys/{eid} — دریافت bundle کلیدهای یک کاربر
   POST /token/refresh     — تجدید access token
 """
+
 from __future__ import annotations
 
 import uuid
@@ -53,6 +54,7 @@ router = APIRouter(prefix="/v1/auth", tags=["auth"])
 
 # ─────────────────────── ثبت‌نام / ورود ───────────────────────
 
+
 @router.post("/register", response_model=RegisterResponse, status_code=201)
 async def register(
     data: RegisterRequest, db: AsyncSession = Depends(get_session)
@@ -67,6 +69,7 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_session)) -> 
 
 
 # ─────────────────── ورودِ فدراسیون (Google/Microsoft/Apple/Facebook) ───────────────────
+
 
 @router.post("/oauth/{provider}", response_model=OAuthLoginResponse)
 async def oauth_login(
@@ -87,6 +90,7 @@ async def oauth_login(
 
 
 # ─────────────────── کدِ یک‌بارمصرف (SMS / Facebook) ───────────────────
+
 
 @router.post("/otp/request", response_model=OtpRequestResponse, status_code=201)
 async def otp_request(
@@ -112,6 +116,7 @@ async def otp_verify(
 
 # ─────────────────────── Token Refresh ────────────────────────
 
+
 @router.post("/token/refresh", response_model=TokenPair)
 async def refresh_token(body: dict) -> TokenPair:
     """تجدید access token با refresh token معتبر."""
@@ -133,6 +138,7 @@ async def refresh_token(body: dict) -> TokenPair:
 
 # ─────────────────────── MFA ─────────────────────────────────
 
+
 @router.post("/mfa/setup", response_model=MfaSetupResponse)
 async def mfa_setup(
     db: AsyncSession = Depends(get_session),
@@ -141,6 +147,7 @@ async def mfa_setup(
     """مرحله ۱: تولید TOTP secret و QR code."""
     from sqlalchemy import select as sa_select
     from app.modules.auth.models import Credential
+
     row = await db.execute(sa_select(Credential).where(Credential.earth_id == earth_id))
     cred = row.scalar_one_or_none()
     email = cred.email if cred else None
@@ -160,9 +167,7 @@ async def mfa_enable(
 
 
 @router.post("/mfa/verify", response_model=TokenPair)
-async def mfa_verify(
-    data: MfaVerifyRequest, db: AsyncSession = Depends(get_session)
-) -> TokenPair:
+async def mfa_verify(data: MfaVerifyRequest, db: AsyncSession = Depends(get_session)) -> TokenPair:
     """تأیید MFA پس از ورود موفق. توکن کامل صادر می‌شود."""
     return await mfa_service.verify_mfa(db, data.earth_id, data.code)
 
@@ -178,6 +183,7 @@ async def mfa_disable(
 
 
 # ─────────────────────── Device Keys (E2EE) ──────────────────
+
 
 @router.post("/device-keys", response_model=DeviceKeyResponse, status_code=201)
 async def register_device_key(
@@ -209,9 +215,7 @@ async def get_device_keys(
     _: uuid.UUID = Depends(get_current_earth_id),  # احراز هویت لازم است
 ) -> list[DeviceKeyResponse]:
     """دریافت کلیدهای عمومی یک کاربر برای شروع جلسه‌ی E2EE."""
-    rows = await db.execute(
-        select(DeviceKey).where(DeviceKey.earth_id == target_earth_id)
-    )
+    rows = await db.execute(select(DeviceKey).where(DeviceKey.earth_id == target_earth_id))
     keys = rows.scalars().all()
     return [
         DeviceKeyResponse(

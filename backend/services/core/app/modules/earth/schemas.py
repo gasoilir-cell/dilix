@@ -6,9 +6,7 @@ from pydantic import BaseModel, Field
 class LocationUpdate(BaseModel):
     lat: float = Field(ge=-90, le=90)
     lon: float = Field(ge=-180, le=180)
-    geo_precision: str = Field(
-        default="region", pattern="^(exact|district|city|region)$"
-    )
+    geo_precision: str = Field(default="region", pattern="^(exact|district|city|region)$")
     is_visible: bool = False
     country_code: str | None = Field(default=None, max_length=4)
 

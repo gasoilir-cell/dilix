@@ -1,4 +1,5 @@
 """روتر Telecom — /v1/telecom/..."""
+
 from __future__ import annotations
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession

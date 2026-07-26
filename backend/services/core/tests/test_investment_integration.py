@@ -2,6 +2,7 @@
 
 از آداپترِ ثبت‌شده‌ی «sandbox_fund» با NAVِ ثابتِ ۱٬۰۰۰٬۰۰۰ ریال استفاده می‌شود.
 """
+
 from __future__ import annotations
 
 import pytest_asyncio

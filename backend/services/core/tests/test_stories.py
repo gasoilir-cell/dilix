@@ -3,6 +3,7 @@
 هم‌راستا با سبکِ سایرِ تست‌های Core: بدونِ دیتابیس/شبکه؛ منطقِ `_can_view`،
 انقضای ۲۴ساعته، اعتبارِ مخاطب‌ها و وجودِ endpointها از طریقِ `app.openapi()`.
 """
+
 from __future__ import annotations
 
 import uuid

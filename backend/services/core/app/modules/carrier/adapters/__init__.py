@@ -1,4 +1,5 @@
 """رجیستریِ adapterهای حمل‌ونقل. متصدیانِ واقعی در ادامه ثبت می‌شوند."""
+
 from __future__ import annotations
 
 from dilix_shared.adapter import AdapterRegistry

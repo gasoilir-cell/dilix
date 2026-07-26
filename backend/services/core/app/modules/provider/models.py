@@ -2,6 +2,7 @@
 
 ستون فقرات Provider Adapter Framework (ADR-02): ثبت‌نام خودکار + KYB + Sandbox.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -20,10 +21,14 @@ class Provider(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     legal_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    provider_type: Mapped[str] = mapped_column(String(32), nullable=False)  # insurer/carrier/psp/telecom/third_party
+    provider_type: Mapped[str] = mapped_column(
+        String(32), nullable=False
+    )  # insurer/carrier/psp/telecom/third_party
     country: Mapped[str] = mapped_column(String(8), nullable=False)
     license_no: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    kyb_status: Mapped[str] = mapped_column(String(16), default="pending", nullable=False)  # pending/verified/rejected
+    kyb_status: Mapped[str] = mapped_column(
+        String(16), default="pending", nullable=False
+    )  # pending/verified/rejected
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     apis: Mapped[list["ProviderApi"]] = relationship(back_populates="provider")
@@ -76,8 +81,10 @@ class ProviderCredential(Base):
     provider_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("provider.provider.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    env: Mapped[str] = mapped_column(String(16), default="sandbox", nullable=False)  # sandbox/production
+    env: Mapped[str] = mapped_column(
+        String(16), default="sandbox", nullable=False
+    )  # sandbox/production
     key_prefix: Mapped[str] = mapped_column(String(16), nullable=False)  # برای نمایش/شناسایی
-    key_hash: Mapped[str] = mapped_column(String(128), nullable=False)   # sha256(کلید)
+    key_hash: Mapped[str] = mapped_column(String(128), nullable=False)  # sha256(کلید)
     status: Mapped[str] = mapped_column(String(16), default="active", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -1,4 +1,5 @@
 """روتر Referral — /v1/referral/..."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends

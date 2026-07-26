@@ -1,4 +1,5 @@
 """مدل ORM گیمیفیکیشن — امتیاز، نشان (schema: gamification)."""
+
 from __future__ import annotations
 
 import uuid

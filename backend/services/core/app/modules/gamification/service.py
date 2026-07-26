@@ -1,4 +1,5 @@
 """سرویس گیمیفیکیشن — اعطایِ امتیاز و نشان."""
+
 from __future__ import annotations
 
 import uuid
@@ -25,15 +26,19 @@ async def add_points(
     await db.flush()
     await publisher.publish(
         db,
-        DomainEvent("gamification.PointsAdded", {"earth_id": str(earth_id), "delta": delta, "reason": reason}),
+        DomainEvent(
+            "gamification.PointsAdded",
+            {"earth_id": str(earth_id), "delta": delta, "reason": reason},
+        ),
     )
     return entry
 
 
 async def get_balance(db: AsyncSession, earth_id: uuid.UUID) -> int:
     result = await db.execute(
-        select(func.coalesce(func.sum(PointLedger.delta), 0))
-        .where(PointLedger.earth_id == earth_id)
+        select(func.coalesce(func.sum(PointLedger.delta), 0)).where(
+            PointLedger.earth_id == earth_id
+        )
     )
     return int(result.scalar() or 0)
 

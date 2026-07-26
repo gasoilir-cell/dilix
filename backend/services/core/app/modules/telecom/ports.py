@@ -1,4 +1,5 @@
 """Port تلکام — eSIM / شارژ / استعلامِ بسته (ADR-02)."""
+
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -7,7 +8,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True, slots=True)
 class TopUpRequest:
     subscriber_ref: str
-    msisdn: str       # شماره‌ی موبایل
+    msisdn: str  # شماره‌ی موبایل
     amount_minor: int
     currency: str
     product_code: str  # «۱GB-30day»، «Voice-200min»، …

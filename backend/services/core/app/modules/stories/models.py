@@ -5,6 +5,7 @@
 دستی (colleagues/family/friends). مخاطبِ followers نیازمندِ گرافِ فالوِ ماژولِ
 Social است و در این ماژول پیاده‌سازی نشده.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -35,7 +36,9 @@ class Story(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    author_earth_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    author_earth_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
     media_url: Mapped[str] = mapped_column(Text, nullable=False)
     media_type: Mapped[str] = mapped_column(String(12), default="image", nullable=False)
     caption: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -60,8 +63,12 @@ class ContactCircle(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    owner_earth_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
-    member_earth_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    owner_earth_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
+    member_earth_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
     circle: Mapped[str] = mapped_column(String(16), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -84,7 +91,9 @@ class StoryView(Base):
         nullable=False,
         index=True,
     )
-    viewer_earth_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    viewer_earth_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

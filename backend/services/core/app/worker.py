@@ -3,6 +3,7 @@
 اجرا: `python -m app.worker`  (یا هدفِ Makefile: `make core-relay`).
 این فرایند ردیف‌های pending جدولِ outbox را به NATS JetStream می‌فرستد.
 """
+
 from __future__ import annotations
 
 import asyncio

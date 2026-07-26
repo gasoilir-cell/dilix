@@ -3,6 +3,7 @@
 رفتارِ یک بانکِ escrow را شبیه‌سازی می‌کند تا کلِ جریانِ دامنه و رویدادها بدونِ
 وابستگیِ بیرونی تست‌پذیر باشد. حالت در حافظه نگه‌داری می‌شود.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -44,6 +45,4 @@ class SandboxPaymentAdapter(PaymentPort):
         if current is None:
             raise AdapterError("not_found", f"امانت یافت نشد: {external_ref}")
         if current != expected:
-            raise AdapterError(
-                "invalid_state", f"وضعیتِ امانت '{current}' است نه '{expected}'."
-            )
+            raise AdapterError("invalid_state", f"وضعیتِ امانت '{current}' است نه '{expected}'.")

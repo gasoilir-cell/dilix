@@ -3,6 +3,7 @@
 هر رویداد یک نام نسخه‌دار و payload دارد. انتشار اتمیک از طریق Outbox
 (سند ۴) انجام می‌شود؛ این‌جا فقط ساختار پیام تعریف می‌شود.
 """
+
 from __future__ import annotations
 
 import uuid
