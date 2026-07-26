@@ -107,6 +107,11 @@ class _FreightScreenState extends State<FreightScreen> {
   /// false = بارهای باز (دیدِ راننده)، true = بارهای خودم (دیدِ صاحبِ بار).
   bool _mine = false;
 
+  /// کاتالوگِ ناوگان از سرور؛ اگر نیاید فرم بدونِ این فیلد کار می‌کند چون
+  /// `vehicle_type` در سرور اختیاری است.
+  List<VehicleType> _vehicles = const [];
+  String? _vehicle;
+
   final _titleCtrl = TextEditingController();
   final _originCtrl = TextEditingController();
   final _destCtrl = TextEditingController();
@@ -135,12 +140,20 @@ class _FreightScreenState extends State<FreightScreen> {
       _error = null;
     });
     try {
-      final cargo = await ApiScope.of(context).listCargo(mine: _mine);
+      final api = ApiScope.of(context);
+      final cargo = await api.listCargo(mine: _mine);
+      var vehicles = _vehicles;
+      if (vehicles.isEmpty) {
+        try {
+          vehicles = await api.vehicleTypes();
+        } catch (_) {}
+      }
       if (!mounted) return;
       setState(() {
         _cargo
           ..clear()
           ..addAll(cargo);
+        _vehicles = vehicles;
         _loading = false;
       });
     } catch (e) {
@@ -190,6 +203,7 @@ class _FreightScreenState extends State<FreightScreen> {
         destination: dest,
         weightGrams: (weightKg * 1000).round(),
         budgetMinor: price,
+        vehicleType: _vehicle,
       );
       if (!mounted) return;
       setState(() {
@@ -318,6 +332,30 @@ class _FreightScreenState extends State<FreightScreen> {
                 helperText: 'هنگامِ پذیرشِ راننده از کیفِ شما امانی می‌شود',
               ),
             ),
+            if (_vehicles.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                initialValue: _vehicle,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'نوعِ ناوگان (اختیاری)',
+                ),
+                items: [
+                  const DropdownMenuItem<String>(
+                    value: null,
+                    child: Text('فرقی نمی‌کند'),
+                  ),
+                  for (final v in _vehicles)
+                    DropdownMenuItem<String>(
+                      value: v.code,
+                      child: Text(v.maxWeightKg == null
+                          ? v.nameFa
+                          : '${v.nameFa} — تا ${v.maxWeightKg!.round()} کیلوگرم'),
+                    ),
+                ],
+                onChanged: (v) => setState(() => _vehicle = v),
+              ),
+            ],
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,

@@ -66,6 +66,66 @@ class _MyStickerPacksScreenState extends State<MyStickerPacksScreen> {
     }
   }
 
+  Future<void> _edit(StickerPack p) async {
+    final result = await showDialog<(String, String, bool)>(
+      context: context,
+      builder: (_) => _NewPackDialog(pack: p),
+    );
+    if (result == null || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _busy = true);
+    try {
+      await widget.api.updateStickerPack(
+        p.id,
+        title: result.$1,
+        description: result.$2,
+        isPublic: result.$3,
+      );
+      await _load();
+      if (!mounted) return;
+      messenger.showSnackBar(const SnackBar(content: Text('بسته به‌روز شد.')));
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('ویرایش ناموفق بود: $e')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _delete(StickerPack p) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('حذفِ بسته'),
+        content: Text(
+          '«${p.title}» با همهٔ استیکرهایش حذف می‌شود. این کار برگشت‌پذیر نیست.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('انصراف')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('حذف')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _busy = true);
+    try {
+      await widget.api.deleteStickerPack(p.id);
+      await _load();
+      if (!mounted) return;
+      messenger.showSnackBar(const SnackBar(content: Text('بسته حذف شد.')));
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('حذف ناموفق بود: $e')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _openPack(StickerPack p) async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -120,7 +180,17 @@ class _MyStickerPacksScreenState extends State<MyStickerPacksScreen> {
                               '${p.stickerCount} استیکر • '
                               '${p.isPublic ? 'عمومی' : 'خصوصی'}',
                             ),
-                            trailing: const Icon(Icons.chevron_left),
+                            trailing: PopupMenuButton<String>(
+                              enabled: !_busy,
+                              onSelected: (v) =>
+                                  v == 'edit' ? _edit(p) : _delete(p),
+                              itemBuilder: (_) => const [
+                                PopupMenuItem(
+                                    value: 'edit', child: Text('ویرایش')),
+                                PopupMenuItem(
+                                    value: 'delete', child: Text('حذفِ بسته')),
+                              ],
+                            ),
                             onTap: () => _openPack(p),
                           );
                         },
@@ -201,6 +271,38 @@ class _PackEditorScreenState extends State<_PackEditorScreen> {
     }
   }
 
+  Future<void> _deleteSticker(StickerItem s) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('حذفِ استیکر'),
+        content: const Text('این استیکر از بسته حذف شود؟'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('انصراف')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('حذف')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _busy = true);
+    try {
+      await widget.api.deleteSticker(s.id);
+      await _load();
+      if (!mounted) return;
+      messenger.showSnackBar(const SnackBar(content: Text('استیکر حذف شد.')));
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('حذف ناموفق بود: $e')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final pack = _pack;
@@ -223,10 +325,19 @@ class _PackEditorScreenState extends State<_PackEditorScreen> {
               : Column(
                   children: [
                     if (_busy) const LinearProgressIndicator(),
+                    if (pack.stickers.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                        child: Text(
+                          'برای حذفِ یک استیکر، روی آن نگه دارید.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
                     Expanded(
                       child: pack.stickers.isEmpty
                           ? const Center(
-                              child: Text('این بسته هنوز استیکری ندارد.'))
+                              child: Text(
+                                  'این بسته هنوز استیکری ندارد.'))
                           : GridView.builder(
                               padding: const EdgeInsets.all(10),
                               gridDelegate:
@@ -237,18 +348,22 @@ class _PackEditorScreenState extends State<_PackEditorScreen> {
                               ),
                               itemCount: pack.stickers.length,
                               itemBuilder: (ctx, i) {
-                                final url = AppConfig.absoluteMedia(
-                                    pack.stickers[i].mediaUrl);
-                                if (url == null) {
-                                  return const Center(
-                                      child: Text('🙂',
-                                          style: TextStyle(fontSize: 28)));
-                                }
-                                return Image.network(url,
-                                    fit: BoxFit.contain,
-                                    errorBuilder: (_, __, ___) => const Center(
-                                        child: Text('🙂',
-                                            style: TextStyle(fontSize: 28))));
+                                final s = pack.stickers[i];
+                                final url = AppConfig.absoluteMedia(s.mediaUrl);
+                                const fallback = Center(
+                                    child: Text('🙂',
+                                        style: TextStyle(fontSize: 28)));
+                                // نگه‌داشتن = حذف؛ گرید جای دکمهٔ جدا ندارد.
+                                return InkWell(
+                                  onLongPress:
+                                      _busy ? null : () => _deleteSticker(s),
+                                  child: url == null
+                                      ? fallback
+                                      : Image.network(url,
+                                          fit: BoxFit.contain,
+                                          errorBuilder: (_, __, ___) =>
+                                              fallback),
+                                );
                               },
                             ),
                     ),
@@ -258,17 +373,21 @@ class _PackEditorScreenState extends State<_PackEditorScreen> {
   }
 }
 
+/// ساخت یا ویرایشِ بسته — با [pack] غیرِ null حالتِ ویرایش می‌شود.
 class _NewPackDialog extends StatefulWidget {
-  const _NewPackDialog();
+  const _NewPackDialog({this.pack});
+
+  final StickerPack? pack;
 
   @override
   State<_NewPackDialog> createState() => _NewPackDialogState();
 }
 
 class _NewPackDialogState extends State<_NewPackDialog> {
-  final _title = TextEditingController();
-  final _desc = TextEditingController();
-  bool _public = false;
+  late final _title = TextEditingController(text: widget.pack?.title ?? '');
+  late final _desc =
+      TextEditingController(text: widget.pack?.description ?? '');
+  late bool _public = widget.pack?.isPublic ?? false;
 
   @override
   void dispose() {
@@ -279,8 +398,9 @@ class _NewPackDialogState extends State<_NewPackDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final editing = widget.pack != null;
     return AlertDialog(
-      title: const Text('بستهٔ استیکرِ جدید'),
+      title: Text(editing ? 'ویرایشِ بسته' : 'بستهٔ استیکرِ جدید'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -313,7 +433,7 @@ class _NewPackDialogState extends State<_NewPackDialog> {
             if (t.isEmpty) return;
             Navigator.pop(context, (t, _desc.text.trim(), _public));
           },
-          child: const Text('ساخت'),
+          child: Text(editing ? 'ذخیره' : 'ساخت'),
         ),
       ],
     );

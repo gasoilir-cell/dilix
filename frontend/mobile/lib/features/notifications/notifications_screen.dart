@@ -67,12 +67,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _markAllRead() async {
-    final unread = _items.where((n) => !n.read).toList();
-    if (unread.isEmpty) return;
-    final api = ApiScope.of(context);
-    await Future.wait(
-      unread.map((n) => api.markNotificationRead(n.id).catchError((_) {})),
-    );
+    if (!_items.any((n) => !n.read)) return;
+    try {
+      // سرور یک اندپوینتِ یک‌جا دارد؛ به‌جای N درخواستِ موازی همان را می‌زنیم.
+      await ApiScope.of(context).markAllNotificationsRead();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('خواندنِ همه ممکن نشد: $e')));
+      return;
+    }
     if (!mounted) return;
     setState(() {
       _items = [for (final x in _items) x.read ? x : _asRead(x)];

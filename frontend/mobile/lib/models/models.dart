@@ -605,6 +605,96 @@ class TrackingEvent {
       );
 }
 
+/// پیشنهادِ قیمتِ راننده روی یک بار — `/freight/posts/{id}/offers`.
+///
+/// سرور برای صاحبِ بار **همهٔ** پیشنهادهای در انتظار را ارزان‌ترین‌اول می‌دهد و
+/// روی اولی [best] می‌زند؛ برای راننده فقط پیشنهادِ خودش را برمی‌گرداند.
+class FreightOffer {
+  FreightOffer({
+    required this.id,
+    required this.postId,
+    required this.driverId,
+    required this.price,
+    required this.status,
+    this.driverName,
+    this.driverAvatar,
+    this.driverRating = 0,
+    this.driverTrips = 0,
+    this.etaDays,
+    this.message,
+    this.isMine = false,
+    this.best = false,
+    this.createdAt,
+  });
+
+  final String id;
+  final String postId;
+  final String driverId;
+  final String? driverName;
+  final String? driverAvatar;
+
+  /// میانگینِ امتیازِ راننده روی مقیاسِ ۰..۵ (سرور از `avg_rating/100` می‌سازد).
+  final double driverRating;
+  final int driverTrips;
+
+  /// کرایهٔ پیشنهادی به **ریال**.
+  final int price;
+  final int? etaDays;
+  final String? message;
+
+  /// `pending` | `accepted` | `rejected` | `withdrawn`.
+  final String status;
+  final bool isMine;
+
+  /// ارزان‌ترین پیشنهاد — فقط در دیدِ صاحبِ بار مقداردهی می‌شود.
+  final bool best;
+  final DateTime? createdAt;
+
+  bool get isPending => status == 'pending';
+
+  factory FreightOffer.fromJson(Map<String, dynamic> j) => FreightOffer(
+        id: (j['id'] ?? '') as String,
+        postId: (j['post_id'] ?? '') as String,
+        driverId: (j['driver_id'] ?? '') as String,
+        driverName: j['driver_name'] as String?,
+        driverAvatar: j['driver_avatar'] as String?,
+        driverRating: (j['driver_rating'] as num?)?.toDouble() ?? 0,
+        driverTrips: (j['driver_trips'] as num?)?.toInt() ?? 0,
+        price: (j['price'] as num?)?.toInt() ?? 0,
+        etaDays: (j['eta_days'] as num?)?.toInt(),
+        message: j['message'] as String?,
+        status: (j['status'] ?? 'pending') as String,
+        isMine: (j['is_mine'] ?? false) as bool,
+        best: (j['best'] ?? false) as bool,
+        createdAt: DateTime.tryParse((j['created_at'] ?? '') as String? ?? ''),
+      );
+}
+
+/// یک ردیفِ کاتالوگِ ناوگان — `GET /freight/vehicle-types`.
+class VehicleType {
+  VehicleType({
+    required this.code,
+    required this.nameFa,
+    required this.category,
+    this.maxWeightKg,
+    this.icon,
+  });
+
+  final String code;
+  final String nameFa;
+  final String category;
+  final double? maxWeightKg;
+  final String? icon;
+
+  factory VehicleType.fromJson(Map<String, dynamic> j) => VehicleType(
+        code: (j['code'] ?? '') as String,
+        nameFa: (j['name_fa'] ?? '') as String,
+        category: (j['category'] ?? '') as String,
+        maxWeightKg: (j['max_weight_kg'] as num?)?.toDouble(),
+        icon: j['icon'] as String?,
+      );
+}
+
 /// آگهیِ خدمتِ بازارگاه — منطبق با `ListingOut` بک‌اند.
 class Listing {
   Listing({

@@ -699,6 +699,7 @@ class ApiClient {
     int? budgetMinor,
     String currency = 'IRR',
     String? description,
+    String? vehicleType,
   }) async {
     final j = await _post('/api/v1/freight/posts', {
       'origin': origin,
@@ -707,6 +708,8 @@ class ApiClient {
       'weight_kg': weightGrams / 1000.0,
       'price': budgetMinor ?? 0,
       if (description != null && description.isNotEmpty) 'description': description,
+      if (vehicleType != null && vehicleType.isNotEmpty)
+        'vehicle_type': vehicleType,
     });
     return CargoPost.fromJson(j as Map<String, dynamic>);
   }
@@ -747,6 +750,78 @@ class ApiClient {
     return list
         .map((e) => TrackingEvent.fromJson((e as Map).cast<String, dynamic>()))
         .toList();
+  }
+
+  /// کاتالوگِ انواعِ ناوگان (وانت/خاور/تریلی/…).
+  Future<List<VehicleType>> vehicleTypes() async {
+    final list = await _get('/api/v1/freight/vehicle-types') as List;
+    return list
+        .map((e) => VehicleType.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  /// پیشنهادهای یک بار. سرور دید را بر اساسِ نقش فیلتر می‌کند: صاحبِ بار همه را
+  /// ارزان‌ترین‌اول می‌بیند، راننده فقط پیشنهادِ خودش را.
+  Future<List<FreightOffer>> cargoOffers(String postId) async {
+    final list = await _get('/api/v1/freight/posts/$postId/offers') as List;
+    return list
+        .map((e) => FreightOffer.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  /// ثبتِ پیشنهادِ قیمت روی بارِ `open`.
+  ///
+  /// اگر راننده پیشنهادِ در انتظار داشته باشد سرور همان را **به‌روزرسانی**
+  /// می‌کند (ردیفِ تکراری نمی‌سازد)، پس همین متد نقشِ «ویرایشِ پیشنهاد» را هم دارد.
+  Future<FreightOffer> makeCargoOffer(
+    String postId, {
+    required int price,
+    int? etaDays,
+    String? message,
+  }) async {
+    final body = <String, dynamic>{'price': price};
+    if (etaDays != null) body['eta_days'] = etaDays;
+    final m = (message ?? '').trim();
+    if (m.isNotEmpty) body['message'] = m;
+    final j = await _post('/api/v1/freight/posts/$postId/offers', body);
+    return FreightOffer.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// پذیرشِ پیشنهاد توسطِ صاحبِ بار — وجه امانی می‌شود و بار `in_progress`.
+  Future<CargoPost> acceptCargoOffer(String offerId) async {
+    final j = await _post('/api/v1/freight/offers/$offerId/accept', const {});
+    return CargoPost.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// پس‌گرفتنِ پیشنهاد توسطِ خودِ راننده (پاسخِ ۲۰۴).
+  Future<void> withdrawCargoOffer(String offerId) =>
+      _post('/api/v1/freight/offers/$offerId/withdraw', const {});
+
+  /// ثبتِ موقعیتِ فعلیِ راننده روی مسیر؛ نخستین ارسال بار را از `picked_up`
+  /// به `in_transit` می‌برد.
+  Future<CargoPost> updateCargoLocation(
+    String postId, {
+    required double lat,
+    required double lng,
+    String? note,
+  }) async {
+    final body = <String, dynamic>{'lat': lat, 'lng': lng};
+    final n = (note ?? '').trim();
+    if (n.isNotEmpty) body['note'] = n;
+    final j = await _post('/api/v1/freight/posts/$postId/location', body);
+    return CargoPost.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// امتیازِ متقابل پس از تحویلِ نهایی — فقط در وضعیتِ `received` و **یک‌بار**.
+  Future<void> rateCargo(
+    String postId, {
+    required int score,
+    String? comment,
+  }) async {
+    final body = <String, dynamic>{'score': score};
+    final c = (comment ?? '').trim();
+    if (c.isNotEmpty) body['comment'] = c;
+    await _post('/api/v1/freight/posts/$postId/rate', body);
   }
 
   // ─────────────── Provider (پورتالِ خودسرویس) ───────────────
@@ -1089,6 +1164,10 @@ class ApiClient {
   Future<void> markNotificationRead(String id) =>
       _post('/api/v1/notifications/$id/read', null);
 
+  /// خواندنِ یک‌جایِ همهٔ اعلان‌های نخوانده (`POST /notifications/read-all`).
+  Future<void> markAllNotificationsRead() =>
+      _post('/api/v1/notifications/read-all', null);
+
   // ─────────────── Gamification (کیفِ پاداش) ───────────────
   /// موجودیِ امتیازِ پاداش (سکه‌ی دیلیکس).
   Future<int> rewardPoints() async {
@@ -1423,6 +1502,28 @@ class ApiClient {
         if (description != null && description.isNotEmpty) 'description': description,
         'is_public': isPublic,
       }) as Map<String, dynamic>);
+
+  /// ویرایشِ بستهٔ خودم. فیلدهای `null` دست‌نخورده می‌مانند (سرور فقط مقادیرِ
+  /// ارسال‌شده را اعمال می‌کند)، پس برای تغییرِ یک فیلد بقیه را نمی‌فرستیم.
+  Future<StickerPack> updateStickerPack(
+    String packId, {
+    String? title,
+    String? description,
+    bool? isPublic,
+  }) async =>
+      StickerPack.fromJson(await _patch('/api/v1/stickers/packs/$packId', {
+        if (title != null) 'title': title,
+        if (description != null) 'description': description,
+        if (isPublic != null) 'is_public': isPublic,
+      }) as Map<String, dynamic>);
+
+  /// حذفِ بستهٔ خودم به‌همراهِ استیکرهایش. سرور مالکیت را چک می‌کند (وگرنه ۴۰۴).
+  Future<void> deleteStickerPack(String packId) =>
+      _delete('/api/v1/stickers/packs/$packId');
+
+  /// حذفِ یک استیکر از بستهٔ خودم.
+  Future<void> deleteSticker(String stickerId) =>
+      _delete('/api/v1/stickers/$stickerId');
 
   /// افزودنِ استیکر به بستهٔ خودم (multipart؛ سقفِ سرور ۱۲ مگابایت).
   Future<StickerItem> addSticker({
