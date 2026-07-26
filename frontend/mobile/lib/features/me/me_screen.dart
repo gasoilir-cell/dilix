@@ -7,6 +7,7 @@ import '../../core/config.dart';
 import '../../core/preferences.dart';
 import '../../core/social_auth.dart';
 import '../../models/models.dart';
+import '../admin/admin_kyc_screen.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../legal/legal_screen.dart';
 import '../notifications/notifications_screen.dart';
@@ -1058,6 +1059,20 @@ class _MeScreenState extends State<MeScreen> {
               MaterialPageRoute<void>(builder: (_) => const RegionScreen()),
             ),
           ),
+          // کنسولِ ادمین فقط برای مدیران؛ سرور هم مستقلاً ۴۰۳ می‌دهد ولی
+          // ردیف را پنهان می‌کنیم تا کاربرِ عادی به بن‌بست نخورد.
+          if (_me?.role == 'admin' || _me?.role == 'super_admin') ...[
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.verified_user_outlined),
+              title: const Text('بررسیِ احرازِ هویت'),
+              subtitle: const Text('صفِ درخواست‌های کاربران — ویژهٔ مدیران'),
+              trailing: const Icon(Icons.chevron_left),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const AdminKycScreen()),
+              ),
+            ),
+          ],
           const Divider(height: 1),
           SwitchListTile(
             secondary: const Icon(Icons.dark_mode_outlined),

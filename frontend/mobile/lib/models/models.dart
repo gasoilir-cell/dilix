@@ -709,6 +709,53 @@ class KycStatus {
       );
 }
 
+/// یک ردیفِ صفِ بررسیِ احرازِ هویت — `GET /api/v1/auth/admin/kyc`.
+///
+/// این با [KycStatus] فرق دارد: آن وضعیتِ *خودِ من* است، این پروندهٔ *یک کاربرِ
+/// دیگر* است که فقط ادمین می‌بیند (سرور نقشِ `admin`/`super_admin` می‌خواهد).
+class KycRequestItem {
+  KycRequestItem({
+    required this.id,
+    required this.userId,
+    required this.level,
+    required this.status,
+    this.fullName,
+    this.nationalId,
+    this.dateOfBirth,
+    this.docFrontUrl,
+    this.docSelfieUrl,
+    this.createdAt,
+  });
+
+  final String id;
+  final String userId;
+  final int level;
+
+  /// `pending` | `approved` | `rejected`.
+  final String status;
+  final String? fullName;
+  final String? nationalId;
+  final String? dateOfBirth;
+  final String? docFrontUrl;
+  final String? docSelfieUrl;
+  final DateTime? createdAt;
+
+  bool get isPending => status == 'pending';
+
+  factory KycRequestItem.fromJson(Map<String, dynamic> j) => KycRequestItem(
+        id: (j['id'] ?? '') as String,
+        userId: (j['user_id'] ?? '') as String,
+        level: (j['level'] ?? 0) as int,
+        status: (j['status'] ?? 'pending') as String,
+        fullName: j['full_name'] as String?,
+        nationalId: j['national_id'] as String?,
+        dateOfBirth: j['date_of_birth'] as String?,
+        docFrontUrl: j['doc_front_url'] as String?,
+        docSelfieUrl: j['doc_selfie_url'] as String?,
+        createdAt: DateTime.tryParse((j['created_at'] ?? '') as String? ?? ''),
+      );
+}
+
 /// تنظیمِ مخاطبِ پیش‌فرضِ داستان — `GET/PUT /api/v1/stories/settings`.
 class StorySettings {
   StorySettings({required this.defaultAudience, this.isSet = false});

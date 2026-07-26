@@ -336,6 +336,43 @@ class ApiClient {
     return KycStatus.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
 
+  /// صفِ بررسیِ احرازِ هویت — فقط ادمین (`GET /api/v1/auth/admin/kyc`).
+  ///
+  /// [status] یکی از `pending`/`approved`/`rejected` یا `all` است. برای کاربرِ
+  /// غیرِ ادمین سرور ۴۰۳ می‌دهد.
+  Future<List<KycRequestItem>> adminKycQueue({
+    String status = 'pending',
+    int limit = 50,
+  }) async {
+    final raw = await _get('/api/v1/auth/admin/kyc?status=$status&limit=$limit');
+    return (raw as List)
+        .map((e) => KycRequestItem.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// تأیید یا ردِ یک درخواستِ احرازِ هویت (`POST …/admin/kyc/{id}/review`).
+  ///
+  /// ⚠ سرور این را با **فرم** می‌گیرد (`Form(...)`) نه JSON، پس multipart
+  /// می‌فرستیم — دقیقاً همان کاری که وب می‌کند. خروجی وضعیتِ نهایی است.
+  Future<String> adminReviewKyc(
+    String reqId, {
+    required bool approve,
+    String? note,
+  }) async {
+    final req = http.MultipartRequest(
+      'POST',
+      Uri.parse('$_base/api/v1/auth/admin/kyc/$reqId/review'),
+    );
+    req.headers.addAll(_headers());
+    req.fields['approve'] = approve ? 'true' : 'false';
+    final n = (note ?? '').trim();
+    if (n.isNotEmpty) req.fields['note'] = n;
+    final res = await http.Response.fromStream(await _client.send(req));
+    if (res.statusCode >= 400) _raise(res);
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    return (j['status'] ?? '') as String;
+  }
+
   /// مخاطبِ پیش‌فرضِ داستان (`GET /api/v1/stories/settings`).
   Future<StorySettings> storySettings() async =>
       StorySettings.fromJson(
