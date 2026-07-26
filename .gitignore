@@ -15,6 +15,9 @@ venv/
 .env
 *.local
 
+# بکاپ‌های دستیِ روی سرور (`file.py.bak-<timestamp>`) — گیت جای آن‌هاست
+*.bak-*
+
 # Build / outputs
 dist/
 build/
