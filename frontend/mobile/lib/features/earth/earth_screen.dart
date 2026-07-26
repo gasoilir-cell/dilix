@@ -4,6 +4,7 @@ import '../../app.dart';
 import '../../core/location_service.dart';
 import '../../models/models.dart';
 import '../assistant/assistant_sheet.dart';
+import '../feed/moments_screen.dart';
 import '../messages/chat_screen.dart';
 import '../social/profile_screen.dart';
 import 'earth_globe_view.dart';
@@ -83,16 +84,31 @@ class _EarthScreenState extends State<EarthScreen> {
           Positioned(
             bottom: MediaQuery.of(context).padding.bottom + 16,
             right: 16,
-            child: FloatingActionButton(
-              heroTag: 'earth-locate',
-              tooltip: 'ثبتِ موقعیتِ من روی کره',
-              onPressed: _locating ? null : _registerMyLocation,
-              child: _locating
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.my_location),
+            child: Column(
+              children: [
+                // «لحظه‌ها»: پست‌های مکان‌دارِ کره.
+                FloatingActionButton(
+                  heroTag: 'earth-moments',
+                  tooltip: 'لحظه‌های روی کره',
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                        builder: (_) => const MomentsScreen()),
+                  ),
+                  child: const Icon(Icons.photo_library_outlined),
+                ),
+                const SizedBox(height: 12),
+                FloatingActionButton(
+                  heroTag: 'earth-locate',
+                  tooltip: 'ثبتِ موقعیتِ من روی کره',
+                  onPressed: _locating ? null : _registerMyLocation,
+                  child: _locating
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.my_location),
+                ),
+              ],
             ),
           ),
         ],
