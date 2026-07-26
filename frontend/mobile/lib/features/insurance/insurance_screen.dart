@@ -31,6 +31,11 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
     'cancelled': 'لغوشده',
   };
 
+  /// محصولاتی که سرور برایشان استعلامِ سوابق دارد و کلیدِ ورودیِ لازمشان.
+  /// (بقیه `found:false` می‌گیرند، پس فرمِ استعلام را اصلاً نشان نمی‌دهیم.)
+  static const _plateProducts = {'third_party', 'auto_body'};
+  static const _nidOnlyProducts = {'life', 'health'};
+
   Future<List<InsuranceProduct>>? _products;
   Future<List<InsuranceRequest>>? _requests;
 
@@ -38,10 +43,21 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
   final _originCtrl = TextEditingController();
   final _destCtrl = TextEditingController();
   final _cargoTypeCtrl = TextEditingController();
+  final _plateCtrl = TextEditingController();
+  final _nidCtrl = TextEditingController();
 
   String? _product;
   String _coverageType = 'basic';
   InsuranceQuote? _quote;
+  InsuranceCompare? _compare;
+
+  /// مرکزِ انتخاب‌شده از جدولِ مقایسه؛ هنگامِ ثبت به سرور می‌رود تا بیمه‌نامه
+  /// از همان مرکز صادر شود. null یعنی نرخِ پایهٔ داخلی.
+  String? _providerId;
+
+  /// خروجیِ استعلام که به‌عنوانِ `form_data` همراهِ درخواست ثبت می‌شود.
+  Map<String, String> _prefill = const {};
+
   bool _busy = false;
   String? _error;
   String? _notice;
@@ -59,6 +75,8 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
     _originCtrl.dispose();
     _destCtrl.dispose();
     _cargoTypeCtrl.dispose();
+    _plateCtrl.dispose();
+    _nidCtrl.dispose();
     super.dispose();
   }
 
@@ -109,6 +127,74 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
     }
   }
 
+  Future<void> _compareNow() async {
+    final value = _readValue();
+    if (_product == null || value == null) {
+      setState(() => _error = 'ابتدا محصول و مبلغِ سرمایه را کامل کنید.');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+      _notice = null;
+    });
+    try {
+      final c = await ApiScope.of(context).insuranceCompare(
+        product: _product!,
+        cargoValue: value,
+        coverageType: _coverageType,
+        cargoType: _cargoTypeCtrl.text.trim(),
+        origin: _originCtrl.text.trim(),
+        destination: _destCtrl.text.trim(),
+      );
+      if (!mounted) return;
+      setState(() {
+        _compare = c;
+        // ارزان‌ترین گزینه پیش‌فرض انتخاب می‌شود.
+        _providerId = c.options.isEmpty ? null : c.options.first.providerId;
+        _notice = c.providerCount == 0
+            ? 'در حالِ حاضر مرکزِ فعالی پاسخ نداد؛ فقط نرخِ پایهٔ دیلیکس در دسترس است.'
+            : '${c.providerCount} مرکز پاسخ دادند.';
+        _busy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'مقایسهٔ نرخ ناموفق بود: $e';
+        _busy = false;
+      });
+    }
+  }
+
+  Future<void> _inquiryNow() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+      _notice = null;
+    });
+    try {
+      final r = await ApiScope.of(context).insuranceInquiry(
+        product: _product!,
+        plate: _plateCtrl.text.trim(),
+        nationalId: _nidCtrl.text.trim(),
+      );
+      if (!mounted) return;
+      setState(() {
+        _prefill = r.found ? r.prefill : const {};
+        _notice = r.bonusMalus == null
+            ? r.message
+            : '${r.message} — سطحِ تخفیفِ عدم‌خسارت: ${r.bonusMalus}';
+        _busy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'استعلامِ سوابق ناموفق بود: $e';
+        _busy = false;
+      });
+    }
+  }
+
   Future<void> _submitRequest() async {
     final value = _readValue();
     if (_product == null || value == null) {
@@ -128,10 +214,13 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
         cargoType: _cargoTypeCtrl.text.trim(),
         origin: _originCtrl.text.trim(),
         destination: _destCtrl.text.trim(),
+        providerId: _providerId,
+        formData: _prefill,
       );
       if (!mounted) return;
       setState(() {
-        _notice = 'درخواست ثبت شد — کدِ پیگیری: ${req.ref}';
+        _notice = 'درخواست ثبت شد — کدِ پیگیری: ${req.ref}'
+            '${req.providerName == null ? '' : ' · ${req.providerName}'}';
         _requests = ApiScope.of(context).insuranceRequests();
         _busy = false;
       });
@@ -202,6 +291,10 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
                   onChanged: (v) => setState(() {
                     _product = v;
                     _quote = null;
+                    // نرخ‌ها و استعلامِ محصولِ قبلی به محصولِ جدید ربطی ندارند.
+                    _compare = null;
+                    _providerId = null;
+                    _prefill = const {};
                   }),
                 ),
                 const SizedBox(height: 8),
@@ -239,6 +332,7 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
                     decoration: const InputDecoration(labelText: 'مقصد'),
                   ),
                 ],
+                _inquirySection(selected),
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -250,13 +344,22 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: FilledButton(
-                        onPressed: _busy ? null : _submitRequest,
-                        child: const Text('ثبتِ درخواست'),
+                      child: OutlinedButton(
+                        onPressed: _busy ? null : _compareNow,
+                        child: const Text('مقایسهٔ مراکز'),
                       ),
                     ),
                   ],
                 ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: _busy ? null : _submitRequest,
+                    child: const Text('ثبتِ درخواست'),
+                  ),
+                ),
+                _compareSection(),
                 if (_quote != null) ...[
                   const SizedBox(height: 12),
                   Card(
@@ -283,6 +386,100 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
           },
         ),
       ),
+    );
+  }
+
+  /// فرمِ استعلامِ سوابق — فقط برای محصولاتی که سرور پشتیبانی می‌کند.
+  Widget _inquirySection(InsuranceProduct selected) {
+    final needsPlate = _plateProducts.contains(selected.id);
+    final needsNid = needsPlate || _nidOnlyProducts.contains(selected.id);
+    if (!needsNid) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 12),
+        const Divider(),
+        Text('استعلامِ سوابق (اختیاری)',
+            style: Theme.of(context).textTheme.titleSmall),
+        Text(
+          needsPlate
+              ? 'با پلاک یا کد ملی، سوابق و سطحِ تخفیف را می‌آوریم.'
+              : 'با کد ملی، اطلاعاتِ هویتی را می‌آوریم.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        if (needsPlate) ...[
+          const SizedBox(height: 8),
+          TextField(
+            controller: _plateCtrl,
+            decoration: const InputDecoration(labelText: 'پلاکِ خودرو'),
+          ),
+        ],
+        const SizedBox(height: 8),
+        TextField(
+          controller: _nidCtrl,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'کد ملی'),
+        ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: OutlinedButton.icon(
+            onPressed: _busy ? null : _inquiryNow,
+            icon: const Icon(Icons.search, size: 18),
+            label: const Text('استعلام'),
+          ),
+        ),
+        if (_prefill.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(
+            'سوابقِ بازیابی‌شده همراهِ درخواست ثبت می‌شود: '
+            '${_prefill.keys.join('، ')}',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// جدولِ مقایسهٔ نرخِ مراکز؛ انتخابِ هر ردیف مرکزِ صادرکننده را تعیین می‌کند.
+  Widget _compareSection() {
+    final c = _compare;
+    if (c == null) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 12),
+        Text('مقایسهٔ نرخ — ${c.productLabel} · ${c.coverageLabel}',
+            style: const TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 4),
+        for (final o in c.options)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(
+              o.providerId == _providerId
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            onTap: () => setState(() => _providerId = o.providerId),
+            title: Row(
+              children: [
+                Expanded(child: Text(o.providerName ?? 'نرخِ پایهٔ دیلیکس')),
+                if (o.best)
+                  const Chip(
+                    label: Text('ارزان‌ترین'),
+                    visualDensity: VisualDensity.compact,
+                  ),
+              ],
+            ),
+            subtitle: Text(
+              o.currency == 'IRR'
+                  ? _money(o.premium)
+                  : '${o.premium} ${o.currency}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+      ],
     );
   }
 

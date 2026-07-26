@@ -1996,6 +1996,188 @@ class InsuranceQuote {
       );
 }
 
+/// یک گزینه در جدولِ مقایسهٔ نرخ (`QuoteOption`).
+///
+/// [premium] به ارزِ همان مرکز است ([currency])؛ سرور برای رتبه‌بندیِ منصفانه
+/// همه را به سنتِ دلار ([premiumUsd]) نرمال می‌کند، پس ترتیبِ آرایه معتبر است
+/// حتی اگر عددهای خام مستقیماً قابلِ مقایسه نباشند.
+class InsuranceQuoteOption {
+  InsuranceQuoteOption({
+    required this.source,
+    required this.premium,
+    this.providerId,
+    this.providerName,
+    this.currency = 'IRR',
+    this.premiumUsd,
+    this.commissionRate,
+    this.best = false,
+  });
+
+  /// `provider` (نرخِ واقعیِ یک مرکز) یا `internal` (نرخِ پایهٔ دیلیکس).
+  final String source;
+  final int premium;
+  final String? providerId;
+  final String? providerName;
+  final String currency;
+  final int? premiumUsd;
+  final double? commissionRate;
+
+  /// ارزان‌ترین گزینه پس از نرمال‌سازیِ ارز.
+  final bool best;
+
+  factory InsuranceQuoteOption.fromJson(Map<String, dynamic> j) =>
+      InsuranceQuoteOption(
+        source: (j['source'] ?? 'internal') as String,
+        premium: (j['premium'] as num?)?.toInt() ?? 0,
+        providerId: j['provider_id'] as String?,
+        providerName: j['provider_name'] as String?,
+        currency: (j['currency'] ?? 'IRR') as String,
+        premiumUsd: (j['premium_usd'] as num?)?.toInt(),
+        commissionRate: (j['commission_rate'] as num?)?.toDouble(),
+        best: j['best'] == true,
+      );
+}
+
+/// خروجیِ `POST /insurance/compare` — نرخِ همهٔ مراکز به‌صورتِ هم‌زمان.
+class InsuranceCompare {
+  InsuranceCompare({
+    required this.productLabel,
+    required this.coverageLabel,
+    required this.cargoValue,
+    required this.options,
+    required this.providerCount,
+  });
+
+  final String productLabel;
+  final String coverageLabel;
+  final int cargoValue;
+  final List<InsuranceQuoteOption> options;
+
+  /// تعدادِ مراکزی که پاسخ داده‌اند (صفر یعنی فقط نرخِ پایهٔ داخلی).
+  final int providerCount;
+
+  factory InsuranceCompare.fromJson(Map<String, dynamic> j) => InsuranceCompare(
+        productLabel: (j['product_label'] ?? '') as String,
+        coverageLabel: (j['coverage_label'] ?? '') as String,
+        cargoValue: (j['cargo_value'] as num?)?.toInt() ?? 0,
+        options: ((j['options'] ?? const []) as List)
+            .map((e) => InsuranceQuoteOption.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        providerCount: (j['provider_count'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// خروجیِ `POST /insurance/inquiry` — استعلامِ سوابق برای پیش‌پُرکردنِ فرم.
+class InsuranceInquiry {
+  InsuranceInquiry({
+    required this.found,
+    required this.source,
+    required this.message,
+    required this.prefill,
+    this.bonusMalus,
+  });
+
+  final bool found;
+
+  /// `sanhab` (استعلامِ واقعی) یا `mock` (sandbox).
+  final String source;
+  final String message;
+
+  /// فیلدهای آمادهٔ `form_data`؛ مقادیر را رشته نگه می‌داریم.
+  final Map<String, String> prefill;
+
+  /// سطحِ تخفیفِ عدم‌خسارت ۰..۱۰ (فقط بیمهٔ خودرو).
+  final int? bonusMalus;
+
+  factory InsuranceInquiry.fromJson(Map<String, dynamic> j) => InsuranceInquiry(
+        found: j['found'] == true,
+        source: (j['source'] ?? '') as String,
+        message: (j['message'] ?? '') as String,
+        prefill: ((j['prefill'] ?? const <String, dynamic>{}) as Map)
+            .map((k, v) => MapEntry('$k', '$v')),
+        bonusMalus: (j['bonus_malus'] as num?)?.toInt(),
+      );
+}
+
+/// یک ردیفِ کارمزدِ بیمه (`CommissionOut`). مبالغ به تومان‌اند.
+class InsuranceCommission {
+  InsuranceCommission({
+    required this.id,
+    required this.premium,
+    required this.commissionRate,
+    required this.commissionAmount,
+    required this.status,
+    this.requestRef,
+    this.providerId,
+    this.providerName,
+    this.product,
+    this.settledAt,
+  });
+
+  final String id;
+  final int premium;
+  final double commissionRate;
+  final int commissionAmount;
+
+  /// `accrued` (تعهدشده) | `settled` (تسویه‌شده).
+  final String status;
+  final String? requestRef;
+  final String? providerId;
+  final String? providerName;
+  final String? product;
+  final DateTime? settledAt;
+
+  bool get isSettled => status == 'settled';
+
+  factory InsuranceCommission.fromJson(Map<String, dynamic> j) =>
+      InsuranceCommission(
+        id: (j['id'] ?? '') as String,
+        premium: (j['premium'] as num?)?.toInt() ?? 0,
+        commissionRate: (j['commission_rate'] as num?)?.toDouble() ?? 0,
+        commissionAmount: (j['commission_amount'] as num?)?.toInt() ?? 0,
+        status: (j['status'] ?? '') as String,
+        requestRef: j['request_ref'] as String?,
+        providerId: j['provider_id'] as String?,
+        providerName: j['provider_name'] as String?,
+        product: j['product'] as String?,
+        settledAt: DateTime.tryParse((j['settled_at'] ?? '') as String),
+      );
+}
+
+/// جمع‌بندیِ کارمزدِ یک مرکز (`ProviderCommissionSummary`).
+class InsuranceCommissionSummary {
+  InsuranceCommissionSummary({
+    required this.policies,
+    required this.totalPremium,
+    required this.totalCommission,
+    required this.accruedCommission,
+    required this.settledCommission,
+    this.providerId,
+    this.providerName,
+  });
+
+  final int policies;
+  final int totalPremium;
+  final int totalCommission;
+
+  /// بخشِ تسویه‌نشده — همان چیزی که «تسویهٔ دسته‌ای» پرداخت می‌کند.
+  final int accruedCommission;
+  final int settledCommission;
+  final String? providerId;
+  final String? providerName;
+
+  factory InsuranceCommissionSummary.fromJson(Map<String, dynamic> j) =>
+      InsuranceCommissionSummary(
+        policies: (j['policies'] as num?)?.toInt() ?? 0,
+        totalPremium: (j['total_premium'] as num?)?.toInt() ?? 0,
+        totalCommission: (j['total_commission'] as num?)?.toInt() ?? 0,
+        accruedCommission: (j['accrued_commission'] as num?)?.toInt() ?? 0,
+        settledCommission: (j['settled_commission'] as num?)?.toInt() ?? 0,
+        providerId: j['provider_id'] as String?,
+        providerName: j['provider_name'] as String?,
+      );
+}
+
 /// درخواستِ بیمهٔ ثبت‌شده (`RequestOut`). مبالغ به تومان‌اند.
 class InsuranceRequest {
   InsuranceRequest({
@@ -2088,13 +2270,34 @@ class Provider {
     required this.providerType,
     required this.country,
     required this.kybStatus,
+    this.providerTypeLabel = '',
+    this.kybStatusLabel = '',
+    this.countryFlag = '',
+    this.currency = 'IRR',
+    this.commissionRate = 0,
+    this.products = const [],
+    this.productsLabels = const [],
   });
 
   final String id;
   final String legalName;
   final String providerType;
   final String country;
+
+  /// `pending` | `verified` | `rejected` — تا `verified` نشود نرخِ این مرکز
+  /// در مقایسه شرکت داده نمی‌شود.
   final String kybStatus;
+  final String providerTypeLabel;
+  final String kybStatusLabel;
+  final String countryFlag;
+  final String currency;
+  final double commissionRate;
+
+  /// کدهای محصولِ پوشش‌داده‌شده؛ خالی یعنی «همه».
+  final List<String> products;
+  final List<String> productsLabels;
+
+  bool get isVerified => kybStatus == 'verified';
 
   factory Provider.fromJson(Map<String, dynamic> j) => Provider(
         id: j['id'] as String,
@@ -2102,6 +2305,14 @@ class Provider {
         providerType: (j['provider_type'] ?? '') as String,
         country: (j['country'] ?? 'IR') as String,
         kybStatus: (j['kyb_status'] ?? '') as String,
+        providerTypeLabel: (j['provider_type_label'] ?? '') as String,
+        kybStatusLabel: (j['kyb_status_label'] ?? '') as String,
+        countryFlag: (j['country_flag'] ?? '') as String,
+        currency: (j['currency'] ?? 'IRR') as String,
+        commissionRate: (j['commission_rate'] as num?)?.toDouble() ?? 0,
+        products: ((j['products'] ?? const []) as List).map((e) => '$e').toList(),
+        productsLabels:
+            ((j['products_labels'] ?? const []) as List).map((e) => '$e').toList(),
       );
 }
 
@@ -2178,6 +2389,43 @@ class Credential {
         env: (j['env'] ?? '') as String,
         keyPrefix: (j['key_prefix'] ?? '') as String,
         status: (j['status'] ?? '') as String,
+      );
+
+  bool get isActive => status != 'revoked';
+}
+
+/// یک رویدادِ دریافتیِ webhook (`EventOut`) — برای عیب‌یابیِ اتصال.
+class WebhookEvent {
+  WebhookEvent({
+    required this.id,
+    required this.eventType,
+    required this.receivedAt,
+  });
+
+  final String id;
+  final String eventType;
+  final DateTime? receivedAt;
+
+  factory WebhookEvent.fromJson(Map<String, dynamic> j) => WebhookEvent(
+        id: (j['id'] ?? '') as String,
+        eventType: (j['event_type'] ?? '') as String,
+        receivedAt: DateTime.tryParse((j['received_at'] ?? '') as String),
+      );
+}
+
+/// یک ردیفِ کاتالوگِ ساده‌ی `{id, label, emoji?}` — انواعِ ارائه‌دهنده و
+/// محصولاتِ قابلِ پوشش هر دو همین شکل را دارند.
+class CatalogEntry {
+  CatalogEntry({required this.id, required this.label, this.emoji});
+
+  final String id;
+  final String label;
+  final String? emoji;
+
+  factory CatalogEntry.fromJson(Map<String, dynamic> j) => CatalogEntry(
+        id: (j['id'] ?? '') as String,
+        label: (j['label'] ?? '') as String,
+        emoji: j['emoji'] as String?,
       );
 }
 

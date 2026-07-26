@@ -904,6 +904,83 @@ class ApiClient {
     return Credential.fromJson(j as Map<String, dynamic>);
   }
 
+  /// مراکزی که خودم مالکشان هستم — پایهٔ «آیا قبلاً ثبت‌نام کرده‌ام؟».
+  Future<List<Provider>> myProviders() async {
+    final list = await _get('/api/v1/providers/me') as List;
+    return list.map((e) => Provider.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// انواعِ مجازِ ارائه‌دهنده از سرور (به‌جای فهرستِ سخت‌کدشده).
+  Future<List<CatalogEntry>> providerTypes() async {
+    final list = await _get('/api/v1/providers/types') as List;
+    return list.map((e) => CatalogEntry.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// کاتالوگِ محصولاتِ بیمه‌ای که یک مرکز می‌تواند پوشش دهد.
+  Future<List<CatalogEntry>> providerProductCatalog() async {
+    final list = await _get('/api/v1/providers/catalog/products') as List;
+    return list.map((e) => CatalogEntry.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// به‌روزرسانیِ محصولاتِ پوشش‌داده‌شده. فهرستِ خالی یعنی «همه».
+  Future<Provider> updateProviderProducts(
+    String providerId,
+    List<String> products,
+  ) async {
+    final j = await _put('/api/v1/providers/$providerId/products', {
+      'products': products,
+    });
+    return Provider.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// کلیدهای ثبت‌شده (فقط `keyPrefix`؛ رازِ خام هرگز برنمی‌گردد).
+  Future<List<Credential>> providerCredentials(String providerId) async {
+    final list = await _get('/api/v1/providers/$providerId/credentials') as List;
+    return list.map((e) => Credential.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// ابطالِ یک کلید؛ نسخهٔ به‌روزشده (`status: revoked`) را برمی‌گرداند.
+  Future<Credential> revokeProviderCredential(
+    String providerId,
+    String credId,
+  ) async {
+    final j = await _post(
+        '/api/v1/providers/$providerId/credentials/$credId/revoke', null);
+    return Credential.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// webhookهای ثبت‌شده (بدونِ `secret`).
+  Future<List<Webhook>> providerWebhooks(String providerId) async {
+    final list = await _get('/api/v1/providers/$providerId/webhooks') as List;
+    return list.map((e) => Webhook.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// رویدادهای دریافتیِ webhook — برای عیب‌یابیِ اتصالِ خدمات‌دهنده.
+  Future<List<WebhookEvent>> providerWebhookEvents(String providerId) async {
+    final list =
+        await _get('/api/v1/providers/$providerId/webhooks/events') as List;
+    return list.map((e) => WebhookEvent.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// همهٔ مراکز — فقط ادمین (سرور در غیرِ این صورت ۴۰۳ می‌دهد).
+  Future<List<Provider>> adminAllProviders() async {
+    final list = await _get('/api/v1/providers/admin/all') as List;
+    return list.map((e) => Provider.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// تصمیمِ KYB روی یک مرکز — فقط ادمین. `status`: verified/rejected/pending.
+  Future<Provider> reviewProviderKyb(
+    String providerId, {
+    required String status,
+    String? note,
+  }) async {
+    final j = await _post('/api/v1/providers/$providerId/kyb', {
+      'status': status,
+      if (note != null && note.isNotEmpty) 'note': note,
+    });
+    return Provider.fromJson(j as Map<String, dynamic>);
+  }
+
   // ─────────────── Marketplace ───────────────
   /// فهرست/جستجویِ آگهی‌های خدمت.
   Future<List<Listing>> marketplaceListings({String? keyword}) async {
@@ -1269,6 +1346,48 @@ class ApiClient {
     return InsuranceQuote.fromJson(j as Map<String, dynamic>);
   }
 
+  /// مقایسهٔ هم‌زمانِ نرخِ همهٔ مراکزِ احرازشده (قلبِ aggregator).
+  ///
+  /// ورودی دقیقاً همان [insuranceQuote] است؛ خروجی به‌جای یک نرخ، فهرستِ
+  /// مرتب‌شده از ارزان به گران است که اولی `best` دارد.
+  Future<InsuranceCompare> insuranceCompare({
+    required String product,
+    required int cargoValue,
+    String coverageType = 'basic',
+    String? cargoType,
+    String? origin,
+    String? destination,
+  }) async {
+    final j = await _post('/api/v1/insurance/compare', {
+      'product': product,
+      'cargo_value': cargoValue,
+      'coverage_type': coverageType,
+      if (cargoType != null && cargoType.isNotEmpty) 'cargo_type': cargoType,
+      if (origin != null && origin.isNotEmpty) 'origin': origin,
+      if (destination != null && destination.isNotEmpty) 'destination': destination,
+    });
+    return InsuranceCompare.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// استعلامِ سوابق (سنهاب/شاهکار) برای پیش‌پُرکردنِ فرم.
+  ///
+  /// برای خودرو پلاک یا کد ملی، و برای عمر/درمان کد ملی لازم است؛ در غیرِ این
+  /// صورت سرور ۴۰۰ می‌دهد.
+  Future<InsuranceInquiry> insuranceInquiry({
+    required String product,
+    String? plate,
+    String? nationalId,
+    String? vin,
+  }) async {
+    final j = await _post('/api/v1/insurance/inquiry', {
+      'product': product,
+      if (plate != null && plate.isNotEmpty) 'plate': plate,
+      if (nationalId != null && nationalId.isNotEmpty) 'national_id': nationalId,
+      if (vin != null && vin.isNotEmpty) 'vin': vin,
+    });
+    return InsuranceInquiry.fromJson(j as Map<String, dynamic>);
+  }
+
   /// ثبتِ درخواستِ بیمه (معادلِ «صدور» در جریانِ dilix-api). `cargoValue` تومان.
   Future<InsuranceRequest> createInsuranceRequest({
     required String product,
@@ -1279,6 +1398,8 @@ class ApiClient {
     String? destination,
     String? subject,
     String? notes,
+    String? providerId,
+    Map<String, String>? formData,
   }) async {
     final j = await _post('/api/v1/insurance/requests', {
       'product': product,
@@ -1289,6 +1410,8 @@ class ApiClient {
       if (destination != null && destination.isNotEmpty) 'destination': destination,
       if (subject != null && subject.isNotEmpty) 'subject': subject,
       if (notes != null && notes.isNotEmpty) 'notes': notes,
+      if (providerId != null && providerId.isNotEmpty) 'provider_id': providerId,
+      if (formData != null && formData.isNotEmpty) 'form_data': formData,
     });
     return InsuranceRequest.fromJson(j as Map<String, dynamic>);
   }
@@ -1297,6 +1420,68 @@ class ApiClient {
   Future<List<InsuranceRequest>> insuranceRequests() async {
     final list = await _get('/api/v1/insurance/requests') as List;
     return list.map((e) => InsuranceRequest.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// جزئیاتِ یک درخواستِ بیمه.
+  Future<InsuranceRequest> insuranceRequest(String reqId) async {
+    final j = await _get('/api/v1/insurance/requests/$reqId');
+    return InsuranceRequest.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// صورت‌حسابِ کارمزدِ مرکزِ خودم (سرور مالکیت را چک می‌کند).
+  Future<InsuranceCommissionSummary> providerStatement(String providerId) async {
+    final j = await _get('/api/v1/insurance/provider/$providerId/statement');
+    return InsuranceCommissionSummary.fromJson(j as Map<String, dynamic>);
+  }
+
+  /// ردیف‌های کارمزدِ مرکزِ خودم.
+  Future<List<InsuranceCommission>> providerCommissions(String providerId) async {
+    final list =
+        await _get('/api/v1/insurance/provider/$providerId/commissions') as List;
+    return list
+        .map((e) => InsuranceCommission.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// جمع‌بندیِ کارمزدِ همهٔ مراکز — فقط ادمین.
+  Future<List<InsuranceCommissionSummary>> adminCommissionsSummary() async {
+    final list =
+        await _get('/api/v1/insurance/admin/commissions/summary') as List;
+    return list
+        .map((e) => InsuranceCommissionSummary.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// ردیف‌های کارمزد — فقط ادمین.
+  Future<List<InsuranceCommission>> adminCommissions({String? status}) async {
+    final q = (status == null || status.isEmpty) ? '' : '?status=$status';
+    final list = await _get('/api/v1/insurance/admin/commissions$q') as List;
+    return list
+        .map((e) => InsuranceCommission.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// تسویهٔ دسته‌ایِ کارمزدهای تسویه‌نشدهٔ یک مرکز — فقط ادمین.
+  /// خروجی `(تعداد, مبلغ)` است.
+  Future<(int, int)> settleProviderCommissions(
+    String providerId, {
+    String? note,
+  }) async {
+    final j = await _post('/api/v1/insurance/admin/commissions/settle', {
+      'provider_id': providerId,
+      if (note != null && note.isNotEmpty) 'note': note,
+    }) as Map<String, dynamic>;
+    return (
+      (j['settled_count'] as num?)?.toInt() ?? 0,
+      (j['settled_amount'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  /// تسویهٔ یک ردیفِ کارمزد — فقط ادمین.
+  Future<InsuranceCommission> settleCommission(String commissionId) async {
+    final j = await _post(
+        '/api/v1/insurance/admin/commissions/$commissionId/settle', null);
+    return InsuranceCommission.fromJson(j as Map<String, dynamic>);
   }
 
   // ─────────────── Telecom ───────────────

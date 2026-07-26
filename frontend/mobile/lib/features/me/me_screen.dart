@@ -8,6 +8,8 @@ import '../../core/preferences.dart';
 import '../../core/social_auth.dart';
 import '../../models/models.dart';
 import '../admin/admin_kyc_screen.dart';
+import '../admin/admin_providers_screen.dart';
+import '../admin/insurance_commissions_screen.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../legal/legal_screen.dart';
 import '../notifications/notifications_screen.dart';
@@ -1070,6 +1072,28 @@ class _MeScreenState extends State<MeScreen> {
               trailing: const Icon(Icons.chevron_left),
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(builder: (_) => const AdminKycScreen()),
+              ),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.domain_verification_outlined),
+              title: const Text('احرازِ مراکزِ خدمات'),
+              subtitle: const Text('تصمیمِ KYB روی شرکت‌ها — ویژهٔ مدیران'),
+              trailing: const Icon(Icons.chevron_left),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                    builder: (_) => const AdminProvidersScreen()),
+              ),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.receipt_long_outlined),
+              title: const Text('کارمزدِ بیمه'),
+              subtitle: const Text('جمع‌بندی و تسویهٔ مراکز — ویژهٔ مدیران'),
+              trailing: const Icon(Icons.chevron_left),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                    builder: (_) => const InsuranceCommissionsScreen()),
               ),
             ),
           ],
