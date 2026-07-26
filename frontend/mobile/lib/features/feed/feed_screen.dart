@@ -8,6 +8,7 @@ import '../../models/models.dart';
 import 'explore_screen.dart';
 import 'post_card.dart';
 
+import '../../core/l10n.dart';
 /// فیدِ اجتماعی: نمایشِ پست‌ها + رسانه، ساختِ پست با انتخابِ تصویر/ویدیو از
 /// حافظهٔ گوشی (آپلودِ multipart به `/api/v1/posts`)، لایک و نظر.
 class FeedScreen extends StatefulWidget {
@@ -56,7 +57,7 @@ class _FeedScreenState extends State<FeedScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'بارگذاری فید ممکن نشد.\n$e';
+        _error = tr('بارگذاری فید ممکن نشد.\n{0}', [e]);
         _loading = false;
       });
     }
@@ -85,7 +86,7 @@ class _FeedScreenState extends State<FeedScreen> {
   Future<void> _publish() async {
     final file = _pickedFile;
     if (file == null) {
-      setState(() => _error = 'برای انتشار، ابتدا یک تصویر یا ویدیو انتخاب کنید.');
+      setState(() => _error = tr('برای انتشار، ابتدا یک تصویر یا ویدیو انتخاب کنید.'));
       return;
     }
     setState(() {
@@ -108,7 +109,7 @@ class _FeedScreenState extends State<FeedScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'ارسالِ پست ناموفق بود: $e';
+        _error = tr('ارسالِ پست ناموفق بود: {0}', [e]);
         _publishing = false;
       });
     }
@@ -118,10 +119,10 @@ class _FeedScreenState extends State<FeedScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('خانه'),
+        title: Text(tr('خانه')),
         actions: [
           IconButton(
-            tooltip: 'کشف و جستجو',
+            tooltip: tr('کشف و جستجو'),
             icon: const Icon(Icons.explore_outlined),
             onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(builder: (_) => const ExploreScreen())),
@@ -145,10 +146,10 @@ class _FeedScreenState extends State<FeedScreen> {
                       ),
                     ),
                   if (_posts.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(32),
+                    Padding(
+                      padding: const EdgeInsets.all(32),
                       child: Text(
-                        'فیدِ شما خالی است.\nاز «کشف» آدم‌های تازه را دنبال کنید.',
+                        tr('فیدِ شما خالی است.\nاز «کشف» آدم‌های تازه را دنبال کنید.'),
                         textAlign: TextAlign.center,
                       ),
                     )
@@ -177,9 +178,9 @@ class _FeedScreenState extends State<FeedScreen> {
               controller: _draftCtrl,
               maxLines: 3,
               minLines: 1,
-              decoration: const InputDecoration(
-                hintText: 'چه خبر؟',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                hintText: tr('چه خبر؟'),
+                border: const OutlineInputBorder(),
               ),
             ),
             if (file != null) ...[
@@ -206,7 +207,7 @@ class _FeedScreenState extends State<FeedScreen> {
                 child: TextButton.icon(
                   onPressed: () => setState(() => _pickedFile = null),
                   icon: const Icon(Icons.close, size: 18),
-                  label: const Text('حذفِ رسانه'),
+                  label: Text(tr('حذفِ رسانه')),
                 ),
               ),
             ],
@@ -216,18 +217,18 @@ class _FeedScreenState extends State<FeedScreen> {
                 OutlinedButton.icon(
                   onPressed: _pickImage,
                   icon: const Icon(Icons.image_outlined, size: 18),
-                  label: const Text('تصویر'),
+                  label: Text(tr('تصویر')),
                 ),
                 const SizedBox(width: 8),
                 OutlinedButton.icon(
                   onPressed: _pickVideo,
                   icon: const Icon(Icons.videocam_outlined, size: 18),
-                  label: const Text('ویدیو'),
+                  label: Text(tr('ویدیو')),
                 ),
                 const Spacer(),
                 FilledButton(
                   onPressed: _publishing ? null : _publish,
-                  child: Text(_publishing ? '…' : 'انتشار'),
+                  child: Text(_publishing ? '…' : tr('انتشار')),
                 ),
               ],
             ),

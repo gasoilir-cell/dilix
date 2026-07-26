@@ -7,6 +7,7 @@ import '../../models/models.dart';
 import '../social/comments_sheet.dart';
 import '../social/profile_screen.dart';
 
+import '../../core/l10n.dart';
 /// کارتِ یک پست؛ در فید، کشف، ذخیره‌شده‌ها و پروفایل مشترک است.
 ///
 /// ⚠ نشانیِ رسانه از سرور **نسبی** است (`/uploads/posts/...`)؛ پیش‌تر مستقیم به
@@ -53,7 +54,7 @@ class _PostCardState extends State<PostCard> {
       if (!mounted) return;
       setState(() => _post = before);
       messenger
-          .showSnackBar(SnackBar(content: Text('ثبتِ واکنش ناموفق بود: $e')));
+          .showSnackBar(SnackBar(content: Text(tr('ثبتِ واکنش ناموفق بود: {0}', [e]))));
     }
   }
 
@@ -68,7 +69,7 @@ class _PostCardState extends State<PostCard> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _post = before);
-      messenger.showSnackBar(SnackBar(content: Text('ذخیره ناموفق بود: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('ذخیره ناموفق بود: {0}', [e]))));
     }
   }
 
@@ -94,15 +95,15 @@ class _PostCardState extends State<PostCard> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('حذفِ پست'),
-        content: const Text('این پست برای همیشه حذف می‌شود.'),
+        title: Text(tr('حذفِ پست')),
+        content: Text(tr('این پست برای همیشه حذف می‌شود.')),
         actions: [
           TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('انصراف')),
+              child: Text(tr('انصراف'))),
           FilledButton(
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('حذف')),
+              child: Text(tr('حذف'))),
         ],
       ),
     );
@@ -112,7 +113,7 @@ class _PostCardState extends State<PostCard> {
       await api.deletePost(_post.id);
       widget.onDeleted?.call();
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('حذف ناموفق بود: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('حذف ناموفق بود: {0}', [e]))));
       if (mounted) setState(() => _busy = false);
     }
   }
@@ -221,7 +222,7 @@ class _PostCardState extends State<PostCard> {
         ),
         if (p.isMine)
           IconButton(
-            tooltip: 'حذفِ پست',
+            tooltip: tr('حذفِ پست'),
             onPressed: _busy ? null : _delete,
             icon: const Icon(Icons.delete_outline, size: 20),
           ),
@@ -247,7 +248,7 @@ class _PostCardState extends State<PostCard> {
           ),
           const Spacer(),
           IconButton(
-            tooltip: p.savedByMe ? 'حذف از ذخیره‌ها' : 'ذخیره',
+            tooltip: p.savedByMe ? tr('حذف از ذخیره‌ها') : tr('ذخیره'),
             onPressed: _save,
             icon: Icon(
               p.savedByMe ? Icons.bookmark : Icons.bookmark_border,

@@ -5,13 +5,14 @@ import '../../app.dart';
 import '../../models/models.dart';
 import 'topup_screen.dart';
 
+import '../../core/l10n.dart';
 /// قالب‌بندیِ مبلغِ خرد (minor) به نمایشِ انسانی.
 ///
 /// ⚠ سرور همه‌چیز را در واحدِ خرد می‌دهد و [scale] برای هر ارز فرق می‌کند
 /// (IRR=1، USD=100، BTC=1e8). تقسیمِ ثابت بر ۱۰۰ ارزِ دیجیتال را خراب می‌کند.
 String formatMinor(int amount, String currency, int scale) {
   final cur = currency.toUpperCase();
-  if (cur == 'IRR') return '${_group((amount / 10).round())} تومان';
+  if (cur == 'IRR') return tr('{0} تومان', [_group((amount / 10).round())]);
   final major = scale <= 0 ? amount.toDouble() : amount / scale;
   final digits = scale >= 1000000 ? 8 : (scale > 1 ? 2 : 0);
   final text = major
@@ -47,7 +48,7 @@ String _group(int n) {
   final s = n.abs().toString();
   final buf = StringBuffer();
   for (var i = 0; i < s.length; i++) {
-    if (i > 0 && (s.length - i) % 3 == 0) buf.write('،');
+    if (i > 0 && (s.length - i) % 3 == 0) buf.write(tr('،'));
     buf.write(s[i]);
   }
   return '${n < 0 ? '-' : ''}$buf';
@@ -94,7 +95,7 @@ class _HoldingsScreenState extends State<HoldingsScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'بارگذاریِ جیب‌ها ممکن نشد: $e';
+        _error = tr('بارگذاریِ جیب‌ها ممکن نشد: {0}', [e]);
         _loading = false;
       });
     }
@@ -118,12 +119,12 @@ class _HoldingsScreenState extends State<HoldingsScreen> {
     final snap = _snapshot;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('جیب‌های ارزی'),
+        title: Text(tr('جیب‌های ارزی')),
         actions: [
           IconButton(
             onPressed: _loading ? null : _load,
             icon: const Icon(Icons.refresh),
-            tooltip: 'تازه‌سازی',
+            tooltip: tr('تازه‌سازی'),
           ),
         ],
       ),
@@ -174,7 +175,7 @@ class _HoldingsScreenState extends State<HoldingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('ارزشِ کل', style: Theme.of(context).textTheme.bodySmall),
+            Text(tr('ارزشِ کل'), style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 4),
             Text(
               formatMinor(s.totalBase, s.baseCurrency, 1),
@@ -183,7 +184,7 @@ class _HoldingsScreenState extends State<HoldingsScreen> {
                   ),
             ),
             const SizedBox(height: 4),
-            Text('≈ ${s.totalUsd.toStringAsFixed(2)} دلار',
+            Text(tr('≈ {0} دلار', [s.totalUsd.toStringAsFixed(2)]),
                 style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
@@ -199,31 +200,31 @@ class _HoldingsScreenState extends State<HoldingsScreen> {
         FilledButton.icon(
           onPressed: () => _openSheet(
             _ExchangeSheet(snapshot: s),
-            successNote: 'تبدیلِ ارز انجام شد.',
+            successNote: tr('تبدیلِ ارز انجام شد.'),
           ),
           icon: const Icon(Icons.swap_horiz),
-          label: const Text('تبدیل'),
+          label: Text(tr('تبدیل')),
         ),
         FilledButton.tonalIcon(
           onPressed: () => _openSheet(
             _SendSheet(snapshot: s),
-            successNote: 'انتقال انجام شد.',
+            successNote: tr('انتقال انجام شد.'),
           ),
           icon: const Icon(Icons.north_east),
-          label: const Text('ارسال'),
+          label: Text(tr('ارسال')),
         ),
         FilledButton.tonalIcon(
           onPressed: () => _openSheet(_ReceiveSheet(snapshot: s)),
           icon: const Icon(Icons.south_west),
-          label: const Text('دریافت'),
+          label: Text(tr('دریافت')),
         ),
         OutlinedButton.icon(
           onPressed: () => _openSheet(
             _WithdrawSheet(snapshot: s),
-            successNote: 'درخواستِ برداشت ثبت شد و در صفِ تسویه است.',
+            successNote: tr('درخواستِ برداشت ثبت شد و در صفِ تسویه است.'),
           ),
           icon: const Icon(Icons.output),
-          label: const Text('برداشت'),
+          label: Text(tr('برداشت')),
         ),
         OutlinedButton.icon(
           onPressed: () async {
@@ -231,12 +232,12 @@ class _HoldingsScreenState extends State<HoldingsScreen> {
               MaterialPageRoute(builder: (_) => const TopupScreen()),
             );
             if (done == true && mounted) {
-              setState(() => _notice = 'شارژ با موفقیت انجام شد.');
+              setState(() => _notice = tr('شارژ با موفقیت انجام شد.'));
               await _load();
             }
           },
           icon: const Icon(Icons.add_card),
-          label: const Text('شارژ'),
+          label: Text(tr('شارژ')),
         ),
       ],
     );
@@ -246,9 +247,9 @@ class _HoldingsScreenState extends State<HoldingsScreen> {
     return Card(
       child: Column(
         children: [
-          const ListTile(
+          ListTile(
             dense: true,
-            title: Text('جیب‌ها', style: TextStyle(fontWeight: FontWeight.bold)),
+            title: Text(tr('جیب‌ها'), style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
           for (final p in s.pockets)
             ListTile(
@@ -261,7 +262,7 @@ class _HoldingsScreenState extends State<HoldingsScreen> {
                 ),
               ),
               title: Text(p.currency),
-              subtitle: p.isPrimary ? const Text('جیبِ اصلی') : null,
+              subtitle: p.isPrimary ? Text(tr('جیبِ اصلی')) : null,
               trailing: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -285,10 +286,10 @@ class _HoldingsScreenState extends State<HoldingsScreen> {
     return Card(
       child: Column(
         children: [
-          const ListTile(
+          ListTile(
             dense: true,
             title:
-                Text('تراکنش‌ها', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(tr('تراکنش‌ها'), style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
           for (final t in _transactions)
             ListTile(
@@ -325,19 +326,19 @@ class _HoldingsScreenState extends State<HoldingsScreen> {
   }
 
   static String _txLabel(String type) => switch (type) {
-        'deposit' => 'واریز',
-        'withdrawal' => 'برداشت',
-        'transfer_in' => 'دریافت',
-        'transfer_out' => 'ارسال',
-        'exchange_in' => 'تبدیل (ورودی)',
-        'exchange_out' => 'تبدیل (خروجی)',
+        'deposit' => tr('واریز'),
+        'withdrawal' => tr('برداشت'),
+        'transfer_in' => tr('دریافت'),
+        'transfer_out' => tr('ارسال'),
+        'exchange_in' => tr('تبدیل (ورودی)'),
+        'exchange_out' => tr('تبدیل (خروجی)'),
         _ => type,
       };
 
   static String _statusLabel(String status) => switch (status) {
-        'pending' => 'در انتظار',
-        'failed' => 'ناموفق',
-        'completed' => 'انجام‌شده',
+        'pending' => tr('در انتظار'),
+        'failed' => tr('ناموفق'),
+        'completed' => tr('انجام‌شده'),
         _ => status,
       };
 }
@@ -412,11 +413,11 @@ class _ExchangeSheetState extends State<_ExchangeSheet> {
   Future<void> _submit() async {
     final amount = _minorAmount();
     if (amount == null) {
-      setState(() => _error = 'مبلغ را وارد کنید.');
+      setState(() => _error = tr('مبلغ را وارد کنید.'));
       return;
     }
     if (_from == _to) {
-      setState(() => _error = 'ارزِ مبدأ و مقصد نباید یکی باشند.');
+      setState(() => _error = tr('ارزِ مبدأ و مقصد نباید یکی باشند.'));
       return;
     }
     setState(() {
@@ -447,18 +448,18 @@ class _ExchangeSheetState extends State<_ExchangeSheet> {
   Widget build(BuildContext context) {
     final fromPocket = _pocket(_from);
     return _SheetFrame(
-      title: 'تبدیلِ ارز',
+      title: tr('تبدیلِ ارز'),
       error: _error,
       busy: _busy,
       onSubmit: _submit,
-      submitLabel: 'تبدیل',
+      submitLabel: tr('تبدیل'),
       children: [
         Row(
           children: [
             Expanded(
               child: DropdownButtonFormField<String>(
                 initialValue: _from,
-                decoration: const InputDecoration(labelText: 'از'),
+                decoration: InputDecoration(labelText: tr('از')),
                 items: [
                   for (final c in _currencies)
                     DropdownMenuItem(value: c, child: Text(c)),
@@ -477,7 +478,7 @@ class _ExchangeSheetState extends State<_ExchangeSheet> {
             Expanded(
               child: DropdownButtonFormField<String>(
                 initialValue: _to,
-                decoration: const InputDecoration(labelText: 'به'),
+                decoration: InputDecoration(labelText: tr('به')),
                 items: [
                   for (final c in _currencies)
                     DropdownMenuItem(value: c, child: Text(c)),
@@ -496,10 +497,10 @@ class _ExchangeSheetState extends State<_ExchangeSheet> {
           controller: _amountCtrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(
-            labelText: 'مبلغ ($_from)',
+            labelText: tr('مبلغ ({0})', [_from]),
             helperText: fromPocket == null
                 ? null
-                : 'موجودی: ${formatMinor(fromPocket.balance, fromPocket.currency, fromPocket.scale)}',
+                : tr('موجودی: {0}', [formatMinor(fromPocket.balance, fromPocket.currency, fromPocket.scale)]),
           ),
           onChanged: (_) => _refreshQuote(),
         ),
@@ -512,7 +513,7 @@ class _ExchangeSheetState extends State<_ExchangeSheet> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('دریافت می‌کنید'),
+                  Text(tr('دریافت می‌کنید')),
                   Text(
                     formatMinor(
                         _quote!.converted, _quote!.toCurrency, _quote!.toScale),
@@ -558,11 +559,11 @@ class _SendSheetState extends State<_SendSheet> {
     final v = double.tryParse(_amountCtrl.text.trim());
     final to = _toCtrl.text.trim().toUpperCase();
     if (to.length < 3) {
-      setState(() => _error = 'Earth ID گیرنده را وارد کنید.');
+      setState(() => _error = tr('Earth ID گیرنده را وارد کنید.'));
       return;
     }
     if (v == null || v <= 0) {
-      setState(() => _error = 'مبلغ را وارد کنید.');
+      setState(() => _error = tr('مبلغ را وارد کنید.'));
       return;
     }
     setState(() {
@@ -599,15 +600,15 @@ class _SendSheetState extends State<_SendSheet> {
   Widget build(BuildContext context) {
     final p = _pocket;
     return _SheetFrame(
-      title: 'ارسال به کاربرِ نقطه',
+      title: tr('ارسال به کاربرِ نقطه'),
       error: _error,
       busy: _busy,
       onSubmit: _submit,
-      submitLabel: 'ارسال',
+      submitLabel: tr('ارسال'),
       children: [
         DropdownButtonFormField<String>(
           initialValue: _currency,
-          decoration: const InputDecoration(labelText: 'ارز'),
+          decoration: InputDecoration(labelText: tr('ارز')),
           items: [
             for (final x in widget.snapshot.pockets)
               DropdownMenuItem(value: x.currency, child: Text(x.currency)),
@@ -618,9 +619,9 @@ class _SendSheetState extends State<_SendSheet> {
         TextField(
           controller: _toCtrl,
           textCapitalization: TextCapitalization.characters,
-          decoration: const InputDecoration(
-            labelText: 'Earth ID گیرنده',
-            hintText: 'مثلاً EA1234',
+          decoration: InputDecoration(
+            labelText: tr('Earth ID گیرنده'),
+            hintText: tr('مثلاً EA1234'),
           ),
         ),
         const SizedBox(height: 12),
@@ -628,16 +629,16 @@ class _SendSheetState extends State<_SendSheet> {
           controller: _amountCtrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(
-            labelText: 'مبلغ ($_currency)',
+            labelText: tr('مبلغ ({0})', [_currency]),
             helperText: p == null
                 ? null
-                : 'موجودی: ${formatMinor(p.balance, p.currency, p.scale)}',
+                : tr('موجودی: {0}', [formatMinor(p.balance, p.currency, p.scale)]),
           ),
         ),
         const SizedBox(height: 12),
         TextField(
           controller: _noteCtrl,
-          decoration: const InputDecoration(labelText: 'توضیح (اختیاری)'),
+          decoration: InputDecoration(labelText: tr('توضیح (اختیاری)')),
         ),
       ],
     );
@@ -681,12 +682,12 @@ class _ReceiveSheetState extends State<_ReceiveSheet> {
   Widget build(BuildContext context) {
     final info = _info;
     return _SheetFrame(
-      title: 'دریافت',
+      title: tr('دریافت'),
       busy: _busy,
       children: [
         DropdownButtonFormField<String>(
           initialValue: _currency,
-          decoration: const InputDecoration(labelText: 'ارز'),
+          decoration: InputDecoration(labelText: tr('ارز')),
           items: [
             for (final x in widget.snapshot.pockets)
               DropdownMenuItem(value: x.currency, child: Text(x.currency)),
@@ -698,10 +699,10 @@ class _ReceiveSheetState extends State<_ReceiveSheet> {
         ),
         const SizedBox(height: 12),
         if (info != null) ...[
-          _copyRow(context, 'Earth ID شما (دریافتِ درون‌شبکه‌ای)', info.earthId),
+          _copyRow(context, tr('Earth ID شما (دریافتِ درون‌شبکه‌ای)'), info.earthId),
           if (info.isCrypto && info.address != null) ...[
             const SizedBox(height: 8),
-            _copyRow(context, 'آدرسِ واریز (${info.network ?? ''})',
+            _copyRow(context, tr('آدرسِ واریز ({0})', [info.network ?? '']),
                 info.address!),
           ],
           if (info.note != null) ...[
@@ -721,12 +722,12 @@ class _ReceiveSheetState extends State<_ReceiveSheet> {
             style: const TextStyle(fontWeight: FontWeight.bold)),
         trailing: IconButton(
           icon: const Icon(Icons.copy),
-          tooltip: 'کپی',
+          tooltip: tr('کپی'),
           onPressed: () async {
             await Clipboard.setData(ClipboardData(text: value));
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('کپی شد.')),
+                SnackBar(content: Text(tr('کپی شد.'))),
               );
             }
           },
@@ -768,11 +769,11 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
     final v = double.tryParse(_amountCtrl.text.trim());
     final address = _addressCtrl.text.trim();
     if (address.length < 6) {
-      setState(() => _error = 'آدرسِ مقصد را وارد کنید.');
+      setState(() => _error = tr('آدرسِ مقصد را وارد کنید.'));
       return;
     }
     if (v == null || v <= 0) {
-      setState(() => _error = 'مبلغ را وارد کنید.');
+      setState(() => _error = tr('مبلغ را وارد کنید.'));
       return;
     }
     setState(() {
@@ -807,20 +808,20 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
   Widget build(BuildContext context) {
     final p = _pocket;
     return _SheetFrame(
-      title: 'برداشت به آدرسِ بیرونی',
+      title: tr('برداشت به آدرسِ بیرونی'),
       error: _error,
       busy: _busy,
       onSubmit: _submit,
-      submitLabel: 'ثبتِ برداشت',
+      submitLabel: tr('ثبتِ برداشت'),
       children: [
         Text(
-          'برداشتِ بیرونی فقط برای ارزِ دیجیتال ممکن است و پس از ثبت در صفِ تسویه قرار می‌گیرد.',
+          tr('برداشتِ بیرونی فقط برای ارزِ دیجیتال ممکن است و پس از ثبت در صفِ تسویه قرار می‌گیرد.'),
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
           initialValue: _currency,
-          decoration: const InputDecoration(labelText: 'ارز'),
+          decoration: InputDecoration(labelText: tr('ارز')),
           items: [
             for (final x in widget.snapshot.pockets)
               DropdownMenuItem(value: x.currency, child: Text(x.currency)),
@@ -830,17 +831,17 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
         const SizedBox(height: 12),
         TextField(
           controller: _addressCtrl,
-          decoration: const InputDecoration(labelText: 'آدرسِ مقصد'),
+          decoration: InputDecoration(labelText: tr('آدرسِ مقصد')),
         ),
         const SizedBox(height: 12),
         TextField(
           controller: _amountCtrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(
-            labelText: 'مبلغ ($_currency)',
+            labelText: tr('مبلغ ({0})', [_currency]),
             helperText: p == null
                 ? null
-                : 'موجودی: ${formatMinor(p.balance, p.currency, p.scale)}',
+                : tr('موجودی: {0}', [formatMinor(p.balance, p.currency, p.scale)]),
           ),
         ),
       ],
@@ -901,7 +902,7 @@ class _SheetFrame extends StatelessWidget {
                         width: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : Text(submitLabel ?? 'ثبت'),
+                    : Text(submitLabel ?? tr('ثبت')),
               ),
             ],
           ],

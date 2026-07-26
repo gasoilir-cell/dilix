@@ -3,9 +3,11 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/testing.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:dilix_mobile/app.dart';
 import 'package:dilix_mobile/core/api_client.dart';
+import 'package:dilix_mobile/core/preferences.dart';
 import 'package:dilix_mobile/features/shell/home_shell.dart';
 
 /// کلاینتِ ساختگی که همه‌ی درخواست‌ها را با آرایه‌ی خالی پاسخ می‌دهد (بدونِ شبکه).
@@ -16,25 +18,34 @@ ApiClient _fakeApi() {
   return ApiClient(client: mock, baseUrl: 'http://test.local');
 }
 
-Widget _wrap(Widget child, ApiClient api) {
-  return ApiScope(
-    api: api,
-    child: MaterialApp(
-      locale: const Locale('fa'),
-      supportedLocales: const [Locale('fa')],
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      home: child,
+/// چیدمانِ کمینه‌ی اپ برای آزمون: [PreferencesScope] لازم است چون پوسته زبانِ
+/// جاری را از آن می‌خواند. زبان صریحاً فارسی است تا برچسب‌ها با متنِ مبدأ
+/// سنجیده شوند (زبانِ دستگاهِ محیطِ آزمون فارسی نیست).
+Future<Widget> _wrap(Widget child, ApiClient api) async {
+  SharedPreferences.setMockInitialValues({});
+  final prefs = PreferencesController();
+  await prefs.setLocale('fa');
+  return PreferencesScope(
+    controller: prefs,
+    child: ApiScope(
+      api: api,
+      child: MaterialApp(
+        locale: const Locale('fa'),
+        supportedLocales: const [Locale('fa')],
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        home: child,
+      ),
     ),
   );
 }
 
 void main() {
   testWidgets('پوسته‌ی اصلی ۵ مقصدِ ناوبری را نشان می‌دهد', (tester) async {
-    await tester.pumpWidget(_wrap(const HomeShell(), _fakeApi()));
+    await tester.pumpWidget(await _wrap(const HomeShell(), _fakeApi()));
     await tester.pump();
 
     expect(find.text('خانه'), findsWidgets);
@@ -47,7 +58,7 @@ void main() {
   });
 
   testWidgets('فیدِ خالی پیامِ مناسب نشان می‌دهد', (tester) async {
-    await tester.pumpWidget(_wrap(const HomeShell(), _fakeApi()));
+    await tester.pumpWidget(await _wrap(const HomeShell(), _fakeApi()));
     await tester.pumpAndSettle();
     expect(
       find.text('فیدِ شما خالی است.\nاز «کشف» آدم‌های تازه را دنبال کنید.'),

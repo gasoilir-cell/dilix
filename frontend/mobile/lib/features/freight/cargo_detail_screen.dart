@@ -4,8 +4,12 @@ import '../../app.dart';
 import '../../core/location_service.dart';
 import '../../models/models.dart';
 
+import '../../core/l10n.dart';
 /// برچسبِ فارسیِ وضعیت‌های واقعیِ سرور (`CargoPost.status`).
-const cargoStatusLabels = <String, String>{
+Map<String, String> get cargoStatusLabels =>
+    cargoStatusLabelsSrc.map((k, v) => MapEntry(k, tr(v)));
+
+const cargoStatusLabelsSrc = <String, String>{
   'open': 'باز',
   'in_progress': 'پذیرفته‌شده',
   'picked_up': 'تحویل‌گرفته‌شده',
@@ -84,7 +88,7 @@ class _CargoDetailScreenState extends State<CargoDetailScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'بارگذاریِ اطلاعاتِ حمل ممکن نشد.\n$e';
+        _error = tr('بارگذاریِ اطلاعاتِ حمل ممکن نشد.\n{0}', [e]);
         _loading = false;
       });
     }
@@ -126,29 +130,29 @@ class _CargoDetailScreenState extends State<CargoDetailScreen> {
 
   Future<void> _take() => _run(
         () => ApiScope.of(context).takeCargo(widget.postId),
-        'بار پذیرفته شد؛ وجهِ صاحبِ بار امانی شد.',
+        tr('بار پذیرفته شد؛ وجهِ صاحبِ بار امانی شد.'),
       );
 
   Future<void> _pickup() async {
-    final code = await _askCode('کدِ مبدأ', 'کدِ ۴رقمی را از صاحبِ بار بگیرید.');
+    final code = await _askCode(tr('کدِ مبدأ'), tr('کدِ ۴رقمی را از صاحبِ بار بگیرید.'));
     if (code == null) return;
     await _run(
       () => ApiScope.of(context).pickupCargo(widget.postId, code),
-      'تحویل‌گیری در مبدأ ثبت شد.',
+      tr('تحویل‌گیری در مبدأ ثبت شد.'),
     );
   }
 
   Future<void> _deliver() => _run(
         () => ApiScope.of(context).deliverCargo(widget.postId),
-        'تحویل در مقصد ثبت شد؛ منتظرِ تأییدِ گیرنده بمانید.',
+        tr('تحویل در مقصد ثبت شد؛ منتظرِ تأییدِ گیرنده بمانید.'),
       );
 
   Future<void> _receive() async {
-    final code = await _askCode('کدِ مقصد', 'کدِ ۴رقمیِ مقصد را وارد کنید.');
+    final code = await _askCode(tr('کدِ مقصد'), tr('کدِ ۴رقمیِ مقصد را وارد کنید.'));
     if (code == null) return;
     await _run(
       () => ApiScope.of(context).receiveCargo(widget.postId, code),
-      'دریافت تأیید و حمل تسویه شد.',
+      tr('دریافت تأیید و حمل تسویه شد.'),
     );
   }
 
@@ -156,18 +160,17 @@ class _CargoDetailScreenState extends State<CargoDetailScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('لغوِ بار'),
-        content: const Text(
-          'اگر بار پذیرفته شده باشد، وجهِ امانی کاملاً به شما بازمی‌گردد. '
-          'پس از تحویل‌گیری دیگر لغو ممکن نیست.',
+        title: Text(tr('لغوِ بار')),
+        content: Text(
+          tr('اگر بار پذیرفته شده باشد، وجهِ امانی کاملاً به شما بازمی‌گردد. پس از تحویل‌گیری دیگر لغو ممکن نیست.'),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('بی‌خیال')),
+              child: Text(tr('بی‌خیال'))),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('لغو کن')),
+              child: Text(tr('لغو کن'))),
         ],
       ),
     );
@@ -177,7 +180,7 @@ class _CargoDetailScreenState extends State<CargoDetailScreen> {
     try {
       await ApiScope.of(context).cancelCargo(widget.postId);
       if (!mounted) return;
-      messenger.showSnackBar(const SnackBar(content: Text('بار لغو شد.')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('بار لغو شد.'))));
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
@@ -226,8 +229,8 @@ class _CargoDetailScreenState extends State<CargoDetailScreen> {
       });
       messenger.showSnackBar(SnackBar(
         content: Text(existing == null
-            ? 'پیشنهادِ شما ثبت شد.'
-            : 'پیشنهادِ شما به‌روزرسانی شد.'),
+            ? tr('پیشنهادِ شما ثبت شد.')
+            : tr('پیشنهادِ شما به‌روزرسانی شد.')),
       ));
       await _reloadOffers();
     } catch (e) {
@@ -247,7 +250,7 @@ class _CargoDetailScreenState extends State<CargoDetailScreen> {
         _busy = false;
         _changed = true;
       });
-      messenger.showSnackBar(const SnackBar(content: Text('پیشنهاد پس گرفته شد.')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('پیشنهاد پس گرفته شد.'))));
       await _reloadOffers();
     } catch (e) {
       if (!mounted) return;
@@ -260,25 +263,24 @@ class _CargoDetailScreenState extends State<CargoDetailScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('پذیرشِ پیشنهاد'),
+        title: Text(tr('پذیرشِ پیشنهاد')),
         content: Text(
-          'با پذیرش، ${_money(offer.price ~/ 10)} تومان از کیفِ پولِ شما امانی '
-          'می‌شود و بقیهٔ پیشنهادها رد می‌شوند. این کار برگشت‌پذیر نیست.',
+          tr('با پذیرش، {0} تومان از کیفِ پولِ شما امانی می‌شود و بقیهٔ پیشنهادها رد می‌شوند. این کار برگشت‌پذیر نیست.', [_money(offer.price ~/ 10)]),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('بی‌خیال')),
+              child: Text(tr('بی‌خیال'))),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('می‌پذیرم')),
+              child: Text(tr('می‌پذیرم'))),
         ],
       ),
     );
     if (ok != true || !mounted) return;
     await _run(
       () => ApiScope.of(context).acceptCargoOffer(offer.id),
-      'پیشنهاد پذیرفته شد و راننده تخصیص یافت.',
+      tr('پیشنهاد پذیرفته شد و راننده تخصیص یافت.'),
     );
   }
 
@@ -298,7 +300,7 @@ class _CargoDetailScreenState extends State<CargoDetailScreen> {
     await _run(
       () => ApiScope.of(context)
           .updateCargoLocation(widget.postId, lat: fix.lat, lng: fix.lng),
-      'موقعیتِ شما ثبت شد.',
+      tr('موقعیتِ شما ثبت شد.'),
     );
   }
 
@@ -319,13 +321,13 @@ class _CargoDetailScreenState extends State<CargoDetailScreen> {
         _busy = false;
         _rated = true;
       });
-      messenger.showSnackBar(const SnackBar(content: Text('امتیازِ شما ثبت شد.')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('امتیازِ شما ثبت شد.'))));
     } catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
       // سرور برای امتیازِ تکراری ۴۰۰ می‌دهد؛ همان را نشان می‌دهیم و دکمه را
       // پنهان می‌کنیم تا کاربر دوباره تلاش نکند.
-      if (_message(e).contains('قبلاً')) setState(() => _rated = true);
+      if (_message(e).contains(tr('قبلاً'))) setState(() => _rated = true);
       messenger.showSnackBar(SnackBar(content: Text(_message(e))));
     }
   }
@@ -345,13 +347,13 @@ class _CargoDetailScreenState extends State<CargoDetailScreen> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('انصراف')),
+              onPressed: () => Navigator.pop(ctx), child: Text(tr('انصراف'))),
           FilledButton(
             onPressed: () {
               final v = ctrl.text.trim();
               Navigator.pop(ctx, v.isEmpty ? null : v);
             },
-            child: const Text('تأیید'),
+            child: Text(tr('تأیید')),
           ),
         ],
       ),
@@ -367,7 +369,7 @@ class _CargoDetailScreenState extends State<CargoDetailScreen> {
         if (!didPop) Navigator.of(context).pop(_changed);
       },
       child: Scaffold(
-        appBar: AppBar(title: Text(p?.ref ?? 'جزئیاتِ حمل')),
+        appBar: AppBar(title: Text(p?.ref ?? tr('جزئیاتِ حمل'))),
         body: _loading
             ? const Center(child: CircularProgressIndicator())
             : _error != null
@@ -419,11 +421,11 @@ class _CargoDetailScreenState extends State<CargoDetailScreen> {
             _row(Icons.route_outlined, '${p.origin} ← ${p.destination}'),
             _row(Icons.scale_outlined, _weight(p.weightGrams)),
             if (p.budgetMinor != null && p.budgetMinor! > 0)
-              _row(Icons.payments_outlined, '${_money(p.budgetMinor!)} تومان'),
+              _row(Icons.payments_outlined, tr('{0} تومان', [_money(p.budgetMinor!)])),
             if (p.escrowStatus != null)
-              _row(Icons.lock_outline, 'وجهِ امانی: ${_escrow(p.escrowStatus!)}'),
+              _row(Icons.lock_outline, tr('وجهِ امانی: {0}', [_escrow(p.escrowStatus!)])),
             if (p.consigneeName != null)
-              _row(Icons.person_outline, 'گیرنده: ${p.consigneeName}'),
+              _row(Icons.person_outline, tr('گیرنده: {0}', [p.consigneeName])),
             if (p.description != null && p.description!.isNotEmpty) ...[
               const Divider(height: 24),
               Text(p.description!, style: t.bodySmall),
@@ -442,23 +444,22 @@ class _CargoDetailScreenState extends State<CargoDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('کدهای تأیید',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(tr('کدهای تأیید'),
+                style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
             Text(
-              'کدِ مبدأ را هنگامِ بارگیری به راننده بدهید؛ کدِ مقصد را فقط پس از '
-              'دریافتِ سالمِ بار وارد کنید.',
+              tr('کدِ مبدأ را هنگامِ بارگیری به راننده بدهید؛ کدِ مقصد را فقط پس از دریافتِ سالمِ بار وارد کنید.'),
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 8),
             Row(
               children: [
                 if (p.pickupCode != null)
-                  Expanded(child: _codeBox('مبدأ', p.pickupCode!)),
+                  Expanded(child: _codeBox(tr('مبدأ'), p.pickupCode!)),
                 if (p.pickupCode != null && p.deliveryCode != null)
                   const SizedBox(width: 8),
                 if (p.deliveryCode != null)
-                  Expanded(child: _codeBox('مقصد', p.deliveryCode!)),
+                  Expanded(child: _codeBox(tr('مقصد'), p.deliveryCode!)),
               ],
             ),
           ],
@@ -491,53 +492,53 @@ class _CargoDetailScreenState extends State<CargoDetailScreen> {
       buttons.add(FilledButton.icon(
         onPressed: _busy ? null : _makeOffer,
         icon: const Icon(Icons.local_offer_outlined),
-        label: Text(mine == null ? 'پیشنهادِ قیمت' : 'ویرایشِ پیشنهاد'),
+        label: Text(mine == null ? tr('پیشنهادِ قیمت') : tr('ویرایشِ پیشنهاد')),
       ));
       if (mine != null) {
         buttons.add(OutlinedButton.icon(
           onPressed: _busy ? null : () => _withdrawOffer(mine),
           icon: const Icon(Icons.undo),
-          label: const Text('پس‌گرفتنِ پیشنهاد'),
+          label: Text(tr('پس‌گرفتنِ پیشنهاد')),
         ));
       }
       // پذیرشِ مستقیم با کرایهٔ اعلامیِ صاحبِ بار، بدونِ چانه‌زنی.
       buttons.add(OutlinedButton.icon(
         onPressed: _busy ? null : _take,
         icon: const Icon(Icons.local_shipping_outlined),
-        label: const Text('پذیرشِ بار با کرایهٔ اعلامی'),
+        label: Text(tr('پذیرشِ بار با کرایهٔ اعلامی')),
       ));
     }
     if (_isDriver && p.status == 'in_progress') {
       buttons.add(FilledButton.icon(
         onPressed: _busy ? null : _pickup,
         icon: const Icon(Icons.qr_code_2),
-        label: const Text('تحویل‌گیری با کدِ مبدأ'),
+        label: Text(tr('تحویل‌گیری با کدِ مبدأ')),
       ));
     }
     if (_isDriver && (p.status == 'picked_up' || p.status == 'in_transit')) {
       buttons.add(OutlinedButton.icon(
         onPressed: _busy ? null : _sendLocation,
         icon: const Icon(Icons.my_location),
-        label: const Text('ثبتِ موقعیتِ فعلی'),
+        label: Text(tr('ثبتِ موقعیتِ فعلی')),
       ));
       buttons.add(FilledButton.icon(
         onPressed: _busy ? null : _deliver,
         icon: const Icon(Icons.done_all),
-        label: const Text('ثبتِ تحویل در مقصد'),
+        label: Text(tr('ثبتِ تحویل در مقصد')),
       ));
     }
     if (_isOwner && p.status == 'delivered') {
       buttons.add(FilledButton.icon(
         onPressed: _busy ? null : _receive,
         icon: const Icon(Icons.verified_outlined),
-        label: const Text('تأییدِ دریافت با کدِ مقصد'),
+        label: Text(tr('تأییدِ دریافت با کدِ مقصد')),
       ));
     }
     if (_isOwner && (p.isOpen || p.status == 'in_progress')) {
       buttons.add(OutlinedButton.icon(
         onPressed: _busy ? null : _cancel,
         icon: const Icon(Icons.cancel_outlined),
-        label: const Text('لغوِ بار'),
+        label: Text(tr('لغوِ بار')),
       ));
     }
     // امتیازدهیِ متقابل فقط پس از تسویه و فقط برای طرفینِ حمل.
@@ -545,7 +546,7 @@ class _CargoDetailScreenState extends State<CargoDetailScreen> {
       buttons.add(FilledButton.icon(
         onPressed: _busy ? null : _rate,
         icon: const Icon(Icons.star_outline),
-        label: Text(_isOwner ? 'امتیاز به راننده' : 'امتیاز به صاحبِ بار'),
+        label: Text(_isOwner ? tr('امتیاز به راننده') : tr('امتیاز به صاحبِ بار')),
       ));
     }
 
@@ -555,8 +556,8 @@ class _CargoDetailScreenState extends State<CargoDetailScreen> {
           padding: const EdgeInsets.all(16),
           child: Text(
             p.status == 'received'
-                ? 'این حمل کامل و تسویه شده است.'
-                : 'در این مرحله کنشی از سمتِ شما لازم نیست.',
+                ? tr('این حمل کامل و تسویه شده است.')
+                : tr('در این مرحله کنشی از سمتِ شما لازم نیست.'),
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ),
@@ -586,7 +587,7 @@ class _CargoDetailScreenState extends State<CargoDetailScreen> {
       return Card(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Text('هنوز پیشنهادی برای این بار ثبت نشده است.',
+          child: Text(tr('هنوز پیشنهادی برای این بار ثبت نشده است.'),
               style: Theme.of(context).textTheme.bodySmall),
         ),
       );
@@ -597,7 +598,7 @@ class _CargoDetailScreenState extends State<CargoDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(_isOwner ? 'پیشنهادهای رانندگان' : 'پیشنهادِ من',
+            Text(_isOwner ? tr('پیشنهادهای رانندگان') : tr('پیشنهادِ من'),
                 style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             for (final o in _offers) _offerRow(o, p),
@@ -618,19 +619,19 @@ class _CargoDetailScreenState extends State<CargoDetailScreen> {
             children: [
               Expanded(
                 child: Text(
-                  o.driverName?.isNotEmpty == true ? o.driverName! : 'راننده',
+                  o.driverName?.isNotEmpty == true ? o.driverName! : tr('راننده'),
                   style: t.titleSmall,
                 ),
               ),
               if (o.best)
-                const Padding(
-                  padding: EdgeInsets.only(left: 6),
+                Padding(
+                  padding: const EdgeInsets.only(left: 6),
                   child: Chip(
-                    label: Text('بهترین'),
+                    label: Text(tr('بهترین')),
                     visualDensity: VisualDensity.compact,
                   ),
                 ),
-              Text('${_money(o.price ~/ 10)} تومان',
+              Text(tr('{0} تومان', [_money(o.price ~/ 10)]),
                   style: t.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
             ],
           ),
@@ -640,10 +641,10 @@ class _CargoDetailScreenState extends State<CargoDetailScreen> {
               const SizedBox(width: 3),
               Text(o.driverRating.toStringAsFixed(1), style: t.bodySmall),
               const SizedBox(width: 10),
-              Text('${o.driverTrips} سفر', style: t.bodySmall),
+              Text(tr('{0} سفر', [o.driverTrips]), style: t.bodySmall),
               if (o.etaDays != null) ...[
                 const SizedBox(width: 10),
-                Text('حدودِ ${o.etaDays} روز', style: t.bodySmall),
+                Text(tr('حدودِ {0} روز', [o.etaDays]), style: t.bodySmall),
               ],
             ],
           ),
@@ -657,7 +658,7 @@ class _CargoDetailScreenState extends State<CargoDetailScreen> {
               alignment: AlignmentDirectional.centerStart,
               child: TextButton(
                 onPressed: _busy ? null : () => _acceptOffer(o),
-                child: const Text('پذیرشِ این پیشنهاد'),
+                child: Text(tr('پذیرشِ این پیشنهاد')),
               ),
             ),
         ],
@@ -673,8 +674,8 @@ class _CargoDetailScreenState extends State<CargoDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('خطِ زمانیِ رهگیری',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(tr('خطِ زمانیِ رهگیری'),
+                style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             for (final e in _events)
               Padding(
@@ -719,23 +720,23 @@ class _CargoDetailScreenState extends State<CargoDetailScreen> {
     final kg = grams / 1000;
     final text =
         kg == kg.roundToDouble() ? kg.round().toString() : kg.toStringAsFixed(1);
-    return '$text کیلوگرم';
+    return tr('{0} کیلوگرم', [text]);
   }
 
   static String _money(int v) {
     final s = v.toString();
     final buf = StringBuffer();
     for (var i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) buf.write('،');
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(tr('،'));
       buf.write(s[i]);
     }
     return buf.toString();
   }
 
   static String _escrow(String s) => switch (s) {
-        'locked' => 'بلوکه‌شده',
-        'released' => 'آزادشده',
-        'refunded' => 'بازگردانده‌شده',
+        'locked' => tr('بلوکه‌شده'),
+        'released' => tr('آزادشده'),
+        'refunded' => tr('بازگردانده‌شده'),
         _ => s,
       };
 
@@ -751,13 +752,13 @@ class _CargoDetailScreenState extends State<CargoDetailScreen> {
       };
 
   static String _eventLabel(String t) => switch (t) {
-        'created' => 'بار ثبت شد',
-        'accepted' => 'راننده تخصیص یافت',
-        'picked_up' => 'بار در مبدأ تحویل گرفته شد',
-        'location' => 'موقعیتِ تازه ثبت شد',
-        'delivered' => 'بار در مقصد تحویل داده شد',
-        'received' => 'دریافت تأیید شد',
-        'cancelled' => 'بار لغو شد',
+        'created' => tr('بار ثبت شد'),
+        'accepted' => tr('راننده تخصیص یافت'),
+        'picked_up' => tr('بار در مبدأ تحویل گرفته شد'),
+        'location' => tr('موقعیتِ تازه ثبت شد'),
+        'delivered' => tr('بار در مقصد تحویل داده شد'),
+        'received' => tr('دریافت تأیید شد'),
+        'cancelled' => tr('بار لغو شد'),
         _ => t,
       };
 
@@ -800,9 +801,9 @@ class _OfferDialogState extends State<_OfferDialog> {
   }
 
   void _submit() {
-    final toman = int.tryParse(_price.text.trim().replaceAll('،', ''));
+    final toman = int.tryParse(_price.text.trim().replaceAll(tr('،'), ''));
     if (toman == null || toman <= 0) {
-      setState(() => _error = 'کرایهٔ پیشنهادی را وارد کنید.');
+      setState(() => _error = tr('کرایهٔ پیشنهادی را وارد کنید.'));
       return;
     }
     final eta = int.tryParse(_eta.text.trim());
@@ -812,7 +813,7 @@ class _OfferDialogState extends State<_OfferDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(widget.existing == null ? 'پیشنهادِ قیمت' : 'ویرایشِ پیشنهاد'),
+      title: Text(widget.existing == null ? tr('پیشنهادِ قیمت') : tr('ویرایشِ پیشنهاد')),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -821,18 +822,18 @@ class _OfferDialogState extends State<_OfferDialog> {
               controller: _price,
               autofocus: true,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'کرایهٔ پیشنهادی (تومان)',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: tr('کرایهٔ پیشنهادی (تومان)'),
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: _eta,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'زمانِ تخمینی (روز) — اختیاری',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: tr('زمانِ تخمینی (روز) — اختیاری'),
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 10),
@@ -840,9 +841,9 @@ class _OfferDialogState extends State<_OfferDialog> {
               controller: _msg,
               maxLines: 2,
               maxLength: 500,
-              decoration: const InputDecoration(
-                labelText: 'توضیح برای صاحبِ بار — اختیاری',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: tr('توضیح برای صاحبِ بار — اختیاری'),
+                border: const OutlineInputBorder(),
               ),
             ),
             if (_error != null)
@@ -858,8 +859,8 @@ class _OfferDialogState extends State<_OfferDialog> {
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('انصراف')),
-        FilledButton(onPressed: _submit, child: const Text('ثبت')),
+            child: Text(tr('انصراف'))),
+        FilledButton(onPressed: _submit, child: Text(tr('ثبت'))),
       ],
     );
   }
@@ -886,7 +887,7 @@ class _RatingDialogState extends State<_RatingDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('امتیازِ این حمل'),
+      title: Text(tr('امتیازِ این حمل')),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -905,9 +906,9 @@ class _RatingDialogState extends State<_RatingDialog> {
             controller: _comment,
             maxLines: 2,
             maxLength: 500,
-            decoration: const InputDecoration(
-              labelText: 'نظرِ شما — اختیاری',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: tr('نظرِ شما — اختیاری'),
+              border: const OutlineInputBorder(),
             ),
           ),
         ],
@@ -915,10 +916,10 @@ class _RatingDialogState extends State<_RatingDialog> {
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('انصراف')),
+            child: Text(tr('انصراف'))),
         FilledButton(
           onPressed: () => Navigator.pop(context, (_score, _comment.text.trim())),
-          child: const Text('ثبتِ امتیاز'),
+          child: Text(tr('ثبتِ امتیاز')),
         ),
       ],
     );

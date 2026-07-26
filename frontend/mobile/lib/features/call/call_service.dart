@@ -6,6 +6,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import '../../core/api_client.dart';
 
+import '../../core/l10n.dart';
 /// فازِ تماس.
 enum CallPhase { idle, outgoing, incoming, connecting, active }
 
@@ -109,11 +110,12 @@ class CallService extends ChangeNotifier {
   @visibleForTesting
   void debugSetPhase(
     CallPhase phase, {
-    String peerName = 'آزمون',
+    // پیش‌فرضِ پارامتر باید ثابتِ زمانِ کامپایل باشد و `tr()` نیست
+    String? peerName,
     CallMedia media = CallMedia.audio,
   }) {
     _phase = phase;
-    _peerName = peerName;
+    _peerName = peerName ?? tr('آزمون');
     _media = media;
     notifyListeners();
   }
@@ -284,7 +286,7 @@ class CallService extends ChangeNotifier {
         sdp: _localDesc(local),
       );
       if (status == 'offline') {
-        _error = 'مخاطب در دسترس نیست.';
+        _error = tr('مخاطب در دسترس نیست.');
         _peerId = peerId.toUpperCase();
         await _logCall('no_answer', 0);
         _teardown();
@@ -295,12 +297,12 @@ class CallService extends ChangeNotifier {
       _ringTimer = Timer(_ringTimeout, () async {
         if (_phase != CallPhase.outgoing) return;
         await _signal('cancel');
-        _error = 'پاسخی داده نشد.';
+        _error = tr('پاسخی داده نشد.');
         await _logCall('no_answer', 0);
         _teardown();
       });
     } catch (_) {
-      _error = 'برقراریِ تماس ناموفق بود.';
+      _error = tr('برقراریِ تماس ناموفق بود.');
       _teardown();
     }
   }
@@ -331,7 +333,7 @@ class CallService extends ChangeNotifier {
       _activeSince = DateTime.now();
       notifyListeners();
     } catch (_) {
-      _error = 'پاسخ به تماس ناموفق بود.';
+      _error = tr('پاسخ به تماس ناموفق بود.');
       await _signal('reject');
       _teardown();
     }
@@ -385,7 +387,7 @@ class CallService extends ChangeNotifier {
         _outgoing = false;
         _remoteSet = false;
         _peerId = ((s['from'] ?? '') as String).toUpperCase();
-        _peerName = (s['from_name'] as String?) ?? (s['from'] as String?) ?? 'تماس';
+        _peerName = (s['from_name'] as String?) ?? (s['from'] as String?) ?? tr('تماس');
         _peerAvatar = s['from_avatar'] as String?;
         _callId = callId;
         _pendingOfferSdp = s['sdp'] as String?;
@@ -411,7 +413,7 @@ class CallService extends ChangeNotifier {
           _activeSince = DateTime.now();
           notifyListeners();
         } catch (_) {
-          _error = 'اتصال ناموفق بود.';
+          _error = tr('اتصال ناموفق بود.');
           await _logCall('failed', 0);
           _teardown();
         }
@@ -419,7 +421,7 @@ class CallService extends ChangeNotifier {
 
       case 'reject':
         if (_outgoing && _phase == CallPhase.outgoing && callId == _callId) {
-          _error = 'تماس رد شد.';
+          _error = tr('تماس رد شد.');
           await _logCall('rejected', 0);
           _teardown();
         }
@@ -427,7 +429,7 @@ class CallService extends ChangeNotifier {
 
       case 'busy':
         if (_outgoing && _phase == CallPhase.outgoing && callId == _callId) {
-          _error = 'مخاطب مشغول است.';
+          _error = tr('مخاطب مشغول است.');
           await _logCall('no_answer', 0);
           _teardown();
         }

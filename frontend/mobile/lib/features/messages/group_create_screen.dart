@@ -5,6 +5,7 @@ import '../../core/api_client.dart';
 import '../../models/models.dart';
 import 'chat_sheets.dart';
 
+import '../../core/l10n.dart';
 /// ساختِ گروهِ گفتگو: نامِ گروه + فهرستِ اعضا با Earth ID.
 ///
 /// اعضا از دو راه اضافه می‌شوند: انتخاب از میانِ گفتگوهای دوطرفهٔ موجود، یا
@@ -56,7 +57,7 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
   }
 
   Future<void> _addManual() async {
-    final id = await promptEarthId(context, title: 'افزودنِ عضو با Earth ID');
+    final id = await promptEarthId(context, title: tr('افزودنِ عضو با Earth ID'));
     if (id == null || id.isEmpty) return;
     setState(() => _selected[id] = id);
   }
@@ -64,11 +65,11 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
   Future<void> _submit() async {
     final name = _nameCtrl.text.trim();
     if (name.length < 2) {
-      setState(() => _error = 'نامِ گروه حداقل ۲ نویسه باشد.');
+      setState(() => _error = tr('نامِ گروه حداقل ۲ نویسه باشد.'));
       return;
     }
     if (_selected.isEmpty) {
-      setState(() => _error = 'حداقل یک عضو انتخاب کن.');
+      setState(() => _error = tr('حداقل یک عضو انتخاب کن.'));
       return;
     }
     setState(() {
@@ -84,7 +85,7 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = 'ساختِ گروه ناموفق بود: $e';
+        _error = tr('ساختِ گروه ناموفق بود: {0}', [e]);
       });
     }
   }
@@ -94,10 +95,10 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
     final rooms = _directRooms;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('گروهِ جدید'),
+        title: Text(tr('گروهِ جدید')),
         actions: [
           IconButton(
-            tooltip: 'افزودن با Earth ID',
+            tooltip: tr('افزودن با Earth ID'),
             icon: const Icon(Icons.person_add_alt),
             onPressed: _busy ? null : _addManual,
           ),
@@ -110,15 +111,15 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
             controller: _nameCtrl,
             enabled: !_busy,
             textInputAction: TextInputAction.done,
-            decoration: const InputDecoration(
-              labelText: 'نامِ گروه',
-              prefixIcon: Icon(Icons.groups),
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: tr('نامِ گروه'),
+              prefixIcon: const Icon(Icons.groups),
+              border: const OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 16),
           if (_selected.isNotEmpty) ...[
-            Text('اعضایِ انتخاب‌شده (${_selected.length})',
+            Text(tr('اعضایِ انتخاب‌شده ({0})', [_selected.length]),
                 style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
             Wrap(
@@ -135,7 +136,7 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
             ),
             const SizedBox(height: 16),
           ],
-          Text('از گفتگوهای موجود',
+          Text(tr('از گفتگوهای موجود'),
               style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 4),
           if (rooms == null)
@@ -144,11 +145,11 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
               child: Center(child: CircularProgressIndicator()),
             )
           else if (rooms.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
               child: Text(
-                'گفتگویِ دوطرفه‌ای نداری. اعضا را با Earth ID اضافه کن.',
-                style: TextStyle(color: Colors.grey),
+                tr('گفتگویِ دوطرفه‌ای نداری. اعضا را با Earth ID اضافه کن.'),
+                style: const TextStyle(color: Colors.grey),
               ),
             )
           else
@@ -169,7 +170,7 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.check),
-            label: const Text('ساختِ گروه'),
+            label: Text(tr('ساختِ گروه')),
           ),
         ],
       ),
@@ -198,7 +199,7 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
         child: (avatar == null || avatar.isEmpty)
             ? Text(r.displayTitle.isNotEmpty
                 ? r.displayTitle.characters.first
-                : '؟')
+                : tr('؟'))
             : null,
       ),
       title: Text(r.displayTitle, maxLines: 1, overflow: TextOverflow.ellipsis),

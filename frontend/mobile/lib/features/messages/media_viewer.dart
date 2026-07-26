@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../core/l10n.dart';
 /// نمایشگرِ تمام‌صفحهٔ رسانهٔ گفتگو: تصویر (زوم‌شدنی)، ویدیو و صوت.
 /// صوت هم با `video_player` پخش می‌شود (ExoPlayer/AVPlayer صوت را پشتیبانی
 /// می‌کنند) تا وابستگیِ اضافه لازم نشود.
@@ -46,7 +47,7 @@ class _MediaViewerState extends State<MediaViewer> {
       c.addListener(_onTick);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = 'پخشِ این فایل ممکن نبود.');
+      setState(() => _error = tr('پخشِ این فایل ممکن نبود.'));
     }
   }
 
@@ -72,10 +73,10 @@ class _MediaViewerState extends State<MediaViewer> {
           widget.title?.trim().isNotEmpty == true
               ? widget.title!
               : widget.isVideo
-                  ? 'ویدیو'
+                  ? tr('ویدیو')
                   : widget.isAudio
-                      ? 'پیامِ صوتی'
-                      : 'تصویر',
+                      ? tr('پیامِ صوتی')
+                      : tr('تصویر'),
           overflow: TextOverflow.ellipsis,
         ),
       ),
@@ -120,15 +121,15 @@ class _MediaViewerState extends State<MediaViewer> {
                 padding: EdgeInsets.all(32),
                 child: CircularProgressIndicator(color: Colors.white70),
               ),
-        errorBuilder: (_, __, ___) => const Padding(
-          padding: EdgeInsets.all(24),
+        errorBuilder: (_, __, ___) => Padding(
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.broken_image_outlined, size: 44, color: Colors.white70),
-              SizedBox(height: 12),
-              Text('تصویر بارگذاری نشد.',
-                  style: TextStyle(color: Colors.white70)),
+              const Icon(Icons.broken_image_outlined, size: 44, color: Colors.white70),
+              const SizedBox(height: 12),
+              Text(tr('تصویر بارگذاری نشد.'),
+                  style: const TextStyle(color: Colors.white70)),
             ],
           ),
         ),

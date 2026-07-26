@@ -24,8 +24,12 @@ import 'marketing_network_screen.dart';
 import 'region_screen.dart';
 import 'security_screen.dart';
 
+import '../../core/l10n.dart';
 /// برچسبِ فارسیِ نقش‌های خودسرویسِ dilix-api (`SELF_SERVICE_ROLES`).
-const Map<String, String> kRoleLabels = {
+Map<String, String> get kRoleLabels =>
+    kRoleLabelsSrc.map((k, v) => MapEntry(k, tr(v)));
+
+const Map<String, String> kRoleLabelsSrc = {
   'user': 'کاربر',
   'driver': 'راننده',
   'cargo_owner': 'صاحبِ بار',
@@ -36,7 +40,10 @@ const Map<String, String> kRoleLabels = {
 };
 
 /// برچسبِ فارسیِ مخاطبِ داستان (`AUDIENCES` در dilix-api).
-const Map<String, String> kAudienceLabels = {
+Map<String, String> get kAudienceLabels =>
+    kAudienceLabelsSrc.map((k, v) => MapEntry(k, tr(v)));
+
+const Map<String, String> kAudienceLabelsSrc = {
   'public': 'عمومی',
   'followers': 'دنبال‌کننده‌ها',
   'colleagues': 'همکاران',
@@ -151,7 +158,7 @@ class _MeScreenState extends State<MeScreen> {
     } on SocialAuthException catch (e) {
       setState(() => _error = e.message);
     } catch (e) {
-      setState(() => _error = 'ورود با شبکه‌ی اجتماعی ناموفق بود: $e');
+      setState(() => _error = tr('ورود با شبکه‌ی اجتماعی ناموفق بود: {0}', [e]));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -166,7 +173,7 @@ class _MeScreenState extends State<MeScreen> {
       final id = await ApiScope.of(context).otpRequest(_otpChannel, _otpDestCtrl.text.trim());
       setState(() => _otpChallengeId = id);
     } catch (e) {
-      setState(() => _error = 'ارسالِ کد ناموفق بود: $e');
+      setState(() => _error = tr('ارسالِ کد ناموفق بود: {0}', [e]));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -183,7 +190,7 @@ class _MeScreenState extends State<MeScreen> {
       await ApiScope.of(context).otpVerify(id, _otpCodeCtrl.text.trim());
       await _loadAfterAuth();
     } catch (e) {
-      setState(() => _error = 'کدِ واردشده نادرست یا منقضی است.');
+      setState(() => _error = tr('کدِ واردشده نادرست یا منقضی است.'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -199,7 +206,7 @@ class _MeScreenState extends State<MeScreen> {
       await api.login(_idCtrl.text.trim(), _passCtrl.text);
       await _loadAfterAuth();
     } catch (e) {
-      setState(() => _error = 'ورود ناموفق بود: $e');
+      setState(() => _error = tr('ورود ناموفق بود: {0}', [e]));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -215,18 +222,18 @@ class _MeScreenState extends State<MeScreen> {
     try {
       await ApiScope.of(context).setVisibility(discoverable: value);
       _snack(value
-          ? 'اکنون در سطحِ منطقه (fuzzed) روی کره دیده می‌شوید.'
-          : 'دیگر روی کره دیده نمی‌شوید.');
+          ? tr('اکنون در سطحِ منطقه (fuzzed) روی کره دیده می‌شوید.')
+          : tr('دیگر روی کره دیده نمی‌شوید.'));
     } catch (e) {
       if (mounted) setState(() => _discoverable = !value);
-      _snack('به‌روزرسانیِ حریمِ خصوصی ممکن نشد: $e');
+      _snack(tr('به‌روزرسانیِ حریمِ خصوصی ممکن نشد: {0}', [e]));
     }
   }
 
   Future<void> _copy(String label, String value) async {
     if (value.isEmpty) return;
     await Clipboard.setData(ClipboardData(text: value));
-    _snack('$label کپی شد.');
+    _snack(tr('{0} کپی شد.', [label]));
   }
 
   /// trigger دستیِ فیدِ نرخ (فقط مدیر). سرور حلقهٔ دوره‌ای هم دارد، پس این
@@ -238,11 +245,11 @@ class _MeScreenState extends State<MeScreen> {
       final (rial, _) = await api.fxRefresh();
       if (!mounted) return;
       _snack(rial > 0
-          ? 'نرخِ تازه: هر دلار ${formatMinor(rial, 'IRR', 1)}'
-          : 'فید نرخِ معتبری برنگرداند؛ نرخِ قبلی دست‌نخورده ماند.');
+          ? tr('نرخِ تازه: هر دلار {0}', [formatMinor(rial, 'IRR', 1)])
+          : tr('فید نرخِ معتبری برنگرداند؛ نرخِ قبلی دست‌نخورده ماند.'));
     } catch (e) {
       if (!mounted) return;
-      _snack('تازه‌سازیِ نرخ ناموفق بود: $e');
+      _snack(tr('تازه‌سازیِ نرخ ناموفق بود: {0}', [e]));
     } finally {
       if (mounted) setState(() => _fxBusy = false);
     }
@@ -259,9 +266,9 @@ class _MeScreenState extends State<MeScreen> {
       if (img == null) return;
       await ApiScope.of(context).uploadAvatar(img.path);
       await _refreshMe();
-      _snack('عکسِ پروفایل به‌روزرسانی شد.');
+      _snack(tr('عکسِ پروفایل به‌روزرسانی شد.'));
     } catch (e) {
-      _snack('آپلودِ عکس ممکن نشد: $e');
+      _snack(tr('آپلودِ عکس ممکن نشد: {0}', [e]));
     }
   }
 
@@ -284,33 +291,33 @@ class _MeScreenState extends State<MeScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('اطلاعاتِ شخصی',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(tr('اطلاعاتِ شخصی'),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 12),
             TextField(
               controller: nameCtrl,
-              decoration: const InputDecoration(labelText: 'نامِ نمایشی'),
+              decoration: InputDecoration(labelText: tr('نامِ نمایشی')),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: userCtrl,
-              decoration: const InputDecoration(
-                labelText: 'نامِ کاربری',
-                helperText: 'حروفِ کوچک، اعداد، _ و .',
+              decoration: InputDecoration(
+                labelText: tr('نامِ کاربری'),
+                helperText: tr('حروفِ کوچک، اعداد، _ و .'),
               ),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: bioCtrl,
               maxLines: 3,
-              decoration: const InputDecoration(labelText: 'دربارهٔ من'),
+              decoration: InputDecoration(labelText: tr('دربارهٔ من')),
             ),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: FilledButton(
                 onPressed: () => Navigator.of(ctx).pop(true),
-                child: const Text('ذخیره'),
+                child: Text(tr('ذخیره')),
               ),
             ),
           ],
@@ -325,9 +332,9 @@ class _MeScreenState extends State<MeScreen> {
         bio: bioCtrl.text.trim(),
       );
       await _refreshMe();
-      _snack('پروفایل ذخیره شد.');
+      _snack(tr('پروفایل ذخیره شد.'));
     } catch (e) {
-      _snack('ذخیرهٔ پروفایل ممکن نشد: $e');
+      _snack(tr('ذخیرهٔ پروفایل ممکن نشد: {0}', [e]));
     }
   }
 
@@ -339,10 +346,10 @@ class _MeScreenState extends State<MeScreen> {
         child: ListView(
           shrinkWrap: true,
           children: [
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text('نقشِ من',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(tr('نقشِ من'),
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
             ),
             for (final e in kRoleLabels.entries)
               ListTile(
@@ -358,9 +365,9 @@ class _MeScreenState extends State<MeScreen> {
     try {
       await ApiScope.of(context).updateProfile(role: chosen);
       await _refreshMe();
-      _snack('نقشِ شما به «${kRoleLabels[chosen]}» تغییر کرد.');
+      _snack(tr('نقشِ شما به «{0}» تغییر کرد.', [kRoleLabels[chosen]]));
     } catch (e) {
-      _snack('تغییرِ نقش ممکن نشد: $e');
+      _snack(tr('تغییرِ نقش ممکن نشد: {0}', [e]));
     }
   }
 
@@ -377,10 +384,10 @@ class _MeScreenState extends State<MeScreen> {
         child: ListView(
           shrinkWrap: true,
           children: [
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text('مخاطبِ پیش‌فرضِ داستان',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(tr('مخاطبِ پیش‌فرضِ داستان'),
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
             ),
             for (final e in kAudienceLabels.entries)
               ListTile(
@@ -397,9 +404,9 @@ class _MeScreenState extends State<MeScreen> {
     if (chosen == null) return;
     try {
       await ApiScope.of(context).setStorySettings(chosen);
-      _snack('مخاطبِ داستان روی «${kAudienceLabels[chosen]}» تنظیم شد.');
+      _snack(tr('مخاطبِ داستان روی «{0}» تنظیم شد.', [kAudienceLabels[chosen]]));
     } catch (e) {
-      _snack('تنظیمِ مخاطب ممکن نشد: $e');
+      _snack(tr('تنظیمِ مخاطب ممکن نشد: {0}', [e]));
     }
   }
 
@@ -417,9 +424,9 @@ class _MeScreenState extends State<MeScreen> {
         audience = (await ApiScope.of(context).storySettings()).defaultAudience;
       } catch (_) {}
       await ApiScope.of(context).createStory(filePath: img.path, audience: audience);
-      _snack('داستانِ شما منتشر شد.');
+      _snack(tr('داستانِ شما منتشر شد.'));
     } catch (e) {
-      _snack('انتشارِ داستان ممکن نشد: $e');
+      _snack(tr('انتشارِ داستان ممکن نشد: {0}', [e]));
     }
   }
 
@@ -436,7 +443,7 @@ class _MeScreenState extends State<MeScreen> {
     final w = _wallet;
     if (w == null) return 0;
     return w.balances
-        .where((b) => !b.currency.contains('امانت'))
+        .where((b) => !b.currency.contains(tr('امانت')))
         .fold<int>(0, (sum, b) => sum + b.amountMinor);
   }
 
@@ -448,9 +455,9 @@ class _MeScreenState extends State<MeScreen> {
         child: ListView(
           shrinkWrap: true,
           children: [
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text('زبانِ برنامه', style: TextStyle(fontWeight: FontWeight.bold)),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(tr('زبانِ برنامه'), style: const TextStyle(fontWeight: FontWeight.bold)),
             ),
             for (final lang in PreferencesController.languages)
               ListTile(
@@ -475,7 +482,7 @@ class _MeScreenState extends State<MeScreen> {
   Widget build(BuildContext context) {
     final api = ApiScope.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('حساب من')),
+      appBar: AppBar(title: Text(tr('حساب من'))),
       body: !api.isAuthenticated ? _loginForm() : _account(),
     );
   }
@@ -489,15 +496,15 @@ class _MeScreenState extends State<MeScreen> {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                const Text('ورود به Earth ID', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(tr('ورود به Earth ID'), style: const TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
-                TextField(controller: _idCtrl, decoration: const InputDecoration(labelText: 'ایمیل یا شماره تلفن')),
+                TextField(controller: _idCtrl, decoration: InputDecoration(labelText: tr('ایمیل یا شماره تلفن'))),
                 const SizedBox(height: 8),
-                TextField(controller: _passCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'گذرواژه')),
+                TextField(controller: _passCtrl, obscureText: true, decoration: InputDecoration(labelText: tr('گذرواژه'))),
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
-                  child: FilledButton(onPressed: _busy ? null : _login, child: const Text('ورود')),
+                  child: FilledButton(onPressed: _busy ? null : _login, child: Text(tr('ورود'))),
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 8),
@@ -509,11 +516,11 @@ class _MeScreenState extends State<MeScreen> {
         ),
         _socialCard(),
         _otpCard(),
-        const Padding(
-          padding: EdgeInsets.all(8),
+        Padding(
+          padding: const EdgeInsets.all(8),
           child: Text(
-            'حساب ندارید؟ با ورودِ اجتماعی یا کدِ یک‌بارمصرف، حساب به‌صورتِ خودکار ساخته می‌شود.',
-            style: TextStyle(fontSize: 12),
+            tr('حساب ندارید؟ با ورودِ اجتماعی یا کدِ یک‌بارمصرف، حساب به‌صورتِ خودکار ساخته می‌شود.'),
+            style: const TextStyle(fontSize: 12),
           ),
         ),
       ],
@@ -527,7 +534,7 @@ class _MeScreenState extends State<MeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('ورود با حسابِ اجتماعی', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(tr('ورود با حسابِ اجتماعی'), style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -553,12 +560,12 @@ class _MeScreenState extends State<MeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('ورود با کدِ یک‌بارمصرف', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(tr('ورود با کدِ یک‌بارمصرف'), style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'sms', label: Text('پیامک')),
-                ButtonSegment(value: 'facebook', label: Text('Facebook')),
+              segments: [
+                ButtonSegment(value: 'sms', label: Text(tr('پیامک'))),
+                const ButtonSegment(value: 'facebook', label: Text('Facebook')),
               ],
               selected: {_otpChannel},
               onSelectionChanged: _otpChallengeId != null
@@ -571,8 +578,8 @@ class _MeScreenState extends State<MeScreen> {
               enabled: _otpChallengeId == null,
               decoration: InputDecoration(
                 labelText: _otpChannel == 'sms'
-                    ? 'شماره موبایل (با کدِ کشور)'
-                    : 'شناسه‌ی Messenger (PSID)',
+                    ? tr('شماره موبایل (با کدِ کشور)')
+                    : tr('شناسه‌ی Messenger (PSID)'),
               ),
             ),
             const SizedBox(height: 8),
@@ -581,21 +588,21 @@ class _MeScreenState extends State<MeScreen> {
                 width: double.infinity,
                 child: FilledButton.tonal(
                   onPressed: _busy ? null : _sendOtp,
-                  child: const Text('ارسالِ کد'),
+                  child: Text(tr('ارسالِ کد')),
                 ),
               )
             else ...[
               TextField(
                 controller: _otpCodeCtrl,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'کدِ دریافتی'),
+                decoration: InputDecoration(labelText: tr('کدِ دریافتی')),
               ),
               const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: _busy ? null : _verifyOtp,
-                  child: const Text('تأیید و ورود'),
+                  child: Text(tr('تأیید و ورود')),
                 ),
               ),
               TextButton(
@@ -605,7 +612,7 @@ class _MeScreenState extends State<MeScreen> {
                           _otpChallengeId = null;
                           _otpCodeCtrl.clear();
                         }),
-                child: const Text('تغییرِ مقصد'),
+                child: Text(tr('تغییرِ مقصد')),
               ),
             ],
           ],
@@ -627,8 +634,8 @@ class _MeScreenState extends State<MeScreen> {
         Card(
           child: ListTile(
             leading: const Icon(Icons.dashboard_outlined),
-            title: const Text('نمای کلی'),
-            subtitle: const Text('داشبوردِ نقش‌محور و میان‌برها'),
+            title: Text(tr('نمای کلی')),
+            subtitle: Text(tr('داشبوردِ نقش‌محور و میان‌برها')),
             trailing: const Icon(Icons.chevron_left),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const DashboardScreen()),
@@ -638,8 +645,8 @@ class _MeScreenState extends State<MeScreen> {
         Card(
           child: ListTile(
             leading: const Icon(Icons.people_outline),
-            title: const Text('یافتنِ آدم‌ها'),
-            subtitle: const Text('جستجوی کاربر و پیشنهادِ دنبال‌کردن'),
+            title: Text(tr('یافتنِ آدم‌ها')),
+            subtitle: Text(tr('جستجوی کاربر و پیشنهادِ دنبال‌کردن')),
             trailing: const Icon(Icons.chevron_left),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const PeopleScreen()),
@@ -649,8 +656,8 @@ class _MeScreenState extends State<MeScreen> {
         Card(
           child: ListTile(
             leading: const Icon(Icons.bookmark_border),
-            title: const Text('ذخیره‌شده‌ها'),
-            subtitle: const Text('پست‌هایی که نگه داشته‌اید'),
+            title: Text(tr('ذخیره‌شده‌ها')),
+            subtitle: Text(tr('پست‌هایی که نگه داشته‌اید')),
             trailing: const Icon(Icons.chevron_left),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const SavedPostsScreen()),
@@ -660,8 +667,8 @@ class _MeScreenState extends State<MeScreen> {
         Card(
           child: ListTile(
             leading: const Icon(Icons.account_balance_wallet_outlined),
-            title: const Text('کیفِ پول'),
-            subtitle: const Text('پاداش، پرداختِ امن و درآمد'),
+            title: Text(tr('کیفِ پول')),
+            subtitle: Text(tr('پاداش، پرداختِ امن و درآمد')),
             trailing: const Icon(Icons.chevron_left),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const WalletScreen()),
@@ -684,7 +691,7 @@ class _MeScreenState extends State<MeScreen> {
               foregroundColor: Theme.of(context).colorScheme.onErrorContainer,
             ),
             icon: const Icon(Icons.logout),
-            label: const Text('خروج از حساب'),
+            label: Text(tr('خروج از حساب')),
           ),
         ),
         const SizedBox(height: 12),
@@ -695,8 +702,8 @@ class _MeScreenState extends State<MeScreen> {
   // ─────────────── Task 1: سرصفحهٔ پروفایل ───────────────
   Widget _profileHeader() {
     final theme = Theme.of(context);
-    final name = _me?.displayName ?? 'کاربر';
-    final initials = name.trim().isNotEmpty ? name.trim().substring(0, 1) : '؟';
+    final name = _me?.displayName ?? tr('کاربر');
+    final initials = name.trim().isNotEmpty ? name.trim().substring(0, 1) : tr('؟');
     final code = (_referral?.code.isNotEmpty ?? false)
         ? 'DLX-${_referral!.code}'
         : 'Earth ID: ${_me?.earthId.substring(0, 8) ?? ''}';
@@ -757,7 +764,7 @@ class _MeScreenState extends State<MeScreen> {
                           overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 4),
                       InkWell(
-                        onTap: () => _copy('کدِ دعوت', code),
+                        onTap: () => _copy(tr('کدِ دعوت'), code),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -778,7 +785,7 @@ class _MeScreenState extends State<MeScreen> {
                   ),
                 ),
                 IconButton(
-                  tooltip: 'کدِ QR پروفایل',
+                  tooltip: tr('کدِ QR پروفایل'),
                   onPressed: (_me?.earthId ?? '').isEmpty
                       ? null
                       : () => showProfileQr(
@@ -789,7 +796,7 @@ class _MeScreenState extends State<MeScreen> {
                   icon: const Icon(Icons.qr_code_2),
                 ),
                 IconButton(
-                  tooltip: 'ویرایشِ پروفایل',
+                  tooltip: tr('ویرایشِ پروفایل'),
                   onPressed: _editProfile,
                   icon: const Icon(Icons.edit_outlined),
                 ),
@@ -798,11 +805,11 @@ class _MeScreenState extends State<MeScreen> {
             const SizedBox(height: 16),
             Row(
               children: [
-                _stat('اعتماد', '${_me?.trustScore ?? 0}'),
+                _stat(tr('اعتماد'), '${_me?.trustScore ?? 0}'),
                 const SizedBox(width: 8),
-                _stat('امتیاز', (_me?.avgRating ?? 0).toStringAsFixed(1)),
+                _stat(tr('امتیاز'), (_me?.avgRating ?? 0).toStringAsFixed(1)),
                 const SizedBox(width: 8),
-                _stat('سفر', '${_me?.totalTrips ?? 0}'),
+                _stat(tr('سفر'), '${_me?.totalTrips ?? 0}'),
               ],
             ),
             const SizedBox(height: 16),
@@ -820,7 +827,7 @@ class _MeScreenState extends State<MeScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.add, color: theme.colorScheme.primary),
-                      Text('جدید', style: theme.textTheme.bodySmall),
+                      Text(tr('جدید'), style: theme.textTheme.bodySmall),
                     ],
                   ),
                 ),
@@ -867,9 +874,9 @@ class _MeScreenState extends State<MeScreen> {
               children: [
                 const Icon(Icons.verified_user_outlined),
                 const SizedBox(width: 8),
-                Text('سطحِ تأیید', style: theme.textTheme.titleMedium),
+                Text(tr('سطحِ تأیید'), style: theme.textTheme.titleMedium),
                 const Spacer(),
-                Text('L$level از ۳', style: theme.textTheme.bodySmall),
+                Text(tr('L{0} از ۳', [level]), style: theme.textTheme.bodySmall),
               ],
             ),
             const SizedBox(height: 12),
@@ -890,7 +897,7 @@ class _MeScreenState extends State<MeScreen> {
                   );
                   await _refreshMe();
                 },
-                child: const Text('ارتقای سطحِ تأیید'),
+                child: Text(tr('ارتقای سطحِ تأیید')),
               ),
             ),
           ],
@@ -912,22 +919,22 @@ class _MeScreenState extends State<MeScreen> {
               children: [
                 const Icon(Icons.groups_outlined),
                 const SizedBox(width: 8),
-                Text('شبکهٔ بازاریابی', style: theme.textTheme.titleMedium),
+                Text(tr('شبکهٔ بازاریابی'), style: theme.textTheme.titleMedium),
               ],
             ),
             const SizedBox(height: 12),
             Row(
               children: [
-                _metricBox('$_rewardToman', 'تومان پاداش',
+                _metricBox('$_rewardToman', tr('تومان پاداش'),
                     theme.colorScheme.primaryContainer),
                 const SizedBox(width: 8),
-                _metricBox('$referred', 'دعوت‌شده',
+                _metricBox('$referred', tr('دعوت‌شده'),
                     theme.colorScheme.secondaryContainer),
               ],
             ),
             const SizedBox(height: 12),
             InkWell(
-              onTap: () => _copy('لینکِ دعوت', _referral?.url ?? ''),
+              onTap: () => _copy(tr('لینکِ دعوت'), _referral?.url ?? ''),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
@@ -938,7 +945,7 @@ class _MeScreenState extends State<MeScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        _referral?.url ?? 'لینکِ دعوت در دسترس نیست',
+                        _referral?.url ?? tr('لینکِ دعوت در دسترس نیست'),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall,
@@ -962,7 +969,7 @@ class _MeScreenState extends State<MeScreen> {
                   MaterialPageRoute<void>(
                       builder: (_) => const MarketingNetworkScreen()),
                 ),
-                child: const Text('مشاهدهٔ شبکه و درآمد'),
+                child: Text(tr('مشاهدهٔ شبکه و درآمد')),
               ),
             ),
           ],
@@ -997,13 +1004,13 @@ class _MeScreenState extends State<MeScreen> {
         children: [
           ListTile(
             leading: const Icon(Icons.notifications_outlined),
-            title: const Text('اعلان‌ها'),
+            title: Text(tr('اعلان‌ها')),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (unread > 0)
                   Chip(
-                    label: Text('$unread جدید'),
+                    label: Text(tr('{0} جدید', [unread])),
                     backgroundColor: Theme.of(context).colorScheme.primaryContainer,
                   ),
                 const Icon(Icons.chevron_left),
@@ -1014,11 +1021,11 @@ class _MeScreenState extends State<MeScreen> {
             ),
           ),
           if (_notifications.isEmpty)
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: Align(
                 alignment: Alignment.centerRight,
-                child: Text('اعلانی ندارید.'),
+                child: Text(tr('اعلانی ندارید.')),
               ),
             )
           else
@@ -1056,15 +1063,15 @@ class _MeScreenState extends State<MeScreen> {
         children: [
           SwitchListTile(
             secondary: const Icon(Icons.public_outlined),
-            title: const Text('نمایش روی کره زمین'),
-            subtitle: const Text('در سطحِ منطقه و به‌صورتِ محدود (ADR-06)'),
+            title: Text(tr('نمایش روی کره زمین')),
+            subtitle: Text(tr('در سطحِ منطقه و به‌صورتِ محدود (ADR-06)')),
             value: _discoverable,
             onChanged: _setDiscoverable,
           ),
           const Divider(height: 1),
           ListTile(
             leading: const Icon(Icons.badge_outlined),
-            title: const Text('نقشِ من'),
+            title: Text(tr('نقشِ من')),
             subtitle: Text(kRoleLabels[_me?.role] ?? _me?.entityType ?? '—'),
             trailing: const Icon(Icons.chevron_left),
             onTap: _pickRole,
@@ -1072,14 +1079,14 @@ class _MeScreenState extends State<MeScreen> {
           const Divider(height: 1),
           ListTile(
             leading: const Icon(Icons.person_outline),
-            title: const Text('اطلاعاتِ شخصی'),
+            title: Text(tr('اطلاعاتِ شخصی')),
             trailing: const Icon(Icons.chevron_left),
             onTap: _editProfile,
           ),
           const Divider(height: 1),
           ListTile(
             leading: const Icon(Icons.language),
-            title: const Text('زبانِ برنامه'),
+            title: Text(tr('زبانِ برنامه')),
             subtitle: Text('${lang.flag} ${lang.native}'),
             trailing: const Icon(Icons.chevron_left),
             onTap: _pickLanguage,
@@ -1087,8 +1094,8 @@ class _MeScreenState extends State<MeScreen> {
           const Divider(height: 1),
           ListTile(
             leading: const Icon(Icons.travel_explore_outlined),
-            title: const Text('زبان و ارزِ حساب'),
-            subtitle: const Text('ذخیره روی سرور؛ مبنای ارزِ صورت‌حساب'),
+            title: Text(tr('زبان و ارزِ حساب')),
+            subtitle: Text(tr('ذخیره روی سرور؛ مبنای ارزِ صورت‌حساب')),
             trailing: const Icon(Icons.chevron_left),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const RegionScreen()),
@@ -1100,8 +1107,8 @@ class _MeScreenState extends State<MeScreen> {
             const Divider(height: 1),
             ListTile(
               leading: const Icon(Icons.verified_user_outlined),
-              title: const Text('بررسیِ احرازِ هویت'),
-              subtitle: const Text('صفِ درخواست‌های کاربران — ویژهٔ مدیران'),
+              title: Text(tr('بررسیِ احرازِ هویت')),
+              subtitle: Text(tr('صفِ درخواست‌های کاربران — ویژهٔ مدیران')),
               trailing: const Icon(Icons.chevron_left),
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(builder: (_) => const AdminKycScreen()),
@@ -1110,8 +1117,8 @@ class _MeScreenState extends State<MeScreen> {
             const Divider(height: 1),
             ListTile(
               leading: const Icon(Icons.domain_verification_outlined),
-              title: const Text('احرازِ مراکزِ خدمات'),
-              subtitle: const Text('تصمیمِ KYB روی شرکت‌ها — ویژهٔ مدیران'),
+              title: Text(tr('احرازِ مراکزِ خدمات')),
+              subtitle: Text(tr('تصمیمِ KYB روی شرکت‌ها — ویژهٔ مدیران')),
               trailing: const Icon(Icons.chevron_left),
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
@@ -1121,8 +1128,8 @@ class _MeScreenState extends State<MeScreen> {
             const Divider(height: 1),
             ListTile(
               leading: const Icon(Icons.receipt_long_outlined),
-              title: const Text('کارمزدِ بیمه'),
-              subtitle: const Text('جمع‌بندی و تسویهٔ مراکز — ویژهٔ مدیران'),
+              title: Text(tr('کارمزدِ بیمه')),
+              subtitle: Text(tr('جمع‌بندی و تسویهٔ مراکز — ویژهٔ مدیران')),
               trailing: const Icon(Icons.chevron_left),
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
@@ -1132,8 +1139,8 @@ class _MeScreenState extends State<MeScreen> {
             const Divider(height: 1),
             ListTile(
               leading: const Icon(Icons.currency_exchange_outlined),
-              title: const Text('تازه‌سازیِ نرخِ ارز'),
-              subtitle: const Text('گرفتنِ فوریِ نرخِ ریال از فیدِ زنده'),
+              title: Text(tr('تازه‌سازیِ نرخِ ارز')),
+              subtitle: Text(tr('گرفتنِ فوریِ نرخِ ریال از فیدِ زنده')),
               trailing: _fxBusy
                   ? const SizedBox(
                       width: 18,
@@ -1146,8 +1153,8 @@ class _MeScreenState extends State<MeScreen> {
           const Divider(height: 1),
           SwitchListTile(
             secondary: const Icon(Icons.dark_mode_outlined),
-            title: const Text('پوستهٔ برنامه'),
-            subtitle: Text(isDark ? 'تیره' : 'روشن'),
+            title: Text(tr('پوستهٔ برنامه')),
+            subtitle: Text(isDark ? tr('تیره') : tr('روشن')),
             value: isDark,
             onChanged: (v) =>
                 prefs.setThemeMode(v ? ThemeMode.dark : ThemeMode.light),
@@ -1155,14 +1162,14 @@ class _MeScreenState extends State<MeScreen> {
           const Divider(height: 1),
           ListTile(
             leading: const Icon(Icons.auto_stories_outlined),
-            title: const Text('مخاطبِ داستان'),
+            title: Text(tr('مخاطبِ داستان')),
             trailing: const Icon(Icons.chevron_left),
             onTap: _pickStoryAudience,
           ),
           const Divider(height: 1),
           ListTile(
             leading: const Icon(Icons.shield_outlined),
-            title: const Text('امنیت'),
+            title: Text(tr('امنیت')),
             trailing: const Icon(Icons.chevron_left),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const SecurityScreen()),
@@ -1171,7 +1178,7 @@ class _MeScreenState extends State<MeScreen> {
           const Divider(height: 1),
           ListTile(
             leading: const Icon(Icons.support_agent_outlined),
-            title: const Text('پشتیبانی'),
+            title: Text(tr('پشتیبانی')),
             trailing: const Icon(Icons.chevron_left),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const SupportScreen()),
@@ -1180,7 +1187,7 @@ class _MeScreenState extends State<MeScreen> {
           const Divider(height: 1),
           ListTile(
             leading: const Icon(Icons.gavel_outlined),
-            title: const Text('اسنادِ حقوقی'),
+            title: Text(tr('اسنادِ حقوقی')),
             trailing: const Icon(Icons.chevron_left),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const LegalScreen()),

@@ -8,6 +8,7 @@ import '../../models/models.dart';
 import 'chat_screen.dart';
 import 'group_create_screen.dart';
 
+import '../../core/l10n.dart';
 /// پیام‌ها (سند ۷ §۴) — فهرستِ **بومیِ** گفتگوها.
 ///
 /// گفتگوها را از `GET /messages/rooms` می‌گیرد و هر ۱۰ث پول می‌کند تا پیامِ نو و
@@ -91,16 +92,16 @@ class _MessagesScreenState extends State<MessagesScreen> {
   Widget build(BuildContext context) {
     if (!_api.isAuthenticated) {
       return Scaffold(
-        appBar: AppBar(title: const Text('پیام‌ها')),
+        appBar: AppBar(title: Text(tr('پیام‌ها'))),
         body: _loginPrompt(context),
       );
     }
     return Scaffold(
-      appBar: AppBar(title: const Text('پیام‌ها')),
+      appBar: AppBar(title: Text(tr('پیام‌ها'))),
       body: RefreshIndicator(onRefresh: _load, child: _body()),
       floatingActionButton: FloatingActionButton(
         onPressed: _newGroup,
-        tooltip: 'گروهِ جدید',
+        tooltip: tr('گروهِ جدید'),
         child: const Icon(Icons.group_add),
       ),
     );
@@ -116,22 +117,22 @@ class _MessagesScreenState extends State<MessagesScreen> {
           const SizedBox(height: 120),
           const Icon(Icons.error_outline, size: 40),
           const SizedBox(height: 8),
-          Center(child: Text('بارگذاریِ گفتگوها ناموفق بود.\n$_error',
+          Center(child: Text(tr('بارگذاریِ گفتگوها ناموفق بود.\n{0}', [_error]),
               textAlign: TextAlign.center)),
           const SizedBox(height: 12),
           Center(
-            child: FilledButton(onPressed: _load, child: const Text('تلاشِ دوباره')),
+            child: FilledButton(onPressed: _load, child: Text(tr('تلاشِ دوباره'))),
           ),
         ],
       );
     }
     if (_rooms.isEmpty) {
       return ListView(
-        children: const [
-          SizedBox(height: 140),
-          Icon(Icons.forum_outlined, size: 48, color: Colors.grey),
-          SizedBox(height: 12),
-          Center(child: Text('هنوز گفتگویی نداری.\nاز کره یک نفر را انتخاب کن.',
+        children: [
+          const SizedBox(height: 140),
+          const Icon(Icons.forum_outlined, size: 48, color: Colors.grey),
+          const SizedBox(height: 12),
+          Center(child: Text(tr('هنوز گفتگویی نداری.\nاز کره یک نفر را انتخاب کن.'),
               textAlign: TextAlign.center)),
         ],
       );
@@ -159,7 +160,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     ? const Icon(Icons.groups)
                     : Text(room.displayTitle.isNotEmpty
                         ? room.displayTitle.characters.first
-                        : '؟'),
+                        : tr('؟')),
           ),
           if (room.partnerOnline && !room.isGroup)
             Positioned(
@@ -194,7 +195,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
             const Icon(Icons.timer, size: 15, color: Colors.grey),
         ],
       ),
-      subtitle: Text(room.lastMessage ?? 'بدون پیام',
+      subtitle: Text(room.lastMessage ?? tr('بدون پیام'),
           maxLines: 1, overflow: TextOverflow.ellipsis),
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -238,7 +239,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
             const Icon(Icons.lock_outline, size: 48),
             const SizedBox(height: 12),
             Text(
-              'گفتگوهای رمزنگاری‌شده (E2EE).\nبرای شروع، از تبِ «من» وارد شوید.',
+              tr('گفتگوهای رمزنگاری‌شده (E2EE).\nبرای شروع، از تبِ «من» وارد شوید.'),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),

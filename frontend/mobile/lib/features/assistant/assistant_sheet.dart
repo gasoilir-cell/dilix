@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app.dart';
 import '../../models/models.dart';
 
+import '../../core/l10n.dart';
 /// دستیارِ هوشمندِ سراسری (سند ۸). به dilix-api `/api/v1/ai/chat` وصل می‌شود؛
 /// یک نخِ گفتگوی واحد (بدونِ مفهومِ conversation). کاربر می‌تواند تخصص را انتخاب
 /// کند تا به‌صورتِ سرنخ به ابتدای پیام افزوده شود.
@@ -14,7 +15,10 @@ class AssistantSheet extends StatefulWidget {
 }
 
 /// agentهای در دسترس — مطابقِ pattern بک‌اند (ai/schemas.py: ConversationCreate).
-const Map<String, String> _agents = {
+Map<String, String> get _agents =>
+    _agentsSrc.map((k, v) => MapEntry(k, tr(v)));
+
+const Map<String, String> _agentsSrc = {
   'personal': 'دستیارِ شخصی',
   'freight': 'باربری',
   'insurance': 'بیمه',
@@ -83,7 +87,7 @@ class _AssistantSheetState extends State<AssistantSheet> {
     // تخصصِ انتخاب‌شده به‌صورتِ سرنخ به پیام افزوده می‌شود (dilix-api routing ندارد).
     final payload = _agentType == 'personal'
         ? text
-        : '[تخصص: ${_agents[_agentType]}] $text';
+        : tr('[تخصص: {0}] {1}', [_agents[_agentType], text]);
 
     _ctrl.clear();
     setState(() {
@@ -105,7 +109,7 @@ class _AssistantSheetState extends State<AssistantSheet> {
       _scrollToEnd();
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = 'اتصال به دستیار برقرار نشد؛ دوباره تلاش کن.');
+      setState(() => _error = tr('اتصال به دستیار برقرار نشد؛ دوباره تلاش کن.'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -127,7 +131,7 @@ class _AssistantSheetState extends State<AssistantSheet> {
           children: [
             ListTile(
               leading: const Icon(Icons.auto_awesome),
-              title: const Text('دستیار هوشمند Dilix'),
+              title: Text(tr('دستیار هوشمند Dilix')),
               subtitle: Text(_agents[_agentType] ?? _agentType),
               trailing: IconButton(
                 icon: const Icon(Icons.close),
@@ -138,7 +142,7 @@ class _AssistantSheetState extends State<AssistantSheet> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
-                  const Text('تخصص:'),
+                  Text(tr('تخصص:')),
                   const SizedBox(width: 12),
                   Expanded(
                     child: DropdownButton<String>(
@@ -174,7 +178,7 @@ class _AssistantSheetState extends State<AssistantSheet> {
                       controller: _ctrl,
                       onSubmitted: (_) => _send(),
                       textInputAction: TextInputAction.send,
-                      decoration: const InputDecoration(hintText: 'پیامت را بنویس…'),
+                      decoration: InputDecoration(hintText: tr('پیامت را بنویس…')),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -186,7 +190,7 @@ class _AssistantSheetState extends State<AssistantSheet> {
                             height: 16,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('ارسال'),
+                        : Text(tr('ارسال')),
                   ),
                 ],
               ),
@@ -202,11 +206,11 @@ class _AssistantSheetState extends State<AssistantSheet> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_messages.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(24),
+          padding: const EdgeInsets.all(24),
           child: Text(
-            'سوالت را بپرس؛ بر اساسِ تخصصِ انتخاب‌شده به متخصصِ مناسب هدایت می‌شوی.',
+            tr('سوالت را بپرس؛ بر اساسِ تخصصِ انتخاب‌شده به متخصصِ مناسب هدایت می‌شوی.'),
             textAlign: TextAlign.center,
           ),
         ),

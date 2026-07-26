@@ -4,6 +4,7 @@ import 'package:flutter/material.dart' hide Badge;
 import '../../app.dart';
 import '../../models/models.dart';
 
+import '../../core/l10n.dart';
 /// دستاوردها: امتیازِ پاداش + نوارِ پیشرفت + نشان‌ها.
 /// معادلِ صفحهٔ وبِ `app/gamification` (امتیازِ من + فهرستِ نشان‌ها).
 class GamificationScreen extends StatefulWidget {
@@ -50,7 +51,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'بارگذاریِ امتیازها ممکن نشد. ابتدا وارد شوید.';
+        _error = tr('بارگذاریِ امتیازها ممکن نشد. ابتدا وارد شوید.');
         _loading = false;
       });
     }
@@ -60,12 +61,12 @@ class _GamificationScreenState extends State<GamificationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('دستاوردها'),
+        title: Text(tr('دستاوردها')),
         actions: [
           IconButton(
             onPressed: _loading ? null : _load,
             icon: const Icon(Icons.refresh),
-            tooltip: 'تازه‌سازی',
+            tooltip: tr('تازه‌سازی'),
           ),
         ],
       ),
@@ -77,7 +78,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
                 padding: const EdgeInsets.all(12),
                 children: [
                   Text(
-                    'امتیازهای فعالیت و نشان‌های کسب‌شده',
+                    tr('امتیازهای فعالیت و نشان‌های کسب‌شده'),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const SizedBox(height: 8),
@@ -110,7 +111,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('امتیازِ من', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(tr('امتیازِ من'), style: const TextStyle(fontWeight: FontWeight.bold)),
                 Chip(label: Text('$points')),
               ],
             ),
@@ -124,7 +125,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
             ),
             const SizedBox(height: 6),
             Text(
-              'تا پله‌ی بعدی: ${nextTier - points} امتیاز',
+              tr('تا پله‌ی بعدی: {0} امتیاز', [nextTier - points]),
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
@@ -140,10 +141,10 @@ class _GamificationScreenState extends State<GamificationScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('نشان‌ها', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(tr('نشان‌ها'), style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             if (_badges.isEmpty)
-              Text('هنوز نشانی کسب نشده است.',
+              Text(tr('هنوز نشانی کسب نشده است.'),
                   style: Theme.of(context).textTheme.bodySmall)
             else
               Wrap(

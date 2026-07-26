@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app.dart';
 import '../../models/models.dart';
 
+import '../../core/l10n.dart';
 /// کارمزدِ بیمه — یک صفحه با دو حالت:
 ///
 /// * [providerId] = null → دیدِ ادمین: جمع‌بندیِ همهٔ مراکز + تسویهٔ دسته‌ای
@@ -69,18 +70,17 @@ class _InsuranceCommissionsScreenState
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('تسویهٔ کارمزد'),
+        title: Text(tr('تسویهٔ کارمزد')),
         content: Text(
-          '${_money(s.accruedCommission)} کارمزدِ تسویه‌نشدهٔ '
-          '«${s.providerName ?? 'این مرکز'}» تسویه‌شده علامت می‌خورد.',
+          tr('{0} کارمزدِ تسویه‌نشدهٔ «{1}» تسویه‌شده علامت می‌خورد.', [_money(s.accruedCommission), s.providerName ?? tr('این مرکز')]),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('انصراف')),
+              child: Text(tr('انصراف'))),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('تسویه')),
+              child: Text(tr('تسویه'))),
         ],
       ),
     );
@@ -93,11 +93,11 @@ class _InsuranceCommissionsScreenState
       await _load();
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text('$count ردیف · ${_money(amount)} تسویه شد.')),
+        SnackBar(content: Text(tr('{0} ردیف · {1} تسویه شد.', [count, _money(amount)]))),
       );
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text('تسویه ناموفق بود: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('تسویه ناموفق بود: {0}', [e]))));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -114,18 +114,18 @@ class _InsuranceCommissionsScreenState
       });
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text('تسویه ناموفق بود: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('تسویه ناموفق بود: {0}', [e]))));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
-  String _money(int toman) => '$toman تومان';
+  String _money(int toman) => tr('{0} تومان', [toman]);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title ?? 'کارمزدِ بیمه')),
+      appBar: AppBar(title: Text(widget.title ?? tr('کارمزدِ بیمه'))),
       body: _body(),
     );
   }
@@ -137,8 +137,8 @@ class _InsuranceCommissionsScreenState
           padding: const EdgeInsets.all(24),
           child: Text(
             _error!.contains('403')
-                ? 'دسترسیِ لازم برای دیدنِ این صورت‌حساب را ندارید.'
-                : 'بارگذاری ممکن نشد.\n$_error',
+                ? tr('دسترسیِ لازم برای دیدنِ این صورت‌حساب را ندارید.')
+                : tr('بارگذاری ممکن نشد.\n{0}', [_error]),
             textAlign: TextAlign.center,
           ),
         ),
@@ -154,15 +154,15 @@ class _InsuranceCommissionsScreenState
         padding: const EdgeInsets.all(12),
         children: [
           if (summaries.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text('هنوز کارمزدی ثبت نشده است.'),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(tr('هنوز کارمزدی ثبت نشده است.')),
             )
           else
             for (final s in summaries) _summaryCard(s),
           if (_rows.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Text('ردیف‌های کارمزد',
+            Text(tr('ردیف‌های کارمزد'),
                 style: Theme.of(context).textTheme.titleSmall),
             for (final c in _rows) _rowTile(c),
           ],
@@ -178,20 +178,20 @@ class _InsuranceCommissionsScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(s.providerName ?? 'مجموع',
+            Text(s.providerName ?? tr('مجموع'),
                 style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
-            Text('${s.policies} بیمه‌نامه · حقِ بیمه ${_money(s.totalPremium)}'),
-            Text('کارمزدِ کل: ${_money(s.totalCommission)}'),
-            Text('تسویه‌نشده: ${_money(s.accruedCommission)}'),
-            Text('تسویه‌شده: ${_money(s.settledCommission)}'),
+            Text(tr('{0} بیمه‌نامه · حقِ بیمه {1}', [s.policies, _money(s.totalPremium)])),
+            Text(tr('کارمزدِ کل: {0}', [_money(s.totalCommission)])),
+            Text(tr('تسویه‌نشده: {0}', [_money(s.accruedCommission)])),
+            Text(tr('تسویه‌شده: {0}', [_money(s.settledCommission)])),
             if (_isAdmin && s.accruedCommission > 0) ...[
               const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: _busy ? null : () => _settleAll(s),
-                  child: const Text('تسویهٔ همه'),
+                  child: Text(tr('تسویهٔ همه')),
                 ),
               ),
             ],
@@ -207,14 +207,13 @@ class _InsuranceCommissionsScreenState
       contentPadding: EdgeInsets.zero,
       title: Text(c.requestRef ?? c.product ?? c.id),
       subtitle: Text(
-        '${_money(c.commissionAmount)} از ${_money(c.premium)}'
-        ' (${c.commissionRate}٪) · ${c.isSettled ? 'تسویه‌شده' : 'تسویه‌نشده'}',
+        tr('{0} از {1} ({2}٪) · {3}', [_money(c.commissionAmount), _money(c.premium), c.commissionRate, c.isSettled ? tr('تسویه‌شده') : tr('تسویه‌نشده')]),
         style: Theme.of(context).textTheme.bodySmall,
       ),
       trailing: _isAdmin && !c.isSettled
           ? TextButton(
               onPressed: _busy ? null : () => _settleOne(c),
-              child: const Text('تسویه'),
+              child: Text(tr('تسویه')),
             )
           : null,
     );

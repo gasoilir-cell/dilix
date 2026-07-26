@@ -6,6 +6,7 @@ import '../../app.dart';
 import '../../models/models.dart';
 import 'user_list_screen.dart';
 
+import '../../core/l10n.dart';
 /// یافتنِ آدم‌ها: جستجو با نام/یوزرنیم/Earth ID و پیشنهادهای سرور.
 ///
 /// وقتی جعبهٔ جستجو خالی است پیشنهادها (`/social/suggestions`) نمایش داده
@@ -91,7 +92,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
     final showingSearch = _ctrl.text.trim().isNotEmpty;
     final list = showingSearch ? _results : _suggestions;
     return Scaffold(
-      appBar: AppBar(title: const Text('یافتنِ آدم‌ها')),
+      appBar: AppBar(title: Text(tr('یافتنِ آدم‌ها'))),
       body: Column(
         children: [
           Padding(
@@ -101,7 +102,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
               textInputAction: TextInputAction.search,
               onChanged: _onChanged,
               decoration: InputDecoration(
-                hintText: 'نام، یوزرنیم یا DLX-XXXXXXXX',
+                hintText: tr('نام، یوزرنیم یا DLX-XXXXXXXX'),
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: showingSearch
                     ? IconButton(
@@ -118,11 +119,11 @@ class _PeopleScreenState extends State<PeopleScreen> {
             ),
           ),
           if (!showingSearch)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Align(
                 alignment: AlignmentDirectional.centerStart,
-                child: Text('پیشنهاد برای شما'),
+                child: Text(tr('پیشنهاد برای شما')),
               ),
             ),
           Expanded(child: _body(showingSearch, list)),
@@ -133,7 +134,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
 
   Widget _body(bool showingSearch, List<SocialUser>? list) {
     if (_error != null) {
-      return Center(child: Text('جستجو ناموفق بود.\n$_error',
+      return Center(child: Text(tr('جستجو ناموفق بود.\n{0}', [_error]),
           textAlign: TextAlign.center));
     }
     if (_searching && list == null) {
@@ -142,7 +143,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
     if (list == null) return const Center(child: CircularProgressIndicator());
     if (list.isEmpty) {
       return Center(
-          child: Text(showingSearch ? 'کاربری پیدا نشد.' : 'پیشنهادی نیست.'));
+          child: Text(showingSearch ? tr('کاربری پیدا نشد.') : tr('پیشنهادی نیست.')));
     }
     return ListView.separated(
       itemCount: list.length,

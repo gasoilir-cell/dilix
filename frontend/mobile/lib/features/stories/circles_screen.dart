@@ -4,8 +4,12 @@ import '../../app.dart';
 import '../../core/config.dart';
 import '../../models/models.dart';
 
+import '../../core/l10n.dart';
 /// نامِ سه حلقهٔ مخاطب؛ همان مقادیرِ مجازِ `audience` در ساختِ داستان.
-const _circles = <String, String>{
+Map<String, String> get _circles =>
+    _circlesSrc.map((k, v) => MapEntry(k, tr(v)));
+
+const _circlesSrc = <String, String>{
   'friends': 'دوستان',
   'family': 'خانواده',
   'colleagues': 'همکاران',
@@ -44,7 +48,7 @@ class _CirclesScreenState extends State<CirclesScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'بارگذاریِ حلقه‌ها ممکن نشد: $e';
+        _error = tr('بارگذاریِ حلقه‌ها ممکن نشد: {0}', [e]);
       });
     }
   }
@@ -79,7 +83,7 @@ class _CirclesScreenState extends State<CirclesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('حلقه‌های مخاطب')),
+      appBar: AppBar(title: Text(tr('حلقه‌های مخاطب'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -95,7 +99,7 @@ class _CirclesScreenState extends State<CirclesScreen> {
                               color: Theme.of(context).colorScheme.error)),
                     ),
                   Text(
-                    'داستانی که مخاطبش «دوستان»، «خانواده» یا «همکاران» باشد، فقط برای اعضای همان حلقه دیده می‌شود.',
+                    tr('داستانی که مخاطبش «دوستان»، «خانواده» یا «همکاران» باشد، فقط برای اعضای همان حلقه دیده می‌شود.'),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const SizedBox(height: 12),
@@ -124,14 +128,14 @@ class _CirclesScreenState extends State<CirclesScreen> {
                 TextButton.icon(
                   onPressed: () => _add(key),
                   icon: const Icon(Icons.person_add_alt),
-                  label: const Text('افزودن'),
+                  label: Text(tr('افزودن')),
                 ),
               ],
             ),
             if (members.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text('هنوز کسی در این حلقه نیست.',
+                child: Text(tr('هنوز کسی در این حلقه نیست.'),
                     style: Theme.of(context).textTheme.bodySmall),
               )
             else
@@ -143,7 +147,7 @@ class _CirclesScreenState extends State<CirclesScreen> {
                   subtitle: Text(m.earthId),
                   trailing: IconButton(
                     icon: const Icon(Icons.person_remove_outlined),
-                    tooltip: 'حذف از حلقه',
+                    tooltip: tr('حذف از حلقه'),
                     onPressed: () => _remove(key, m),
                   ),
                 ),
@@ -181,26 +185,26 @@ class _AddMemberDialogState extends State<_AddMemberDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('افزودن به حلقه'),
+      title: Text(tr('افزودن به حلقه')),
       content: TextField(
         controller: _ctrl,
         autofocus: true,
         textCapitalization: TextCapitalization.characters,
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           labelText: 'Earth ID',
-          hintText: 'مثلاً EID-XXXX',
+          hintText: tr('مثلاً EID-XXXX'),
         ),
         onSubmitted: (v) => Navigator.of(context).pop(v.trim().toUpperCase()),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('انصراف'),
+          child: Text(tr('انصراف')),
         ),
         FilledButton(
           onPressed: () =>
               Navigator.of(context).pop(_ctrl.text.trim().toUpperCase()),
-          child: const Text('افزودن'),
+          child: Text(tr('افزودن')),
         ),
       ],
     );

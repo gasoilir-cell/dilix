@@ -4,6 +4,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../core/config.dart';
 
+import '../../core/l10n.dart';
 /// کارتِ QR پروفایل.
 ///
 /// سرور خودش کدِ QR را به شکلِ **SVG** رندر می‌کند
@@ -80,7 +81,7 @@ class _ProfileQrSheetState extends State<_ProfileQrSheet> {
     await Clipboard.setData(ClipboardData(text: _profileUrl));
     if (!mounted) return;
     messenger.showSnackBar(
-      const SnackBar(content: Text('لینکِ پروفایل کپی شد.')),
+      SnackBar(content: Text(tr('لینکِ پروفایل کپی شد.'))),
     );
   }
 
@@ -101,7 +102,7 @@ class _ProfileQrSheetState extends State<_ProfileQrSheet> {
               : widget.earthId,
               style: theme.textTheme.titleMedium),
           const SizedBox(height: 4),
-          Text('این کد را اسکن کنید تا پروفایل باز شود.',
+          Text(tr('این کد را اسکن کنید تا پروفایل باز شود.'),
               style: theme.textTheme.bodySmall, textAlign: TextAlign.center),
           const SizedBox(height: 16),
           AspectRatio(
@@ -111,12 +112,12 @@ class _ProfileQrSheetState extends State<_ProfileQrSheet> {
               child: Container(
                 color: Colors.white,
                 child: _failed
-                    ? const Center(
+                    ? Center(
                         child: Padding(
-                          padding: EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(16),
                           child: Text(
-                            'ساختِ کدِ QR ممکن نشد.',
-                            style: TextStyle(color: Colors.black54),
+                            tr('ساختِ کدِ QR ممکن نشد.'),
+                            style: const TextStyle(color: Colors.black54),
                           ),
                         ),
                       )
@@ -135,7 +136,7 @@ class _ProfileQrSheetState extends State<_ProfileQrSheet> {
                 child: OutlinedButton.icon(
                   onPressed: _copyLink,
                   icon: const Icon(Icons.link),
-                  label: const Text('کپیِ لینک'),
+                  label: Text(tr('کپیِ لینک')),
                 ),
               ),
               const SizedBox(width: 12),
@@ -143,7 +144,7 @@ class _ProfileQrSheetState extends State<_ProfileQrSheet> {
                 child: FilledButton.icon(
                   onPressed: () => Navigator.of(context).pop(),
                   icon: const Icon(Icons.check),
-                  label: const Text('بستن'),
+                  label: Text(tr('بستن')),
                 ),
               ),
             ],

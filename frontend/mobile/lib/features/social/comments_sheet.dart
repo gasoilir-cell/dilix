@@ -6,6 +6,7 @@ import '../../core/config.dart';
 import '../../models/models.dart';
 import 'profile_screen.dart';
 
+import '../../core/l10n.dart';
 /// شیتِ نظرها؛ برای ریل و پست یکی است چون سرور برای هر دو همان اسکیمای
 /// `CommentOut` را می‌دهد. کارهای شبکه تزریق می‌شوند (مثلِ `UserListScreen`) تا
 /// این ویجت به هیچ اندپوینتِ خاصی گره نخورد.
@@ -71,7 +72,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
         _ctrl.clear();
       });
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('ثبتِ نظر ناموفق بود: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('ثبتِ نظر ناموفق بود: {0}', [e]))));
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -88,7 +89,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
         _added -= 1;
       });
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('حذف ناموفق بود: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('حذف ناموفق بود: {0}', [e]))));
     }
   }
 
@@ -107,21 +108,21 @@ class _CommentsSheetState extends State<CommentsSheet> {
           height: MediaQuery.of(context).size.height * 0.7,
           child: Column(
             children: [
-              const Padding(
-                padding: EdgeInsets.all(12),
+              Padding(
+                padding: const EdgeInsets.all(12),
                 child:
-                    Text('نظرها', style: TextStyle(fontWeight: FontWeight.bold)),
+                    Text(tr('نظرها'), style: const TextStyle(fontWeight: FontWeight.bold)),
               ),
               const Divider(height: 1),
               Expanded(
                 child: _error != null
                     ? Center(
-                        child: Text('بارگذاری ناموفق بود.\n$_error',
+                        child: Text(tr('بارگذاری ناموفق بود.\n{0}', [_error]),
                             textAlign: TextAlign.center))
                     : items == null
                         ? const Center(child: CircularProgressIndicator())
                         : items.isEmpty
-                            ? const Center(child: Text('هنوز نظری نیست.'))
+                            ? Center(child: Text(tr('هنوز نظری نیست.')))
                             : ListView.builder(
                                 itemCount: items.length,
                                 itemBuilder: (_, i) => _tile(items[i]),
@@ -135,9 +136,9 @@ class _CommentsSheetState extends State<CommentsSheet> {
                     Expanded(
                       child: TextField(
                         controller: _ctrl,
-                        decoration: const InputDecoration(
-                          hintText: 'نظر خود را بنویسید…',
-                          border: OutlineInputBorder(),
+                        decoration: InputDecoration(
+                          hintText: tr('نظر خود را بنویسید…'),
+                          border: const OutlineInputBorder(),
                           isDense: true,
                         ),
                         onSubmitted: (_) => _send(),

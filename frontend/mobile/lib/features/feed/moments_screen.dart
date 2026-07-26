@@ -4,6 +4,7 @@ import '../../app.dart';
 import '../../models/models.dart';
 import 'post_card.dart';
 
+import '../../core/l10n.dart';
 /// «لحظه‌ها» — پست‌های دارای موقعیت روی کره (`GET /api/v1/posts/moments`).
 ///
 /// اگر [bounds] داده شود فقط لحظه‌های همان محدوده خوانده می‌شوند؛ وگرنه
@@ -52,10 +53,10 @@ class _MomentsScreenState extends State<MomentsScreen> {
     final posts = _posts;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('لحظه‌ها'),
+        title: Text(tr('لحظه‌ها')),
         actions: [
           IconButton(
-            tooltip: 'تازه‌سازی',
+            tooltip: tr('تازه‌سازی'),
             icon: const Icon(Icons.refresh),
             onPressed: _load,
           ),
@@ -68,11 +69,11 @@ class _MomentsScreenState extends State<MomentsScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('بارگذاری ممکن نشد.\n$_error',
+                    Text(tr('بارگذاری ممکن نشد.\n{0}', [_error]),
                         textAlign: TextAlign.center),
                     const SizedBox(height: 12),
                     OutlinedButton(
-                        onPressed: _load, child: const Text('تلاشِ دوباره')),
+                        onPressed: _load, child: Text(tr('تلاشِ دوباره'))),
                   ],
                 ),
               ),
@@ -80,12 +81,11 @@ class _MomentsScreenState extends State<MomentsScreen> {
           : posts == null
               ? const Center(child: CircularProgressIndicator())
               : posts.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Padding(
-                        padding: EdgeInsets.all(32),
+                        padding: const EdgeInsets.all(32),
                         child: Text(
-                          'هنوز لحظه‌ای روی کره ثبت نشده.\n'
-                          'هنگامِ انتشارِ پست موقعیت را اضافه کنید تا این‌جا دیده شود.',
+                          tr('هنوز لحظه‌ای روی کره ثبت نشده.\nهنگامِ انتشارِ پست موقعیت را اضافه کنید تا این‌جا دیده شود.'),
                           textAlign: TextAlign.center,
                         ),
                       ),

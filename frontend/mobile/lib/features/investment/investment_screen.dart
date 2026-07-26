@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app.dart';
 import '../../models/models.dart';
 
+import '../../core/l10n.dart';
 /// صفحهٔ سرمایه‌گذاری: استعلامِ NAVِ صندوق، خریدِ واحد، و فهرستِ موقعیت‌ها.
 /// معادلِ صفحهٔ وبِ `app/investment/page.tsx`. مبلغِ ورودی به تومان است و
 /// به کوچک‌ترین واحدِ IRR (×۱۰) تبدیل می‌شود.
@@ -51,7 +52,7 @@ class _InvestmentScreenState extends State<InvestmentScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'بارگذاریِ موقعیت‌ها ممکن نشد: $e';
+        _error = tr('بارگذاریِ موقعیت‌ها ممکن نشد: {0}', [e]);
         _loading = false;
       });
     }
@@ -60,7 +61,7 @@ class _InvestmentScreenState extends State<InvestmentScreen> {
   Future<void> _fetchNav() async {
     final fund = _fundCtrl.text.trim();
     if (fund.isEmpty) {
-      setState(() => _error = 'کدِ صندوق را وارد کنید.');
+      setState(() => _error = tr('کدِ صندوق را وارد کنید.'));
       return;
     }
     setState(() {
@@ -78,7 +79,7 @@ class _InvestmentScreenState extends State<InvestmentScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'استعلامِ NAV ناموفق بود: $e';
+        _error = tr('استعلامِ NAV ناموفق بود: {0}', [e]);
         _busy = false;
       });
     }
@@ -88,11 +89,11 @@ class _InvestmentScreenState extends State<InvestmentScreen> {
     final fund = _fundCtrl.text.trim();
     final amount = double.tryParse(_amountCtrl.text.trim());
     if (fund.isEmpty) {
-      setState(() => _error = 'کدِ صندوق را وارد کنید.');
+      setState(() => _error = tr('کدِ صندوق را وارد کنید.'));
       return;
     }
     if (amount == null || amount <= 0) {
-      setState(() => _error = 'مبلغِ معتبر (تومان) وارد کنید.');
+      setState(() => _error = tr('مبلغِ معتبر (تومان) وارد کنید.'));
       return;
     }
     setState(() {
@@ -112,31 +113,31 @@ class _InvestmentScreenState extends State<InvestmentScreen> {
           for (final p in _positions)
             if (p.id != position.id) p,
         ];
-        _notice = 'خریدِ ${position.units} واحد از ${position.fundCode} ثبت شد.';
+        _notice = tr('خریدِ {0} واحد از {1} ثبت شد.', [position.units, position.fundCode]);
         _amountCtrl.clear();
         _busy = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'خرید ناموفق بود: $e';
+        _error = tr('خرید ناموفق بود: {0}', [e]);
         _busy = false;
       });
     }
   }
 
-  String _navText(NavQuote nav) => '${(nav.navMinor / 10).round()} تومان به‌ازای هر واحد';
+  String _navText(NavQuote nav) => tr('{0} تومان به‌ازای هر واحد', [(nav.navMinor / 10).round()]);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('سرمایه‌گذاری'),
+        title: Text(tr('سرمایه‌گذاری')),
         actions: [
           IconButton(
             onPressed: _loading ? null : _load,
             icon: const Icon(Icons.refresh),
-            tooltip: 'تلاشِ مجدد',
+            tooltip: tr('تلاشِ مجدد'),
           ),
         ],
       ),
@@ -179,22 +180,22 @@ class _InvestmentScreenState extends State<InvestmentScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('خریدِ واحدِ صندوق', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(tr('خریدِ واحدِ صندوق'), style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             TextField(
               controller: _fundCtrl,
-              decoration: const InputDecoration(labelText: 'کدِ صندوق'),
+              decoration: InputDecoration(labelText: tr('کدِ صندوق')),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: _amountCtrl,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'مبلغ (تومان)'),
+              decoration: InputDecoration(labelText: tr('مبلغ (تومان)')),
             ),
             if (_nav != null) ...[
               const SizedBox(height: 8),
               Text(
-                'NAVِ ${_nav!.fundCode}: ${_navText(_nav!)}',
+                tr('NAVِ {0}: {1}', [_nav!.fundCode, _navText(_nav!)]),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -204,14 +205,14 @@ class _InvestmentScreenState extends State<InvestmentScreen> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: _busy ? null : _fetchNav,
-                    child: const Text('استعلامِ NAV'),
+                    child: Text(tr('استعلامِ NAV')),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: FilledButton(
                     onPressed: _busy ? null : _buy,
-                    child: Text(_busy ? 'در حال…' : 'خرید'),
+                    child: Text(_busy ? tr('در حال…') : tr('خرید')),
                   ),
                 ),
               ],
@@ -229,11 +230,11 @@ class _InvestmentScreenState extends State<InvestmentScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('موقعیت‌های من', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(tr('موقعیت‌های من'), style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             if (_positions.isEmpty)
               Text(
-                'هنوز موقعیتی ندارید. با خریدِ واحد، اولین موقعیت‌تان ساخته می‌شود.',
+                tr('هنوز موقعیتی ندارید. با خریدِ واحد، اولین موقعیت‌تان ساخته می‌شود.'),
                 style: Theme.of(context).textTheme.bodySmall,
               )
             else
@@ -247,7 +248,7 @@ class _InvestmentScreenState extends State<InvestmentScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(p.fundCode, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          Text('${p.units} واحد', style: Theme.of(context).textTheme.bodySmall),
+                          Text(tr('{0} واحد', [p.units]), style: Theme.of(context).textTheme.bodySmall),
                         ],
                       ),
                       Chip(label: Text(p.status)),

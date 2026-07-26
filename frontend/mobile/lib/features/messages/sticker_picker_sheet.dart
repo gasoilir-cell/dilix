@@ -5,6 +5,7 @@ import '../../core/config.dart';
 import '../../models/models.dart';
 import 'my_sticker_packs_screen.dart';
 
+import '../../core/l10n.dart';
 /// انتخابگرِ استیکر. شناسهٔ استیکرِ انتخاب‌شده را برمی‌گرداند تا `ChatScreen`
 /// خودش `sendSticker` را صدا بزند (منطقِ ارسال یک‌جا می‌ماند).
 Future<String?> showStickerPicker(BuildContext context, {required ApiClient api}) {
@@ -65,7 +66,7 @@ class _StickerPickerState extends State<_StickerPicker> {
       if (_packId != null) await _loadPack(_packId!);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'دریافتِ استیکرها ناموفق بود: $e');
+      setState(() => _error = tr('دریافتِ استیکرها ناموفق بود: {0}', [e]));
     }
   }
 
@@ -77,7 +78,7 @@ class _StickerPickerState extends State<_StickerPicker> {
       setState(() => _stickersByPack[packId] = pack.stickers);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'بازکردنِ بسته ناموفق بود: $e');
+      setState(() => _error = tr('بازکردنِ بسته ناموفق بود: {0}', [e]));
     }
   }
 
@@ -97,7 +98,7 @@ class _StickerPickerState extends State<_StickerPicker> {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = 'جستجویِ بسته‌ها ناموفق بود: $e';
+        _error = tr('جستجویِ بسته‌ها ناموفق بود: {0}', [e]);
       });
     }
   }
@@ -136,7 +137,7 @@ class _StickerPickerState extends State<_StickerPicker> {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = 'تغییرِ وضعیتِ نصب ناموفق بود: $e';
+        _error = tr('تغییرِ وضعیتِ نصب ناموفق بود: {0}', [e]);
       });
     }
   }
@@ -156,7 +157,7 @@ class _StickerPickerState extends State<_StickerPicker> {
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'ستاره‌دارکردن ناموفق بود: $e');
+      setState(() => _error = tr('ستاره‌دارکردن ناموفق بود: {0}', [e]));
     }
   }
 
@@ -174,17 +175,17 @@ class _StickerPickerState extends State<_StickerPicker> {
           children: [
             ListTile(
               leading: const Icon(Icons.emoji_emotions_outlined),
-              title: Text(_discover ? 'بسته‌های عمومی' : 'استیکرها'),
+              title: Text(_discover ? tr('بسته‌های عمومی') : tr('استیکرها')),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    tooltip: 'بسته‌های من',
+                    tooltip: tr('بسته‌های من'),
                     icon: const Icon(Icons.brush_outlined),
                     onPressed: _openMyPacks,
                   ),
                   IconButton(
-                    tooltip: _discover ? 'استیکرهای من' : 'کشفِ بسته‌ها',
+                    tooltip: _discover ? tr('استیکرهای من') : tr('کشفِ بسته‌ها'),
                     icon:
                         Icon(_discover ? Icons.close : Icons.add_circle_outline),
                     onPressed: () {
@@ -220,7 +221,7 @@ class _StickerPickerState extends State<_StickerPicker> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('هنوز بستهٔ استیکری نصب نکرده‌ای.',
+            Text(tr('هنوز بستهٔ استیکری نصب نکرده‌ای.'),
                 textAlign: TextAlign.center),
             const SizedBox(height: 12),
             FilledButton.icon(
@@ -229,7 +230,7 @@ class _StickerPickerState extends State<_StickerPicker> {
                 if (_public == null) _searchPublic();
               },
               icon: const Icon(Icons.search),
-              label: const Text('دیدنِ بسته‌های عمومی'),
+              label: Text(tr('دیدنِ بسته‌های عمومی')),
             ),
           ],
         ),
@@ -293,7 +294,7 @@ class _StickerPickerState extends State<_StickerPicker> {
     final url = AppConfig.absoluteMedia(p.coverUrl);
     if (url == null) {
       return Text(
-        p.title.isNotEmpty ? p.title.characters.first : '؟',
+        p.title.isNotEmpty ? p.title.characters.first : tr('؟'),
         style: const TextStyle(fontWeight: FontWeight.bold),
       );
     }
@@ -314,8 +315,8 @@ class _StickerPickerState extends State<_StickerPicker> {
     if (items.isEmpty) {
       return Center(
         child: Text(_packId == null
-            ? 'استیکرِ ستاره‌داری نداری. روی هر استیکر نگه‌دار تا ستاره شود.'
-            : 'این بسته خالی است.'),
+            ? tr('استیکرِ ستاره‌داری نداری. روی هر استیکر نگه‌دار تا ستاره شود.')
+            : tr('این بسته خالی است.')),
       );
     }
     return GridView.builder(
@@ -366,7 +367,7 @@ class _StickerPickerState extends State<_StickerPicker> {
             textInputAction: TextInputAction.search,
             onSubmitted: (_) => _searchPublic(),
             decoration: InputDecoration(
-              hintText: 'جستجویِ بستهٔ استیکر…',
+              hintText: tr('جستجویِ بستهٔ استیکر…'),
               border: const OutlineInputBorder(),
               isDense: true,
               suffixIcon: IconButton(
@@ -385,7 +386,7 @@ class _StickerPickerState extends State<_StickerPicker> {
   Widget _publicList() {
     final list = _public;
     if (list == null) return const Center(child: CircularProgressIndicator());
-    if (list.isEmpty) return const Center(child: Text('بستهٔ عمومی‌ای پیدا نشد.'));
+    if (list.isEmpty) return Center(child: Text(tr('بستهٔ عمومی‌ای پیدا نشد.')));
     return ListView.separated(
       itemCount: list.length,
       separatorBuilder: (_, __) => const Divider(height: 1),
@@ -395,17 +396,16 @@ class _StickerPickerState extends State<_StickerPicker> {
           leading: SizedBox(width: 40, height: 40, child: _packCover(p)),
           title: Text(p.title),
           subtitle: Text(
-            '${p.stickerCount} استیکر • ${p.installCount} نصب'
-            '${p.ownerName != null ? ' • ${p.ownerName}' : ''}',
+            tr('{0} استیکر • {1} نصب{2}', [p.stickerCount, p.installCount, p.ownerName != null ? ' • ${p.ownerName}' : '']),
           ),
           trailing: p.installed
               ? IconButton(
-                  tooltip: 'حذفِ بسته',
+                  tooltip: tr('حذفِ بسته'),
                   icon: const Icon(Icons.check_circle, color: Colors.green),
                   onPressed: _busy ? null : () => _install(p),
                 )
               : IconButton(
-                  tooltip: 'نصبِ بسته',
+                  tooltip: tr('نصبِ بسته'),
                   icon: const Icon(Icons.download_outlined),
                   onPressed: _busy ? null : () => _install(p),
                 ),

@@ -5,6 +5,7 @@ import '../../core/api_client.dart';
 import '../../core/config.dart';
 import '../../models/models.dart';
 
+import '../../core/l10n.dart';
 /// بسته‌های استیکرِ ساختهٔ خودم — `GET /stickers/packs/mine`،
 /// `POST /stickers/packs` و `POST /stickers/packs/{id}/stickers`.
 class MyStickerPacksScreen extends StatefulWidget {
@@ -37,7 +38,7 @@ class _MyStickerPacksScreenState extends State<MyStickerPacksScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'بارگذاریِ بسته‌ها ممکن نشد.\n$e');
+      setState(() => _error = tr('بارگذاریِ بسته‌ها ممکن نشد.\n{0}', [e]));
     }
   }
 
@@ -57,10 +58,10 @@ class _MyStickerPacksScreenState extends State<MyStickerPacksScreen> {
       );
       await _load();
       if (!mounted) return;
-      messenger.showSnackBar(const SnackBar(content: Text('بسته ساخته شد.')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('بسته ساخته شد.'))));
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text('ساختِ بسته ناموفق بود: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('ساختِ بسته ناموفق بود: {0}', [e]))));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -83,10 +84,10 @@ class _MyStickerPacksScreenState extends State<MyStickerPacksScreen> {
       );
       await _load();
       if (!mounted) return;
-      messenger.showSnackBar(const SnackBar(content: Text('بسته به‌روز شد.')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('بسته به‌روز شد.'))));
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text('ویرایش ناموفق بود: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('ویرایش ناموفق بود: {0}', [e]))));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -96,17 +97,17 @@ class _MyStickerPacksScreenState extends State<MyStickerPacksScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('حذفِ بسته'),
+        title: Text(tr('حذفِ بسته')),
         content: Text(
-          '«${p.title}» با همهٔ استیکرهایش حذف می‌شود. این کار برگشت‌پذیر نیست.',
+          tr('«{0}» با همهٔ استیکرهایش حذف می‌شود. این کار برگشت‌پذیر نیست.', [p.title]),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('انصراف')),
+              child: Text(tr('انصراف'))),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('حذف')),
+              child: Text(tr('حذف'))),
         ],
       ),
     );
@@ -117,10 +118,10 @@ class _MyStickerPacksScreenState extends State<MyStickerPacksScreen> {
       await widget.api.deleteStickerPack(p.id);
       await _load();
       if (!mounted) return;
-      messenger.showSnackBar(const SnackBar(content: Text('بسته حذف شد.')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('بسته حذف شد.'))));
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text('حذف ناموفق بود: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('حذف ناموفق بود: {0}', [e]))));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -140,11 +141,11 @@ class _MyStickerPacksScreenState extends State<MyStickerPacksScreen> {
   Widget build(BuildContext context) {
     final packs = _packs;
     return Scaffold(
-      appBar: AppBar(title: const Text('بسته‌های من')),
+      appBar: AppBar(title: Text(tr('بسته‌های من'))),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _busy ? null : _create,
         icon: const Icon(Icons.add),
-        label: const Text('بستهٔ جدید'),
+        label: Text(tr('بستهٔ جدید')),
       ),
       body: _error != null
           ? Center(
@@ -156,11 +157,11 @@ class _MyStickerPacksScreenState extends State<MyStickerPacksScreen> {
           : packs == null
               ? const Center(child: CircularProgressIndicator())
               : packs.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Padding(
-                        padding: EdgeInsets.all(32),
+                        padding: const EdgeInsets.all(32),
                         child: Text(
-                          'هنوز بسته‌ای نساخته‌اید. با دکمهٔ پایین شروع کنید.',
+                          tr('هنوز بسته‌ای نساخته‌اید. با دکمهٔ پایین شروع کنید.'),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -177,18 +178,17 @@ class _MyStickerPacksScreenState extends State<MyStickerPacksScreen> {
                                 width: 40, height: 40, child: _cover(p)),
                             title: Text(p.title),
                             subtitle: Text(
-                              '${p.stickerCount} استیکر • '
-                              '${p.isPublic ? 'عمومی' : 'خصوصی'}',
+                              tr('{0} استیکر • {1}', [p.stickerCount, p.isPublic ? tr('عمومی') : tr('خصوصی')]),
                             ),
                             trailing: PopupMenuButton<String>(
                               enabled: !_busy,
                               onSelected: (v) =>
                                   v == 'edit' ? _edit(p) : _delete(p),
-                              itemBuilder: (_) => const [
+                              itemBuilder: (_) => [
                                 PopupMenuItem(
-                                    value: 'edit', child: Text('ویرایش')),
+                                    value: 'edit', child: Text(tr('ویرایش'))),
                                 PopupMenuItem(
-                                    value: 'delete', child: Text('حذفِ بسته')),
+                                    value: 'delete', child: Text(tr('حذفِ بسته'))),
                               ],
                             ),
                             onTap: () => _openPack(p),
@@ -240,7 +240,7 @@ class _PackEditorScreenState extends State<_PackEditorScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'بارگذاریِ بسته ممکن نشد.\n$e');
+      setState(() => _error = tr('بارگذاریِ بسته ممکن نشد.\n{0}', [e]));
     }
   }
 
@@ -262,10 +262,10 @@ class _PackEditorScreenState extends State<_PackEditorScreen> {
       );
       await _load();
       if (!mounted) return;
-      messenger.showSnackBar(const SnackBar(content: Text('استیکر اضافه شد.')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('استیکر اضافه شد.'))));
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text('افزودن ناموفق بود: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('افزودن ناموفق بود: {0}', [e]))));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -275,15 +275,15 @@ class _PackEditorScreenState extends State<_PackEditorScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('حذفِ استیکر'),
-        content: const Text('این استیکر از بسته حذف شود؟'),
+        title: Text(tr('حذفِ استیکر')),
+        content: Text(tr('این استیکر از بسته حذف شود؟')),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('انصراف')),
+              child: Text(tr('انصراف'))),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('حذف')),
+              child: Text(tr('حذف'))),
         ],
       ),
     );
@@ -294,10 +294,10 @@ class _PackEditorScreenState extends State<_PackEditorScreen> {
       await widget.api.deleteSticker(s.id);
       await _load();
       if (!mounted) return;
-      messenger.showSnackBar(const SnackBar(content: Text('استیکر حذف شد.')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('استیکر حذف شد.'))));
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text('حذف ناموفق بود: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('حذف ناموفق بود: {0}', [e]))));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -307,11 +307,11 @@ class _PackEditorScreenState extends State<_PackEditorScreen> {
   Widget build(BuildContext context) {
     final pack = _pack;
     return Scaffold(
-      appBar: AppBar(title: Text(pack?.title ?? 'بسته')),
+      appBar: AppBar(title: Text(pack?.title ?? tr('بسته'))),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _busy ? null : _addSticker,
         icon: const Icon(Icons.add_photo_alternate_outlined),
-        label: const Text('افزودنِ استیکر'),
+        label: Text(tr('افزودنِ استیکر')),
       ),
       body: _error != null
           ? Center(
@@ -329,15 +329,15 @@ class _PackEditorScreenState extends State<_PackEditorScreen> {
                       Padding(
                         padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
                         child: Text(
-                          'برای حذفِ یک استیکر، روی آن نگه دارید.',
+                          tr('برای حذفِ یک استیکر، روی آن نگه دارید.'),
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ),
                     Expanded(
                       child: pack.stickers.isEmpty
-                          ? const Center(
+                          ? Center(
                               child: Text(
-                                  'این بسته هنوز استیکری ندارد.'))
+                                  tr('این بسته هنوز استیکری ندارد.')))
                           : GridView.builder(
                               padding: const EdgeInsets.all(10),
                               gridDelegate:
@@ -400,24 +400,24 @@ class _NewPackDialogState extends State<_NewPackDialog> {
   Widget build(BuildContext context) {
     final editing = widget.pack != null;
     return AlertDialog(
-      title: Text(editing ? 'ویرایشِ بسته' : 'بستهٔ استیکرِ جدید'),
+      title: Text(editing ? tr('ویرایشِ بسته') : tr('بستهٔ استیکرِ جدید')),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           TextField(
             controller: _title,
             autofocus: true,
-            decoration: const InputDecoration(labelText: 'عنوان'),
+            decoration: InputDecoration(labelText: tr('عنوان')),
           ),
           const SizedBox(height: 8),
           TextField(
             controller: _desc,
-            decoration: const InputDecoration(labelText: 'توضیح (اختیاری)'),
+            decoration: InputDecoration(labelText: tr('توضیح (اختیاری)')),
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('عمومی'),
-            subtitle: const Text('بقیه بتوانند پیدا و نصب کنند'),
+            title: Text(tr('عمومی')),
+            subtitle: Text(tr('بقیه بتوانند پیدا و نصب کنند')),
             value: _public,
             onChanged: (v) => setState(() => _public = v),
           ),
@@ -426,14 +426,14 @@ class _NewPackDialogState extends State<_NewPackDialog> {
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('انصراف')),
+            child: Text(tr('انصراف'))),
         FilledButton(
           onPressed: () {
             final t = _title.text.trim();
             if (t.isEmpty) return;
             Navigator.pop(context, (t, _desc.text.trim(), _public));
           },
-          child: Text(editing ? 'ذخیره' : 'ساخت'),
+          child: Text(editing ? tr('ذخیره') : tr('ساخت')),
         ),
       ],
     );
@@ -447,20 +447,20 @@ class _EmojiTagDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final ctrl = TextEditingController();
     return AlertDialog(
-      title: const Text('برچسبِ ایموجی'),
+      title: Text(tr('برچسبِ ایموجی')),
       content: TextField(
         controller: ctrl,
         autofocus: true,
-        decoration: const InputDecoration(hintText: 'مثلاً 😀 (اختیاری)'),
+        decoration: InputDecoration(hintText: tr('مثلاً 😀 (اختیاری)')),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('بدونِ برچسب'),
+          child: Text(tr('بدونِ برچسب')),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(context, ctrl.text.trim()),
-          child: const Text('تأیید'),
+          child: Text(tr('تأیید')),
         ),
       ],
     );

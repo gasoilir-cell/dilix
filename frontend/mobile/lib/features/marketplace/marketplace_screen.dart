@@ -3,7 +3,11 @@ import 'package:flutter/material.dart';
 import '../../app.dart';
 import '../../models/models.dart';
 
-const _orderStatusLabel = <String, String>{
+import '../../core/l10n.dart';
+Map<String, String> get _orderStatusLabel =>
+    _orderStatusLabelSrc.map((k, v) => MapEntry(k, tr(v)));
+
+const _orderStatusLabelSrc = <String, String>{
   'pending': 'در انتظارِ پذیرش',
   'accepted': 'پذیرفته‌شده',
   'in_progress': 'در حالِ انجام',
@@ -14,7 +18,7 @@ const _orderStatusLabel = <String, String>{
 };
 
 String _formatPrice(int minor, String currency) {
-  if (currency == 'IRR') return '${(minor / 10).round()} تومان';
+  if (currency == 'IRR') return tr('{0} تومان', [(minor / 10).round()]);
   return '${(minor / 100).round()} $currency';
 }
 
@@ -76,11 +80,11 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
         agreedPriceMinor: l.basePriceMinor,
         currency: l.currency,
       );
-      _snack('سفارش ثبت شد؛ مبلغ در امانت نگه داشته شد.');
+      _snack(tr('سفارش ثبت شد؛ مبلغ در امانت نگه داشته شد.'));
       _reloadOrders();
       _tabs.animateTo(1);
     } catch (_) {
-      _snack('ثبتِ سفارش ممکن نشد (نمی‌توانید از آگهیِ خودتان سفارش دهید).');
+      _snack(tr('ثبتِ سفارش ممکن نشد (نمی‌توانید از آگهیِ خودتان سفارش دهید).'));
     }
   }
 
@@ -89,7 +93,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
       await ApiScope.of(context).orderAction(o.id, action);
       _reloadOrders();
     } catch (_) {
-      _snack('انجامِ این عملیات ممکن نشد.');
+      _snack(tr('انجامِ این عملیات ممکن نشد.'));
     }
   }
 
@@ -102,15 +106,15 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('بازارگاه'),
+        title: Text(tr('بازارگاه')),
         bottom: TabBar(
           controller: _tabs,
           onTap: (i) {
             if (i == 1 && _orders == null) _reloadOrders();
           },
-          tabs: const [
-            Tab(text: 'خدمات'),
-            Tab(text: 'سفارش‌های من'),
+          tabs: [
+            Tab(text: tr('خدمات')),
+            Tab(text: tr('سفارش‌های من')),
           ],
         ),
       ),
@@ -131,16 +135,16 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
               Expanded(
                 child: TextField(
                   controller: _searchController,
-                  decoration: const InputDecoration(
-                    hintText: 'جستجوی خدمت…',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    hintText: tr('جستجوی خدمت…'),
+                    border: const OutlineInputBorder(),
                     isDense: true,
                   ),
                   onSubmitted: (_) => _search(),
                 ),
               ),
               const SizedBox(width: 8),
-              FilledButton(onPressed: _search, child: const Text('جستجو')),
+              FilledButton(onPressed: _search, child: Text(tr('جستجو'))),
             ],
           ),
         ),
@@ -153,13 +157,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
               }
               if (snap.hasError) {
                 return Center(
-                  child: Text('بارگذاری ممکن نشد.\n${snap.error}',
+                  child: Text(tr('بارگذاری ممکن نشد.\n{0}', [snap.error]),
                       textAlign: TextAlign.center),
                 );
               }
               final items = snap.data ?? const <Listing>[];
               if (items.isEmpty) {
-                return const Center(child: Text('خدمتی ثبت نشده است.'));
+                return Center(child: Text(tr('خدمتی ثبت نشده است.')));
               }
               return ListView.builder(
                 padding: const EdgeInsets.all(12),
@@ -181,7 +185,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('${l.category} · ${l.deliveryDays} روز',
+                              Text(tr('{0} · {1} روز', [l.category, l.deliveryDays]),
                                   style: Theme.of(context).textTheme.bodySmall),
                               Text(_formatPrice(l.basePriceMinor, l.currency),
                                   style:
@@ -193,7 +197,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
                             alignment: AlignmentDirectional.centerEnd,
                             child: FilledButton(
                               onPressed: () => _order(l),
-                              child: const Text('سفارش'),
+                              child: Text(tr('سفارش')),
                             ),
                           ),
                         ],
@@ -219,13 +223,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
         }
         if (snap.hasError) {
           return Center(
-            child: Text('بارگذاری ممکن نشد.\n${snap.error}',
+            child: Text(tr('بارگذاری ممکن نشد.\n{0}', [snap.error]),
                 textAlign: TextAlign.center),
           );
         }
         final orders = snap.data ?? const <MarketOrder>[];
         if (orders.isEmpty) {
-          return const Center(child: Text('هنوز سفارشی ندارید.'));
+          return Center(child: Text(tr('هنوز سفارشی ندارید.')));
         }
         return RefreshIndicator(
           onRefresh: () async => _reloadOrders(),
@@ -244,13 +248,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
     final isBuyer = _myEarthId != null && o.buyerEarthId == _myEarthId;
     final actions = <Widget>[];
     if (isProvider && o.status == 'pending') {
-      actions.add(_actionBtn('پذیرش', () => _act(o, 'accept')));
+      actions.add(_actionBtn(tr('پذیرش'), () => _act(o, 'accept')));
     }
     if (isProvider && (o.status == 'accepted' || o.status == 'in_progress')) {
-      actions.add(_actionBtn('تحویل', () => _act(o, 'deliver')));
+      actions.add(_actionBtn(tr('تحویل'), () => _act(o, 'deliver')));
     }
     if (isBuyer && o.status == 'delivered') {
-      actions.add(_actionBtn('تأیید و تکمیل', () => _act(o, 'complete')));
+      actions.add(_actionBtn(tr('تأیید و تکمیل'), () => _act(o, 'complete')));
     }
     return Card(
       child: Padding(
@@ -261,7 +265,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('سفارش #${o.id.substring(0, 8)}…',
+                Text(tr('سفارش #{0}…', [o.id.substring(0, 8)]),
                     style: const TextStyle(fontWeight: FontWeight.bold)),
                 Chip(label: Text(_orderStatusLabel[o.status] ?? o.status)),
               ],
@@ -269,7 +273,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('نقشِ شما: ${isProvider ? 'فروشنده' : 'خریدار'}',
+                Text(tr('نقشِ شما: {0}', [isProvider ? tr('فروشنده') : tr('خریدار')]),
                     style: Theme.of(context).textTheme.bodySmall),
                 Text(_formatPrice(o.agreedPriceMinor, o.currency),
                     style: const TextStyle(fontWeight: FontWeight.bold)),

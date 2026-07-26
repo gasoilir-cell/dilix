@@ -5,6 +5,7 @@ import '../../app.dart';
 import '../../core/config.dart';
 import 'call_service.dart';
 
+import '../../core/l10n.dart';
 /// شروعِ یک تماسِ خروجی روی نمونهٔ سراسریِ [CallService] (از `CallScope`).
 /// UIِ تماس را overlayِ سراسری در `app.dart` نمایش می‌دهد؛ اینجا فقط آفر
 /// فرستاده می‌شود.
@@ -62,7 +63,7 @@ class CallScreen extends StatelessWidget {
               child: Column(
                 children: [
                   Text(
-                    s.peerName.isNotEmpty ? s.peerName : 'تماس',
+                    s.peerName.isNotEmpty ? s.peerName : tr('تماس'),
                     style: const TextStyle(
                         color: Colors.white,
                         fontSize: 22,
@@ -118,8 +119,8 @@ class CallScreen extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _roundBtn(Icons.call_end, Colors.red, s.reject, 'رد'),
-        _roundBtn(Icons.call, Colors.green, s.accept, 'پاسخ'),
+        _roundBtn(Icons.call_end, Colors.red, s.reject, tr('رد')),
+        _roundBtn(Icons.call, Colors.green, s.accept, tr('پاسخ')),
       ],
     );
   }
@@ -132,18 +133,18 @@ class CallScreen extends StatelessWidget {
           s.muted ? Icons.mic_off : Icons.mic,
           Colors.white24,
           s.toggleMute,
-          'میوت',
+          tr('میوت'),
         ),
         if (isVideo)
           _roundBtn(
             s.camOff ? Icons.videocam_off : Icons.videocam,
             Colors.white24,
             s.toggleCamera,
-            'دوربین',
+            tr('دوربین'),
           ),
         if (isVideo)
-          _roundBtn(Icons.cameraswitch, Colors.white24, s.switchCamera, 'تعویض'),
-        _roundBtn(Icons.call_end, Colors.red, s.hangup, 'قطع'),
+          _roundBtn(Icons.cameraswitch, Colors.white24, s.switchCamera, tr('تعویض')),
+        _roundBtn(Icons.call_end, Colors.red, s.hangup, tr('قطع')),
       ],
     );
   }
@@ -167,15 +168,15 @@ class CallScreen extends StatelessWidget {
   String _statusLabel(CallPhase phase) {
     switch (phase) {
       case CallPhase.outgoing:
-        return 'در حالِ تماس…';
+        return tr('در حالِ تماس…');
       case CallPhase.incoming:
-        return 'تماسِ ورودی';
+        return tr('تماسِ ورودی');
       case CallPhase.connecting:
-        return 'در حالِ اتصال…';
+        return tr('در حالِ اتصال…');
       case CallPhase.active:
-        return 'برقرار';
+        return tr('برقرار');
       case CallPhase.idle:
-        return 'پایان';
+        return tr('پایان');
     }
   }
 }

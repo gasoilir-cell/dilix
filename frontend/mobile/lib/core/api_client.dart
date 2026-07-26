@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'config.dart';
 import '../models/models.dart';
 
+import 'l10n.dart';
 /// خطایِ API مطابقِ RFC 7807 (سند ۵ §۲).
 class ApiException implements Exception {
   ApiException(this.status, this.detail, this.title);
@@ -81,7 +82,7 @@ class ApiClient {
       };
 
   Never _raise(http.Response res) {
-    String detail = res.reasonPhrase ?? 'خطا';
+    String detail = res.reasonPhrase ?? tr('خطا');
     String title = detail;
     try {
       final body = jsonDecode(res.body) as Map<String, dynamic>;

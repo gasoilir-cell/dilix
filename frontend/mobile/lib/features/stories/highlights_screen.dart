@@ -4,6 +4,7 @@ import '../../app.dart';
 import '../../core/config.dart';
 import '../../models/models.dart';
 
+import '../../core/l10n.dart';
 /// هایلایت‌های پروفایل — مجموعه‌های ماندگارِ داستان.
 ///
 /// [isMe] از پاسخِ سرور مستقل است تا صفحه بدونِ رفت‌وبرگشتِ اضافه بداند دکمهٔ
@@ -43,7 +44,7 @@ class _HighlightsScreenState extends State<HighlightsScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'بارگذاریِ هایلایت‌ها ممکن نشد: $e';
+        _error = tr('بارگذاریِ هایلایت‌ها ممکن نشد: {0}', [e]);
       });
     }
   }
@@ -84,16 +85,16 @@ class _HighlightsScreenState extends State<HighlightsScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('حذفِ هایلایت'),
-        content: Text('«${h.title}» حذف شود؟'),
+        title: Text(tr('حذفِ هایلایت')),
+        content: Text(tr('«{0}» حذف شود؟', [h.title])),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('انصراف'),
+            child: Text(tr('انصراف')),
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('حذف'),
+            child: Text(tr('حذف')),
           ),
         ],
       ),
@@ -112,12 +113,12 @@ class _HighlightsScreenState extends State<HighlightsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('هایلایت‌ها')),
+      appBar: AppBar(title: Text(tr('هایلایت‌ها'))),
       floatingActionButton: widget.isMe
           ? FloatingActionButton.extended(
               onPressed: _create,
               icon: const Icon(Icons.add),
-              label: const Text('هایلایتِ جدید'),
+              label: Text(tr('هایلایتِ جدید')),
             )
           : null,
       body: _loading
@@ -130,9 +131,9 @@ class _HighlightsScreenState extends State<HighlightsScreen> {
                       Center(child: Text(_error!, textAlign: TextAlign.center)),
                     ])
                   : _items.isEmpty
-                      ? ListView(children: const [
-                          SizedBox(height: 120),
-                          Center(child: Text('هنوز هایلایتی ساخته نشده است.')),
+                      ? ListView(children: [
+                          const SizedBox(height: 120),
+                          Center(child: Text(tr('هنوز هایلایتی ساخته نشده است.'))),
                         ])
                       : GridView.builder(
                           padding: const EdgeInsets.all(12),
@@ -195,7 +196,7 @@ class _HighlightsScreenState extends State<HighlightsScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.edit_outlined),
-              title: const Text('تغییرِ عنوان'),
+              title: Text(tr('تغییرِ عنوان')),
               onTap: () {
                 Navigator.of(ctx).pop();
                 _rename(h);
@@ -203,7 +204,7 @@ class _HighlightsScreenState extends State<HighlightsScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.delete_outline),
-              title: const Text('حذفِ هایلایت'),
+              title: Text(tr('حذفِ هایلایت')),
               onTap: () {
                 Navigator.of(ctx).pop();
                 _delete(h);
@@ -251,7 +252,7 @@ class _HighlightDetailScreenState extends State<HighlightDetailScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'بارگذاری ممکن نشد: $e';
+        _error = tr('بارگذاری ممکن نشد: {0}', [e]);
       });
     }
   }
@@ -303,12 +304,12 @@ class _HighlightDetailScreenState extends State<HighlightDetailScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(d?.title ?? 'هایلایت'),
+          title: Text(d?.title ?? tr('هایلایت')),
           actions: [
             if (d?.isMine ?? false)
               IconButton(
                 icon: const Icon(Icons.add_photo_alternate_outlined),
-                tooltip: 'افزودنِ داستان',
+                tooltip: tr('افزودنِ داستان'),
                 onPressed: _addItems,
               ),
           ],
@@ -318,7 +319,7 @@ class _HighlightDetailScreenState extends State<HighlightDetailScreen> {
             : _error != null
                 ? Center(child: Text(_error!, textAlign: TextAlign.center))
                 : d == null || d.items.isEmpty
-                    ? const Center(child: Text('این هایلایت خالی است.'))
+                    ? Center(child: Text(tr('این هایلایت خالی است.')))
                     : GridView.builder(
                         padding: const EdgeInsets.all(8),
                         gridDelegate:
@@ -360,7 +361,7 @@ class _HighlightDetailScreenState extends State<HighlightDetailScreen> {
             child: IconButton(
               icon: const Icon(Icons.close, size: 18, color: Colors.white),
               style: IconButton.styleFrom(backgroundColor: Colors.black45),
-              tooltip: 'حذف از هایلایت',
+              tooltip: tr('حذف از هایلایت'),
               onPressed: () => _removeItem(it),
             ),
           ),
@@ -405,7 +406,7 @@ class _PickStoriesSheetState extends State<_PickStoriesSheet> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'بارگذاریِ داستان‌ها ممکن نشد: $e';
+        _error = tr('بارگذاریِ داستان‌ها ممکن نشد: {0}', [e]);
       });
     }
   }
@@ -418,7 +419,7 @@ class _PickStoriesSheetState extends State<_PickStoriesSheet> {
       builder: (_, controller) => Column(
         children: [
           const SizedBox(height: 8),
-          Text('انتخابِ داستان',
+          Text(tr('انتخابِ داستان'),
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           Expanded(
@@ -427,11 +428,11 @@ class _PickStoriesSheetState extends State<_PickStoriesSheet> {
                 : _error != null
                     ? Center(child: Text(_error!, textAlign: TextAlign.center))
                     : _stories.isEmpty
-                        ? const Center(
+                        ? Center(
                             child: Padding(
-                              padding: EdgeInsets.all(24),
+                              padding: const EdgeInsets.all(24),
                               child: Text(
-                                'داستانِ فعالی نداری. هایلایت فقط از داستان‌های موجود ساخته می‌شود.',
+                                tr('داستانِ فعالی نداری. هایلایت فقط از داستان‌های موجود ساخته می‌شود.'),
                                 textAlign: TextAlign.center,
                               ),
                             ),
@@ -457,7 +458,7 @@ class _PickStoriesSheetState extends State<_PickStoriesSheet> {
                 onPressed: _selected.isEmpty
                     ? null
                     : () => Navigator.of(context).pop(_selected.toList()),
-                child: Text('افزودن (${_selected.length})'),
+                child: Text(tr('افزودن ({0})', [_selected.length])),
               ),
             ),
           ),
@@ -536,11 +537,11 @@ class _CreateHighlightSheetState extends State<_CreateHighlightSheet> {
   Future<void> _submit() async {
     final title = _titleCtrl.text.trim();
     if (title.isEmpty) {
-      setState(() => _error = 'عنوان را وارد کنید.');
+      setState(() => _error = tr('عنوان را وارد کنید.'));
       return;
     }
     if (_storyIds.isEmpty) {
-      setState(() => _error = 'حداقل یک داستان انتخاب کنید.');
+      setState(() => _error = tr('حداقل یک داستان انتخاب کنید.'));
       return;
     }
     setState(() {
@@ -573,20 +574,20 @@ class _CreateHighlightSheetState extends State<_CreateHighlightSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('هایلایتِ جدید',
+          Text(tr('هایلایتِ جدید'),
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 12),
           TextField(
             controller: _titleCtrl,
             maxLength: 60,
-            decoration: const InputDecoration(labelText: 'عنوان'),
+            decoration: InputDecoration(labelText: tr('عنوان')),
           ),
           OutlinedButton.icon(
             onPressed: _pick,
             icon: const Icon(Icons.photo_library_outlined),
             label: Text(_storyIds.isEmpty
-                ? 'انتخابِ داستان‌ها'
-                : '${_storyIds.length} داستان انتخاب شد'),
+                ? tr('انتخابِ داستان‌ها')
+                : tr('{0} داستان انتخاب شد', [_storyIds.length])),
           ),
           if (_error != null) ...[
             const SizedBox(height: 8),
@@ -601,7 +602,7 @@ class _CreateHighlightSheetState extends State<_CreateHighlightSheet> {
                     height: 16,
                     width: 16,
                     child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('ساختن'),
+                : Text(tr('ساختن')),
           ),
         ],
       ),
@@ -630,21 +631,21 @@ class _TitleDialogState extends State<_TitleDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('تغییرِ عنوان'),
+      title: Text(tr('تغییرِ عنوان')),
       content: TextField(
         controller: _ctrl,
         autofocus: true,
         maxLength: 60,
-        decoration: const InputDecoration(labelText: 'عنوان'),
+        decoration: InputDecoration(labelText: tr('عنوان')),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('انصراف'),
+          child: Text(tr('انصراف')),
         ),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(_ctrl.text.trim()),
-          child: const Text('ذخیره'),
+          child: Text(tr('ذخیره')),
         ),
       ],
     );
@@ -673,7 +674,7 @@ Future<bool> showAddToHighlightSheet(
         children: [
           ListTile(
             leading: const Icon(Icons.add),
-            title: const Text('هایلایتِ جدید'),
+            title: Text(tr('هایلایتِ جدید')),
             onTap: () async {
               final title = await showDialog<String>(
                 context: ctx,
@@ -692,7 +693,7 @@ Future<bool> showAddToHighlightSheet(
             ListTile(
               leading: const Icon(Icons.auto_awesome_motion_outlined),
               title: Text(h.title),
-              subtitle: Text('${h.itemCount} آیتم'),
+              subtitle: Text(tr('{0} آیتم', [h.itemCount])),
               onTap: () async {
                 try {
                   await api.addHighlightItems(h.id, [storyId]);

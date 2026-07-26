@@ -18,6 +18,7 @@ import 'media_viewer.dart';
 import 'message_bubble.dart';
 import 'sticker_picker_sheet.dart';
 
+import '../../core/l10n.dart';
 /// نمای بومیِ گفتگو با پوششِ کاملِ پیام‌رسانِ dilix-api:
 /// متن/پاسخ/ویرایش/حذف، رسانه (عکس، ویدیو، صوت، فایل)، واکنش، بازارسال،
 /// سنجاق، جستجو، تایپینگ و حضور، نظرسنجی، هدیهٔ نقدی، موقعیت (ثابت و زنده)،
@@ -176,9 +177,9 @@ class _ChatScreenState extends State<ChatScreen> {
     _liveSub = _location
         .liveStream(
           interval: _livePushInterval,
-          notificationTitle: 'اشتراکِ موقعیتِ زنده',
+          notificationTitle: tr('اشتراکِ موقعیتِ زنده'),
           notificationText:
-              'موقعیتِ تو با ${_room.title} به اشتراک گذاشته می‌شود.',
+              tr('موقعیتِ تو با {0} به اشتراک گذاشته می‌شود.', [_room.title]),
         )
         .listen(_onLiveFix);
   }
@@ -242,7 +243,7 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       await action();
     } catch (e) {
-      _toast('${failure ?? 'عملیات ناموفق بود'}: $e');
+      _toast(tr('{0}: {1}', [failure ?? tr('عملیات ناموفق بود'), e]));
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -262,7 +263,7 @@ class _ChatScreenState extends State<ChatScreen> {
         _inputCtrl.clear();
         if (mounted) setState(() => _editing = null);
         await _load();
-      }, failure: 'ویرایش ناموفق بود');
+      }, failure: tr('ویرایش ناموفق بود'));
       return;
     }
 
@@ -275,7 +276,7 @@ class _ChatScreenState extends State<ChatScreen> {
         _replyTo = null;
       });
       _scrollToBottom();
-    }, failure: 'ارسال ناموفق بود');
+    }, failure: tr('ارسال ناموفق بود'));
   }
 
   /// خالی/پرشدنِ فیلد → سوییچِ دکمهٔ ارسال ↔ میکروفن. روی `addListener` است تا
@@ -315,7 +316,7 @@ class _ChatScreenState extends State<ChatScreen> {
         _replyTo = null;
       });
       _scrollToBottom();
-    }, failure: 'ارسالِ رسانه ناموفق بود');
+    }, failure: tr('ارسالِ رسانه ناموفق بود'));
   }
 
   Future<void> _captureAndSendPhoto() async {
@@ -330,7 +331,7 @@ class _ChatScreenState extends State<ChatScreen> {
         _replyTo = null;
       });
       _scrollToBottom();
-    }, failure: 'ارسالِ عکس ناموفق بود');
+    }, failure: tr('ارسالِ عکس ناموفق بود'));
   }
 
   /// پیوستِ فایلِ دلخواه (سند/PDF/…). سقفِ سرور ۲۵MB است.
@@ -339,7 +340,7 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       result = await FilePicker.platform.pickFiles();
     } catch (e) {
-      _toast('انتخابِ فایل ناموفق بود: $e');
+      _toast(tr('انتخابِ فایل ناموفق بود: {0}', [e]));
       return;
     }
     final path = result?.files.single.path;
@@ -359,7 +360,7 @@ class _ChatScreenState extends State<ChatScreen> {
         _replyTo = null;
       });
       _scrollToBottom();
-    }, failure: 'ارسالِ فایل ناموفق بود');
+    }, failure: tr('ارسالِ فایل ناموفق بود'));
   }
 
   // ─────────────── پیامِ صوتی ───────────────
@@ -368,7 +369,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _startRecording() async {
     try {
       if (!await _recorder.hasPermission()) {
-        _toast('برای ضبطِ صدا به اجازهٔ میکروفن نیاز است.');
+        _toast(tr('برای ضبطِ صدا به اجازهٔ میکروفن نیاز است.'));
         return;
       }
       final dir = await getTemporaryDirectory();
@@ -390,7 +391,7 @@ class _ChatScreenState extends State<ChatScreen> {
         }
       });
     } catch (e) {
-      _toast('شروعِ ضبط ناموفق بود: $e');
+      _toast(tr('شروعِ ضبط ناموفق بود: {0}', [e]));
     }
   }
 
@@ -421,11 +422,11 @@ class _ChatScreenState extends State<ChatScreen> {
     final tooShort = _recElapsed.inSeconds < 1;
     final path = await _finishRecording();
     if (tooShort) {
-      _toast('پیامِ صوتی خیلی کوتاه بود.');
+      _toast(tr('پیامِ صوتی خیلی کوتاه بود.'));
       return;
     }
     if (path == null) {
-      _toast('فایلِ صوتی ساخته نشد.');
+      _toast(tr('فایلِ صوتی ساخته نشد.'));
       return;
     }
     await _run(() async {
@@ -437,7 +438,7 @@ class _ChatScreenState extends State<ChatScreen> {
         _replyTo = null;
       });
       _scrollToBottom();
-    }, failure: 'ارسالِ پیامِ صوتی ناموفق بود');
+    }, failure: tr('ارسالِ پیامِ صوتی ناموفق بود'));
   }
 
   // ─────────────── کنش‌های پیام ───────────────
@@ -453,48 +454,48 @@ class _ChatScreenState extends State<ChatScreen> {
             const Divider(height: 1),
             ListTile(
               leading: const Icon(Icons.reply),
-              title: const Text('پاسخ'),
+              title: Text(tr('پاسخ')),
               onTap: () => Navigator.pop(ctx, 'reply'),
             ),
             if (m.isPlainText && m.content.isNotEmpty)
               ListTile(
                 leading: const Icon(Icons.copy),
-                title: const Text('کپیِ متن'),
+                title: Text(tr('کپیِ متن')),
                 onTap: () => Navigator.pop(ctx, 'copy'),
               ),
             ListTile(
               leading: const Icon(Icons.shortcut),
-              title: const Text('بازارسال'),
+              title: Text(tr('بازارسال')),
               onTap: () => Navigator.pop(ctx, 'forward'),
             ),
             ListTile(
               leading: Icon(m.isPinned ? Icons.push_pin_outlined : Icons.push_pin),
-              title: Text(m.isPinned ? 'برداشتنِ سنجاق' : 'سنجاق‌کردن'),
+              title: Text(m.isPinned ? tr('برداشتنِ سنجاق') : tr('سنجاق‌کردن')),
               onTap: () => Navigator.pop(ctx, 'pin'),
             ),
             if (m.content.trim().isNotEmpty)
               ListTile(
                 leading: const Icon(Icons.translate),
-                title: const Text('ترجمه'),
+                title: Text(tr('ترجمه')),
                 onTap: () => Navigator.pop(ctx, 'translate'),
               ),
             if (m.isMine && m.isPlainText && !m.deleted)
               ListTile(
                 leading: const Icon(Icons.edit),
-                title: const Text('ویرایش'),
+                title: Text(tr('ویرایش')),
                 onTap: () => Navigator.pop(ctx, 'edit'),
               ),
             if (m.isMine && !m.deleted)
               ListTile(
                 leading: const Icon(Icons.delete_outline, color: Colors.red),
                 title:
-                    const Text('حذف', style: TextStyle(color: Colors.red)),
+                    Text(tr('حذف'), style: const TextStyle(color: Colors.red)),
                 onTap: () => Navigator.pop(ctx, 'delete'),
               ),
             if (!m.isMine)
               ListTile(
                 leading: const Icon(Icons.flag_outlined),
-                title: const Text('گزارشِ تخلف'),
+                title: Text(tr('گزارشِ تخلف')),
                 onTap: () => Navigator.pop(ctx, 'report'),
               ),
           ],
@@ -517,7 +518,7 @@ class _ChatScreenState extends State<ChatScreen> {
         await _run(() async {
           await _api.pinMessage(m.id);
           await Future.wait([_load(), _loadPins()]);
-        }, failure: 'سنجاق ناموفق بود');
+        }, failure: tr('سنجاق ناموفق بود'));
       case 'translate':
         await _translate(m);
       case 'edit':
@@ -565,23 +566,23 @@ class _ChatScreenState extends State<ChatScreen> {
       // بک‌اند toggle است: اگر همین ایموجی را دارم، حذفش می‌کند.
       await _api.reactToMessage(m.id, emoji);
       await _load();
-    }, failure: 'ثبتِ واکنش ناموفق بود');
+    }, failure: tr('ثبتِ واکنش ناموفق بود'));
   }
 
   Future<void> _confirmDelete(ChatMessage m) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('حذفِ پیام'),
-        content: const Text('این پیام برای همه حذف می‌شود. مطمئنی؟'),
+        title: Text(tr('حذفِ پیام')),
+        content: Text(tr('این پیام برای همه حذف می‌شود. مطمئنی؟')),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('لغو')),
+              child: Text(tr('لغو'))),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('حذف'),
+            child: Text(tr('حذف')),
           ),
         ],
       ),
@@ -590,7 +591,7 @@ class _ChatScreenState extends State<ChatScreen> {
     await _run(() async {
       await _api.deleteMessage(m.id);
       await _load();
-    }, failure: 'حذف ناموفق بود');
+    }, failure: tr('حذف ناموفق بود'));
   }
 
   Future<void> _forward(ChatMessage m) async {
@@ -598,7 +599,7 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       rooms = await _api.listRooms();
     } catch (e) {
-      _toast('دریافتِ فهرستِ گفتگوها ناموفق بود: $e');
+      _toast(tr('دریافتِ فهرستِ گفتگوها ناموفق بود: {0}', [e]));
       return;
     }
     if (!mounted) return;
@@ -607,8 +608,8 @@ class _ChatScreenState extends State<ChatScreen> {
     if (picked == null || !mounted) return;
     await _run(() async {
       await _api.forwardMessage(m.id, picked.$1, anonymous: picked.$2);
-      _toast('بازارسال شد.');
-    }, failure: 'بازارسال ناموفق بود');
+      _toast(tr('بازارسال شد.'));
+    }, failure: tr('بازارسال ناموفق بود'));
   }
 
   Future<void> _translate(ChatMessage m) async {
@@ -619,13 +620,13 @@ class _ChatScreenState extends State<ChatScreen> {
       if (mounted) {
         setState(() => _translations[m.id] = r.translatedText);
       }
-    }, failure: 'ترجمه ناموفق بود');
+    }, failure: tr('ترجمه ناموفق بود'));
   }
 
   Future<void> _report({String? messageId}) async {
     final earthId = _room.partnerEarthId;
     if (earthId == null || earthId.isEmpty) {
-      _toast('گزارش فقط در گفتگویِ مستقیم ممکن است.');
+      _toast(tr('گزارش فقط در گفتگویِ مستقیم ممکن است.'));
       return;
     }
     final result = await showReportSheet(context);
@@ -633,8 +634,8 @@ class _ChatScreenState extends State<ChatScreen> {
     await _run(() async {
       await _api.reportUser(earthId,
           reason: result.$1, note: result.$2, messageId: messageId);
-      _toast('گزارش ثبت شد. سپاس از هم‌کاری.');
-    }, failure: 'ثبتِ گزارش ناموفق بود');
+      _toast(tr('گزارش ثبت شد. سپاس از هم‌کاری.'));
+    }, failure: tr('ثبتِ گزارش ناموفق بود'));
   }
 
   // ─────────────── محتوایِ ساختاری ───────────────
@@ -649,14 +650,14 @@ class _ChatScreenState extends State<ChatScreen> {
           multiple: draft.multiple);
       await _load();
       _scrollToBottom();
-    }, failure: 'ساختِ نظرسنجی ناموفق بود');
+    }, failure: tr('ساختِ نظرسنجی ناموفق بود'));
   }
 
   Future<void> _vote(PollInfo poll, int index) async {
     await _run(() async {
       await _api.votePoll(poll.id, index);
       await _load();
-    }, failure: 'ثبتِ رأی ناموفق بود');
+    }, failure: tr('ثبتِ رأی ناموفق بود'));
   }
 
   Future<void> _createRedPacket() async {
@@ -670,7 +671,7 @@ class _ChatScreenState extends State<ChatScreen> {
           greeting: draft.greeting);
       await _load();
       _scrollToBottom();
-    }, failure: 'ارسالِ هدیه ناموفق بود');
+    }, failure: tr('ارسالِ هدیه ناموفق بود'));
   }
 
   Future<void> _onRedPacket(RedPacketInfo p) async {
@@ -682,9 +683,9 @@ class _ChatScreenState extends State<ChatScreen> {
     await _run(() async {
       final res = await _api.openRedPacket(p.id);
       final amount = (res['amount'] ?? 0) as int;
-      _toast('🧧 ${(amount / 10).round()} تومان به کیفِ پاداشِ تو اضافه شد.');
+      _toast(tr('🧧 {0} تومان به کیفِ پاداشِ تو اضافه شد.', [(amount / 10).round()]));
       await _load();
-    }, failure: 'بازکردنِ هدیه ناموفق بود');
+    }, failure: tr('بازکردنِ هدیه ناموفق بود'));
   }
 
   Future<void> _sendLocation() async {
@@ -696,7 +697,7 @@ class _ChatScreenState extends State<ChatScreen> {
       if (mounted) setState(() => _replyTo = null);
       await _load();
       _scrollToBottom();
-    }, failure: 'ارسالِ موقعیت ناموفق بود');
+    }, failure: tr('ارسالِ موقعیت ناموفق بود'));
   }
 
   /// تأمین‌کنندهٔ GPS برای شیتِ موقعیت؛ خطا را همان‌جا toast می‌کند.
@@ -728,8 +729,8 @@ class _ChatScreenState extends State<ChatScreen> {
       _beginLiveTracking();
       await _load();
       _scrollToBottom();
-      _toast('موقعیتِ زنده تا $minutes دقیقه به اشتراک گذاشته شد.');
-    }, failure: 'شروعِ موقعیتِ زنده ناموفق بود');
+      _toast(tr('موقعیتِ زنده تا {0} دقیقه به اشتراک گذاشته شد.', [minutes]));
+    }, failure: tr('شروعِ موقعیتِ زنده ناموفق بود'));
   }
 
   /// یک ضربانِ به‌روزرسانی؛ خطا سکوت می‌کند تا اشتراک با یک قطعیِ گذرا نمیرد،
@@ -756,8 +757,8 @@ class _ChatScreenState extends State<ChatScreen> {
       await _api.stopLiveLocation(id);
       if (mounted) setState(() => _liveLocationId = null);
       await _load();
-      _toast('اشتراکِ موقعیتِ زنده متوقف شد.');
-    }, failure: 'توقفِ موقعیتِ زنده ناموفق بود');
+      _toast(tr('اشتراکِ موقعیتِ زنده متوقف شد.'));
+    }, failure: tr('توقفِ موقعیتِ زنده ناموفق بود'));
   }
 
   Future<void> _sendSticker() async {
@@ -768,7 +769,7 @@ class _ChatScreenState extends State<ChatScreen> {
       if (mounted) setState(() => _replyTo = null);
       await _load();
       _scrollToBottom();
-    }, failure: 'ارسالِ استیکر ناموفق بود');
+    }, failure: tr('ارسالِ استیکر ناموفق بود'));
   }
 
   Future<void> _createEvent() async {
@@ -782,19 +783,19 @@ class _ChatScreenState extends State<ChatScreen> {
           description: draft.description);
       await _load();
       _scrollToBottom();
-    }, failure: 'ارسالِ رویداد ناموفق بود');
+    }, failure: tr('ارسالِ رویداد ناموفق بود'));
   }
 
   Future<void> _shareContact() async {
     final earthId =
-        await promptEarthId(context, title: 'Earth IDِ مخاطب');
+        await promptEarthId(context, title: tr('Earth IDِ مخاطب'));
     if (earthId == null || earthId.isEmpty || !mounted) return;
     await _run(() async {
       await _api.shareContact(_room.id, earthId, replyToId: _replyTo?.id);
       if (mounted) setState(() => _replyTo = null);
       await _load();
       _scrollToBottom();
-    }, failure: 'اشتراکِ مخاطب ناموفق بود');
+    }, failure: tr('اشتراکِ مخاطب ناموفق بود'));
   }
 
   // ─────────────── مدیریتِ اتاق ───────────────
@@ -804,7 +805,7 @@ class _ChatScreenState extends State<ChatScreen> {
       await _run(() async {
         final muted = await _api.setRoomMute(_room.id, muted: false);
         if (mounted) setState(() => _room = _copyRoom(isMuted: muted));
-      }, failure: 'تغییرِ وضعیتِ اعلان ناموفق بود');
+      }, failure: tr('تغییرِ وضعیتِ اعلان ناموفق بود'));
       return;
     }
     final minutes = await showMutePicker(context);
@@ -816,37 +817,37 @@ class _ChatScreenState extends State<ChatScreen> {
         durationMinutes: minutes == -1 ? null : minutes,
       );
       if (mounted) setState(() => _room = _copyRoom(isMuted: muted));
-      _toast(muted ? 'گفتگو بی‌صدا شد.' : 'اعلان فعال شد.');
-    }, failure: 'بی‌صداکردن ناموفق بود');
+      _toast(muted ? tr('گفتگو بی‌صدا شد.') : tr('اعلان فعال شد.'));
+    }, failure: tr('بی‌صداکردن ناموفق بود'));
   }
 
   Future<void> _toggleBlock() async {
     final earthId = _room.partnerEarthId;
     if (earthId == null || earthId.isEmpty) {
-      _toast('مسدودسازی فقط در گفتگویِ مستقیم ممکن است.');
+      _toast(tr('مسدودسازی فقط در گفتگویِ مستقیم ممکن است.'));
       return;
     }
     await _run(() async {
       final blocked = await _api.toggleBlock(earthId);
       if (mounted) setState(() => _room = _copyRoom(isBlocked: blocked));
-      _toast(blocked ? 'کاربر مسدود شد.' : 'مسدودی برداشته شد.');
-    }, failure: 'تغییرِ مسدودی ناموفق بود');
+      _toast(blocked ? tr('کاربر مسدود شد.') : tr('مسدودی برداشته شد.'));
+    }, failure: tr('تغییرِ مسدودی ناموفق بود'));
   }
 
   Future<void> _clearChat() async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('پاک‌کردنِ گفتگو'),
-        content: const Text(
-            'پیام‌ها فقط از نمای تو پاک می‌شوند؛ طرفِ مقابل دست‌نخورده می‌ماند.'),
+        title: Text(tr('پاک‌کردنِ گفتگو')),
+        content: Text(
+            tr('پیام‌ها فقط از نمای تو پاک می‌شوند؛ طرفِ مقابل دست‌نخورده می‌ماند.')),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('لغو')),
+              child: Text(tr('لغو'))),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('پاک کن')),
+              child: Text(tr('پاک کن'))),
         ],
       ),
     );
@@ -854,7 +855,7 @@ class _ChatScreenState extends State<ChatScreen> {
     await _run(() async {
       await _api.clearChat(_room.id);
       await _load();
-    }, failure: 'پاک‌کردن ناموفق بود');
+    }, failure: tr('پاک‌کردن ناموفق بود'));
   }
 
   Future<void> _setDisappearing() async {
@@ -865,9 +866,9 @@ class _ChatScreenState extends State<ChatScreen> {
       await _api.setDisappearing(_room.id, seconds);
       await _refreshStatus();
       _toast(seconds == 0
-          ? 'پیامِ ناپدیدشونده خاموش شد.'
-          : 'پیامِ ناپدیدشونده فعال شد.');
-    }, failure: 'تنظیمِ ناپدیدشدن ناموفق بود');
+          ? tr('پیامِ ناپدیدشونده خاموش شد.')
+          : tr('پیامِ ناپدیدشونده فعال شد.'));
+    }, failure: tr('تنظیمِ ناپدیدشدن ناموفق بود'));
   }
 
   Future<void> _search() async {
@@ -887,15 +888,15 @@ class _ChatScreenState extends State<ChatScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const ListTile(
-              leading: Icon(Icons.push_pin),
-              title: Text('پیام‌های سنجاق‌شده'),
+            ListTile(
+              leading: const Icon(Icons.push_pin),
+              title: Text(tr('پیام‌های سنجاق‌شده')),
             ),
             const Divider(height: 1),
             if (_pins.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('هیچ پیامی سنجاق نشده است.'),
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(tr('هیچ پیامی سنجاق نشده است.')),
               )
             else
               Flexible(
@@ -906,7 +907,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             dense: true,
                             title: Text(
                               m.content.isEmpty
-                                  ? (m.mediaType ?? 'رسانه')
+                                  ? (m.mediaType ?? tr('رسانه'))
                                   : m.content,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
@@ -919,7 +920,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 await _run(() async {
                                   await _api.pinMessage(m.id);
                                   await Future.wait([_load(), _loadPins()]);
-                                }, failure: 'برداشتنِ سنجاق ناموفق بود');
+                                }, failure: tr('برداشتنِ سنجاق ناموفق بود'));
                               },
                             ),
                           ))
@@ -958,7 +959,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void _startCall(CallMedia media) {
     final peerId = _room.partnerEarthId;
     if (peerId == null || peerId.isEmpty) {
-      _toast('تماس فقط در گفتگویِ مستقیم ممکن است.');
+      _toast(tr('تماس فقط در گفتگویِ مستقیم ممکن است.'));
       return;
     }
     CallScope.of(context).startCall(
@@ -981,12 +982,12 @@ class _ChatScreenState extends State<ChatScreen> {
         actions: [
           if (isDirect) ...[
             IconButton(
-              tooltip: 'تماسِ صوتی',
+              tooltip: tr('تماسِ صوتی'),
               icon: const Icon(Icons.call),
               onPressed: () => _startCall(CallMedia.audio),
             ),
             IconButton(
-              tooltip: 'تماسِ تصویری',
+              tooltip: tr('تماسِ تصویری'),
               icon: const Icon(Icons.videocam),
               onPressed: () => _startCall(CallMedia.video),
             ),
@@ -1014,53 +1015,53 @@ class _ChatScreenState extends State<ChatScreen> {
               }
             },
             itemBuilder: (ctx) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                   value: 'search',
                   child: ListTile(
-                      leading: Icon(Icons.search),
-                      title: Text('جستجو در گفتگو'))),
-              const PopupMenuItem(
+                      leading: const Icon(Icons.search),
+                      title: Text(tr('جستجو در گفتگو')))),
+              PopupMenuItem(
                   value: 'pins',
                   child: ListTile(
-                      leading: Icon(Icons.push_pin),
-                      title: Text('سنجاق‌شده‌ها'))),
+                      leading: const Icon(Icons.push_pin),
+                      title: Text(tr('سنجاق‌شده‌ها')))),
               if (_room.isGroup)
-                const PopupMenuItem(
+                PopupMenuItem(
                     value: 'members',
                     child: ListTile(
-                        leading: Icon(Icons.group), title: Text('اعضا'))),
+                        leading: const Icon(Icons.group), title: Text(tr('اعضا')))),
               PopupMenuItem(
                 value: 'mute',
                 child: ListTile(
                   leading: Icon(_room.isMuted
                       ? Icons.notifications_active
                       : Icons.notifications_off),
-                  title: Text(_room.isMuted ? 'فعال‌کردنِ اعلان' : 'بی‌صدا'),
+                  title: Text(_room.isMuted ? tr('فعال‌کردنِ اعلان') : tr('بی‌صدا')),
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                   value: 'disappearing',
                   child: ListTile(
-                      leading: Icon(Icons.timer),
-                      title: Text('پیامِ ناپدیدشونده'))),
-              const PopupMenuItem(
+                      leading: const Icon(Icons.timer),
+                      title: Text(tr('پیامِ ناپدیدشونده')))),
+              PopupMenuItem(
                   value: 'clear',
                   child: ListTile(
-                      leading: Icon(Icons.cleaning_services),
-                      title: Text('پاک‌کردنِ گفتگو'))),
+                      leading: const Icon(Icons.cleaning_services),
+                      title: Text(tr('پاک‌کردنِ گفتگو')))),
               if (isDirect) ...[
                 PopupMenuItem(
                   value: 'block',
                   child: ListTile(
                     leading: const Icon(Icons.block),
-                    title: Text(_room.isBlocked ? 'رفعِ مسدودی' : 'مسدودکردن'),
+                    title: Text(_room.isBlocked ? tr('رفعِ مسدودی') : tr('مسدودکردن')),
                   ),
                 ),
-                const PopupMenuItem(
+                PopupMenuItem(
                     value: 'report',
                     child: ListTile(
-                        leading: Icon(Icons.flag_outlined),
-                        title: Text('گزارشِ تخلف'))),
+                        leading: const Icon(Icons.flag_outlined),
+                        title: Text(tr('گزارشِ تخلف')))),
               ],
             ],
           ),
@@ -1086,11 +1087,11 @@ class _ChatScreenState extends State<ChatScreen> {
     final typing = _status?.typing ?? const [];
     final subtitle = typing.isNotEmpty
         ? (_room.isGroup
-            ? '${typing.join('، ')} در حالِ نوشتن…'
-            : 'در حالِ نوشتن…')
+            ? tr('{0} در حالِ نوشتن…', [typing.join(tr('، '))])
+            : tr('در حالِ نوشتن…'))
         : (_room.isGroup
-            ? '${_room.memberCount} عضو'
-            : (online ? 'آنلاین' : _lastSeenLabel()));
+            ? tr('{0} عضو', [_room.memberCount])
+            : (online ? tr('آنلاین') : _lastSeenLabel()));
     final partnerId = _room.partnerEarthId;
     // مثلِ وب (آواتار/نامِ هدرِ direct → `/u/{partner_earth_id}`) هدر به پروفایل
     // می‌رود؛ در گروه مقصدی وجود ندارد پس تپ غیرفعال می‌ماند.
@@ -1111,7 +1112,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ? Text(
                     _room.displayTitle.isNotEmpty
                         ? _room.displayTitle.characters.first
-                        : '؟',
+                        : tr('؟'),
                     style: const TextStyle(color: Colors.white))
                 : null,
           ),
@@ -1155,12 +1156,12 @@ class _ChatScreenState extends State<ChatScreen> {
 
   String _lastSeenLabel() {
     final t = _status?.partnerLastSeen ?? _room.partnerLastSeen;
-    if (t == null) return 'آفلاین';
+    if (t == null) return tr('آفلاین');
     final diff = DateTime.now().difference(t.toLocal());
-    if (diff.inMinutes < 1) return 'همین حالا';
-    if (diff.inMinutes < 60) return '${diff.inMinutes} دقیقه پیش';
-    if (diff.inHours < 24) return '${diff.inHours} ساعت پیش';
-    return '${diff.inDays} روز پیش';
+    if (diff.inMinutes < 1) return tr('همین حالا');
+    if (diff.inMinutes < 60) return tr('{0} دقیقه پیش', [diff.inMinutes]);
+    if (diff.inHours < 24) return tr('{0} ساعت پیش', [diff.inHours]);
+    return tr('{0} روز پیش', [diff.inDays]);
   }
 
   Widget _pinnedBar() {
@@ -1178,7 +1179,7 @@ class _ChatScreenState extends State<ChatScreen> {
             Expanded(
               child: Text(
                 first.content.isEmpty
-                    ? (first.mediaType ?? 'رسانه')
+                    ? (first.mediaType ?? tr('رسانه'))
                     : first.content,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -1201,13 +1202,13 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             const Icon(Icons.podcasts, size: 14),
             const SizedBox(width: 6),
-            const Expanded(
-              child: Text('موقعیتِ زندهٔ تو در حالِ اشتراک است.',
-                  style: TextStyle(fontSize: 11)),
+            Expanded(
+              child: Text(tr('موقعیتِ زندهٔ تو در حالِ اشتراک است.'),
+                  style: const TextStyle(fontSize: 11)),
             ),
             TextButton(
               onPressed: _sending ? null : _stopLiveLocation,
-              child: const Text('توقف', style: TextStyle(fontSize: 11)),
+              child: Text(tr('توقف'), style: const TextStyle(fontSize: 11)),
             ),
           ],
         ),
@@ -1216,10 +1217,10 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _disappearingBanner() {
     final s = _status!.disappearSeconds;
     final label = switch (s) {
-      3600 => '۱ ساعت',
-      86400 => '۲۴ ساعت',
-      604800 => '۷ روز',
-      _ => '$s ثانیه',
+      3600 => tr('۱ ساعت'),
+      86400 => tr('۲۴ ساعت'),
+      604800 => tr('۷ روز'),
+      _ => tr('{0} ثانیه', [s]),
     };
     return Container(
       width: double.infinity,
@@ -1229,7 +1230,7 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           const Icon(Icons.timer, size: 14),
           const SizedBox(width: 6),
-          Text('پیام‌ها پس از $label ناپدید می‌شوند.',
+          Text(tr('پیام‌ها پس از {0} ناپدید می‌شوند.', [label]),
               style: const TextStyle(fontSize: 11)),
         ],
       ),
@@ -1240,14 +1241,14 @@ class _ChatScreenState extends State<ChatScreen> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         color: Colors.red.withValues(alpha: 0.18),
-        child: const Row(
+        child: Row(
           children: [
-            Icon(Icons.block, size: 14, color: Colors.red),
-            SizedBox(width: 6),
+            const Icon(Icons.block, size: 14, color: Colors.red),
+            const SizedBox(width: 6),
             Expanded(
               child: Text(
-                'این کاربر مسدود است؛ ارسالِ پیام ممکن نیست.',
-                style: TextStyle(fontSize: 11),
+                tr('این کاربر مسدود است؛ ارسالِ پیام ممکن نیست.'),
+                style: const TextStyle(fontSize: 11),
               ),
             ),
           ],
@@ -1269,11 +1270,11 @@ class _ChatScreenState extends State<ChatScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(editing ? 'ویرایشِ پیام' : 'پاسخ به ${m.senderName ?? ''}',
+                Text(editing ? tr('ویرایشِ پیام') : tr('پاسخ به {0}', [m.senderName ?? '']),
                     style: const TextStyle(
                         fontSize: 11, fontWeight: FontWeight.bold)),
                 Text(
-                  m.content.isEmpty ? (m.mediaType ?? 'رسانه') : m.content,
+                  m.content.isEmpty ? (m.mediaType ?? tr('رسانه')) : m.content,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 11),
@@ -1307,19 +1308,19 @@ class _ChatScreenState extends State<ChatScreen> {
             children: [
               const Icon(Icons.error_outline, size: 40),
               const SizedBox(height: 8),
-              Text('بارگذاریِ گفتگو ناموفق بود.\n$_error',
+              Text(tr('بارگذاریِ گفتگو ناموفق بود.\n{0}', [_error]),
                   textAlign: TextAlign.center),
               const SizedBox(height: 8),
               FilledButton(
                   onPressed: () => _load(initial: true),
-                  child: const Text('تلاشِ دوباره')),
+                  child: Text(tr('تلاشِ دوباره'))),
             ],
           ),
         ),
       );
     }
     if (_messages.isEmpty) {
-      return const Center(child: Text('هنوز پیامی نیست. اولین پیام را بفرست.'));
+      return Center(child: Text(tr('هنوز پیامی نیست. اولین پیام را بفرست.')));
     }
     return ListView.builder(
       controller: _scrollCtrl,
@@ -1349,7 +1350,7 @@ class _ChatScreenState extends State<ChatScreen> {
       if (!mounted) return;
       Navigator.push(context,
           MaterialPageRoute(builder: (_) => ChatScreen(room: room)));
-    }, failure: 'بازکردنِ گفتگو ناموفق بود');
+    }, failure: tr('بازکردنِ گفتگو ناموفق بود'));
   }
 
   void _openMedia(ChatMessage m) {
@@ -1372,7 +1373,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void _jumpToReply(ReplyPreview r) {
     final index = _messages.indexWhere((m) => m.id == r.id);
     if (index < 0) {
-      _toast('پیامِ اصلی در این بازه بارگذاری نشده است.');
+      _toast(tr('پیامِ اصلی در این بازه بارگذاری نشده است.'));
       return;
     }
     if (!_scrollCtrl.hasClients) return;
@@ -1393,7 +1394,7 @@ class _ChatScreenState extends State<ChatScreen> {
         child: Row(
           children: [
             IconButton(
-              tooltip: 'پیوست',
+              tooltip: tr('پیوست'),
               icon: const Icon(Icons.add_circle_outline),
               onPressed: blocked || _sending ? null : _attachmentSheet,
             ),
@@ -1407,7 +1408,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 onChanged: _onTextChanged,
                 onSubmitted: (_) => _send(),
                 decoration: InputDecoration(
-                  hintText: blocked ? 'کاربر مسدود است' : 'پیام…',
+                  hintText: blocked ? tr('کاربر مسدود است') : tr('پیام…'),
                   filled: true,
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -1421,13 +1422,13 @@ class _ChatScreenState extends State<ChatScreen> {
             const SizedBox(width: 4),
             if (hasText || _editing != null)
               IconButton(
-                tooltip: 'دوربین',
+                tooltip: tr('دوربین'),
                 icon: const Icon(Icons.photo_camera_outlined),
                 onPressed: blocked || _sending ? null : _captureAndSendPhoto,
               )
             else
               IconButton(
-                tooltip: 'پیامِ صوتی',
+                tooltip: tr('پیامِ صوتی'),
                 icon: const Icon(Icons.mic_none),
                 onPressed: blocked || _sending ? null : _startRecording,
               ),
@@ -1468,12 +1469,12 @@ class _ChatScreenState extends State<ChatScreen> {
               '${_recElapsed.inSeconds.remainder(60).toString().padLeft(2, '0')}',
             ),
             const SizedBox(width: 12),
-            const Expanded(
-              child: Text('در حالِ ضبطِ پیامِ صوتی…',
-                  style: TextStyle(fontSize: 12)),
+            Expanded(
+              child: Text(tr('در حالِ ضبطِ پیامِ صوتی…'),
+                  style: const TextStyle(fontSize: 12)),
             ),
             IconButton(
-              tooltip: 'لغو',
+              tooltip: tr('لغو'),
               icon: const Icon(Icons.delete_outline, color: Colors.red),
               onPressed: _cancelRecording,
             ),
@@ -1495,22 +1496,22 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.image),
-              title: const Text('عکس از گالری'),
+              title: Text(tr('عکس از گالری')),
               onTap: () => Navigator.pop(ctx, 'image'),
             ),
             ListTile(
               leading: const Icon(Icons.videocam),
-              title: const Text('ویدیو از گالری'),
+              title: Text(tr('ویدیو از گالری')),
               onTap: () => Navigator.pop(ctx, 'video'),
             ),
             ListTile(
               leading: const Icon(Icons.attach_file),
-              title: const Text('فایل'),
+              title: Text(tr('فایل')),
               onTap: () => Navigator.pop(ctx, 'file'),
             ),
             ListTile(
               leading: const Icon(Icons.place),
-              title: const Text('موقعیتِ مکانی'),
+              title: Text(tr('موقعیتِ مکانی')),
               onTap: () => Navigator.pop(ctx, 'location'),
             ),
             ListTile(
@@ -1518,33 +1519,33 @@ class _ChatScreenState extends State<ChatScreen> {
                   ? Icons.podcasts
                   : Icons.stop_circle_outlined),
               title: Text(_liveLocationId == null
-                  ? 'موقعیتِ زنده'
-                  : 'توقفِ موقعیتِ زنده'),
+                  ? tr('موقعیتِ زنده')
+                  : tr('توقفِ موقعیتِ زنده')),
               onTap: () => Navigator.pop(ctx, 'live'),
             ),
             ListTile(
               leading: const Icon(Icons.emoji_emotions_outlined),
-              title: const Text('استیکر'),
+              title: Text(tr('استیکر')),
               onTap: () => Navigator.pop(ctx, 'sticker'),
             ),
             ListTile(
               leading: const Icon(Icons.bar_chart),
-              title: const Text('نظرسنجی'),
+              title: Text(tr('نظرسنجی')),
               onTap: () => Navigator.pop(ctx, 'poll'),
             ),
             ListTile(
               leading: const Text('🧧', style: TextStyle(fontSize: 20)),
-              title: const Text('هدیهٔ نقدی'),
+              title: Text(tr('هدیهٔ نقدی')),
               onTap: () => Navigator.pop(ctx, 'redpacket'),
             ),
             ListTile(
               leading: const Icon(Icons.event),
-              title: const Text('رویداد'),
+              title: Text(tr('رویداد')),
               onTap: () => Navigator.pop(ctx, 'event'),
             ),
             ListTile(
               leading: const Icon(Icons.contact_page),
-              title: const Text('اشتراکِ مخاطب'),
+              title: Text(tr('اشتراکِ مخاطب')),
               onTap: () => Navigator.pop(ctx, 'contact'),
             ),
           ],
@@ -1606,7 +1607,7 @@ class _SearchSheetState extends State<_SearchSheet> {
   Future<void> _run() async {
     final q = _ctrl.text.trim();
     if (q.length < 2) {
-      setState(() => _error = 'حداقل ۲ نویسه لازم است.');
+      setState(() => _error = tr('حداقل ۲ نویسه لازم است.'));
       return;
     }
     setState(() {
@@ -1641,7 +1642,7 @@ class _SearchSheetState extends State<_SearchSheet> {
             textInputAction: TextInputAction.search,
             onSubmitted: (_) => _run(),
             decoration: InputDecoration(
-              hintText: 'جستجو در پیام‌ها…',
+              hintText: tr('جستجو در پیام‌ها…'),
               border: const OutlineInputBorder(),
               suffixIcon: IconButton(
                 icon: const Icon(Icons.search),
@@ -1661,9 +1662,9 @@ class _SearchSheetState extends State<_SearchSheet> {
               child: Text(_error!, style: const TextStyle(color: Colors.red)),
             )
           else if (_results.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(12),
-              child: Text('نتیجه‌ای نیست.'),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(tr('نتیجه‌ای نیست.')),
             )
           else
             Flexible(

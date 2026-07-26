@@ -8,6 +8,7 @@ import '../../core/config.dart';
 import '../../models/models.dart';
 import 'live_service.dart';
 
+import '../../core/l10n.dart';
 /// فهرستِ پخش‌های زنده + ورود به پخش (میزبان یا بیننده).
 /// معادلِ صفحهٔ وبِ `app/(main)/live/page.tsx`.
 class LiveScreen extends StatefulWidget {
@@ -51,7 +52,7 @@ class _LiveScreenState extends State<LiveScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'بارگذاریِ پخش‌ها ممکن نشد: $e';
+        _error = tr('بارگذاریِ پخش‌ها ممکن نشد: {0}', [e]);
       });
     }
   }
@@ -69,11 +70,11 @@ class _LiveScreenState extends State<LiveScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('پخشِ زنده')),
+      appBar: AppBar(title: Text(tr('پخشِ زنده'))),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _open(const LiveRoomScreen.broadcast()),
         icon: const Icon(Icons.videocam),
-        label: const Text('شروعِ پخش'),
+        label: Text(tr('شروعِ پخش')),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -84,7 +85,7 @@ class _LiveScreenState extends State<LiveScreen> {
                       const SizedBox(height: 120),
                       Center(
                         child: Text(
-                          _error ?? 'الان کسی پخشِ زنده ندارد.',
+                          _error ?? tr('الان کسی پخشِ زنده ندارد.'),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -131,9 +132,9 @@ class _LiveScreenState extends State<LiveScreen> {
           ],
         ),
         title: Text(it.title?.isNotEmpty == true ? it.title! : it.host.name),
-        subtitle: Text('${it.host.name} • ${it.viewerCount} بیننده'),
+        subtitle: Text(tr('{0} • {1} بیننده', [it.host.name, it.viewerCount])),
         trailing: it.isMine
-            ? const Chip(label: Text('پخشِ من'))
+            ? Chip(label: Text(tr('پخشِ من')))
             : const Icon(Icons.play_circle_outline),
         onTap: it.isMine
             ? null
@@ -241,7 +242,7 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
 
   Widget _setupView(LiveService s) {
     return Scaffold(
-      appBar: AppBar(title: const Text('شروعِ پخشِ زنده')),
+      appBar: AppBar(title: Text(tr('شروعِ پخشِ زنده'))),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -254,13 +255,13 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
           TextField(
             controller: _titleCtrl,
             maxLength: 120,
-            decoration: const InputDecoration(
-              labelText: 'عنوانِ پخش (اختیاری)',
+            decoration: InputDecoration(
+              labelText: tr('عنوانِ پخش (اختیاری)'),
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'با شروعِ پخش، دوربین و میکروفنِ شما برای بینندگان ارسال می‌شود. اگر پخشِ بازِ دیگری داشته باشید، بسته می‌شود.',
+            tr('با شروعِ پخش، دوربین و میکروفنِ شما برای بینندگان ارسال می‌شود. اگر پخشِ بازِ دیگری داشته باشید، بسته می‌شود.'),
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 20),
@@ -272,7 +273,7 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.podcasts),
-            label: const Text('شروع'),
+            label: Text(tr('شروع')),
           ),
         ],
       ),
@@ -296,13 +297,13 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
     return Container(
       color: Colors.black,
       alignment: Alignment.center,
-      child: const Column(
+      child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 12),
-          Text('در حالِ اتصال به پخش…',
-              style: TextStyle(color: Colors.white70)),
+          const CircularProgressIndicator(),
+          const SizedBox(height: 12),
+          Text(tr('در حالِ اتصال به پخش…'),
+              style: const TextStyle(color: Colors.white70)),
         ],
       ),
     );
@@ -310,8 +311,8 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
 
   Widget _topBar(LiveService s) {
     final title = s.role == LiveRole.host
-        ? (_titleCtrl.text.trim().isEmpty ? 'پخشِ من' : _titleCtrl.text.trim())
-        : (s.host?.name ?? 'پخشِ زنده');
+        ? (_titleCtrl.text.trim().isEmpty ? tr('پخشِ من') : _titleCtrl.text.trim())
+        : (s.host?.name ?? tr('پخشِ زنده'));
     return Positioned(
       top: 0,
       left: 0,
@@ -355,7 +356,7 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
                   style: const TextStyle(color: Colors.white70)),
               IconButton(
                 icon: const Icon(Icons.close, color: Colors.white),
-                tooltip: s.role == LiveRole.host ? 'پایانِ پخش' : 'خروج',
+                tooltip: s.role == LiveRole.host ? tr('پایانِ پخش') : tr('خروج'),
                 onPressed: () => Navigator.of(context).pop(),
               ),
             ],
@@ -436,7 +437,7 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
                       onSubmitted: (_) => _send(),
                       decoration: InputDecoration(
                         isDense: true,
-                        hintText: 'پیام…',
+                        hintText: tr('پیام…'),
                         hintStyle: const TextStyle(color: Colors.white54),
                         filled: true,
                         fillColor: Colors.white12,
@@ -492,12 +493,12 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
           children: [
             const Icon(Icons.podcasts, color: Colors.white54, size: 56),
             const SizedBox(height: 12),
-            const Text('این پخش پایان یافت.',
-                style: TextStyle(color: Colors.white)),
+            Text(tr('این پخش پایان یافت.'),
+                style: const TextStyle(color: Colors.white)),
             const SizedBox(height: 16),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('بازگشت'),
+              child: Text(tr('بازگشت')),
             ),
           ],
         ),

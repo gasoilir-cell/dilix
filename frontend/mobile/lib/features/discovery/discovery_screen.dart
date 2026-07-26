@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app.dart';
 import '../../models/models.dart';
 
+import '../../core/l10n.dart';
 /// کشفِ اطراف: یافتنِ افراد/کسب‌وکارهای نزدیک بر پایهٔ bbox + حرفه، و
 /// ارسالِ درخواستِ ارتباط. معادلِ صفحهٔ وبِ `app/services/discovery/page.tsx`.
 class DiscoveryScreen extends StatefulWidget {
@@ -53,7 +54,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'بارگذاریِ فهرستِ اطراف ممکن نشد. ابتدا وارد شوید.';
+        _error = tr('بارگذاریِ فهرستِ اطراف ممکن نشد. ابتدا وارد شوید.');
         _loading = false;
       });
     }
@@ -66,19 +67,19 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       setState(() => _sentTo.add(person.earthId));
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = 'شروعِ گفتگو ناموفق بود.');
+      setState(() => _error = tr('شروعِ گفتگو ناموفق بود.'));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('کشفِ اطراف')),
+      appBar: AppBar(title: Text(tr('کشفِ اطراف'))),
       body: ListView(
         padding: const EdgeInsets.all(12),
         children: [
           Text(
-            'یافتنِ افراد و کسب‌وکارهای نزدیک بر پایهٔ موقعیت',
+            tr('یافتنِ افراد و کسب‌وکارهای نزدیک بر پایهٔ موقعیت'),
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
@@ -94,9 +95,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               child: Center(child: CircularProgressIndicator()),
             )
           else if (_searched && _people.isEmpty && _error == null)
-            const Padding(
-              padding: EdgeInsets.all(24),
-              child: Text('کسی در این محدوده یافت نشد.', textAlign: TextAlign.center),
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(tr('کسی در این محدوده یافت نشد.'), textAlign: TextAlign.center),
             )
           else
             ..._people.map(_personCard),
@@ -114,14 +115,14 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
           children: [
             TextField(
               controller: _professionCtrl,
-              decoration: const InputDecoration(labelText: 'نام یا شهر (اختیاری)'),
+              decoration: InputDecoration(labelText: tr('نام یا شهر (اختیاری)')),
             ),
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: FilledButton(
                 onPressed: _loading ? null : _search,
-                child: Text(_loading ? 'در حال…' : 'جستجو'),
+                child: Text(_loading ? tr('در حال…') : tr('جستجو')),
               ),
             ),
           ],
@@ -134,7 +135,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     final meta = <String>[
       if (p.profession != null && p.profession!.isNotEmpty) p.profession!,
       if (p.ageRange != null && p.ageRange!.isNotEmpty) p.ageRange!,
-      if (p.languages.isNotEmpty) p.languages.join('، '),
+      if (p.languages.isNotEmpty) p.languages.join(tr('، ')),
     ];
     final sent = _sentTo.contains(p.earthId);
     return Card(
@@ -147,7 +148,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  p.displayName ?? 'کاربرِ ناشناس',
+                  p.displayName ?? tr('کاربرِ ناشناس'),
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 Chip(label: Text(p.entityType)),
@@ -161,7 +162,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             const SizedBox(height: 8),
             OutlinedButton(
               onPressed: sent ? null : () => _contact(p),
-              child: Text(sent ? 'گفتگو باز شد' : 'گفتگو'),
+              child: Text(sent ? tr('گفتگو باز شد') : tr('گفتگو')),
             ),
           ],
         ),

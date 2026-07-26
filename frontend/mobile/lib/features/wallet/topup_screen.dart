@@ -6,6 +6,7 @@ import '../../app.dart';
 import '../../models/models.dart';
 import 'holdings_screen.dart' show formatMinor, minorScale;
 
+import '../../core/l10n.dart';
 /// شارژِ کیف‌پول از درگاهِ پرداخت.
 ///
 /// سه مرحله دارد: فرم (انتخابِ درگاه/مبلغ) → پرداخت → تأیید. مرحلهٔ پرداخت دو
@@ -68,13 +69,13 @@ class _TopupScreenState extends State<TopupScreen> {
         _gateway = list.isEmpty ? null : list.first;
         _currency = _currenciesOf(_gateway).first;
         _loading = false;
-        _error = list.isEmpty ? 'درگاهِ فعالی برای شارژ ثبت نشده است.' : null;
+        _error = list.isEmpty ? tr('درگاهِ فعالی برای شارژ ثبت نشده است.') : null;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'بارگذاریِ درگاه‌ها ممکن نشد: $e';
+        _error = tr('بارگذاریِ درگاه‌ها ممکن نشد: {0}', [e]);
       });
     }
   }
@@ -90,7 +91,7 @@ class _TopupScreenState extends State<TopupScreen> {
   int get _scale => minorScale(_currency);
 
   int? get _amountMinor {
-    final raw = _amountCtrl.text.trim().replaceAll('،', '').replaceAll(',', '');
+    final raw = _amountCtrl.text.trim().replaceAll(tr('،'), '').replaceAll(',', '');
     final v = double.tryParse(raw);
     if (v == null || v <= 0) return null;
     // ⚠ IRR در کیف‌پول «ریال» است ولی کاربر تومان وارد می‌کند.
@@ -103,12 +104,12 @@ class _TopupScreenState extends State<TopupScreen> {
     final minor = _amountMinor;
     if (gw == null) return;
     if (minor == null) {
-      setState(() => _error = 'مبلغ را وارد کنید.');
+      setState(() => _error = tr('مبلغ را وارد کنید.'));
       return;
     }
     if (minor < _minMinor) {
       setState(() => _error =
-          'مبلغ کمتر از حدِ مجاز است (حداقل ${formatMinor(_minMinor, _currency, _scale)}).');
+          tr('مبلغ کمتر از حدِ مجاز است (حداقل {0}).', [formatMinor(_minMinor, _currency, _scale)]));
       return;
     }
     setState(() {
@@ -135,7 +136,7 @@ class _TopupScreenState extends State<TopupScreen> {
       if (url == null || url.isEmpty) {
         setState(() {
           _busy = false;
-          _error = 'درگاه آدرسِ پرداخت برنگرداند.';
+          _error = tr('درگاه آدرسِ پرداخت برنگرداند.');
         });
         return;
       }
@@ -169,7 +170,7 @@ class _TopupScreenState extends State<TopupScreen> {
           },
           onWebResourceError: (err) {
             if ((err.isForMainFrame ?? true) && mounted) {
-              setState(() => _error = 'خطا در بارگذاریِ درگاه: ${err.description}');
+              setState(() => _error = tr('خطا در بارگذاریِ درگاه: {0}', [err.description]));
             }
           },
         ),
@@ -186,7 +187,7 @@ class _TopupScreenState extends State<TopupScreen> {
       setState(() {
         _stage = _Stage.form;
         _web = null;
-        _error = 'پرداخت انجام نشد یا لغو شد.';
+        _error = tr('پرداخت انجام نشد یا لغو شد.');
       });
       return;
     }
@@ -211,12 +212,12 @@ class _TopupScreenState extends State<TopupScreen> {
         setState(() {
           _stage = _Stage.done;
           _resultText =
-              '${formatMinor(credited, intent.creditCurrency, minorScale(intent.creditCurrency))} به کیفِ شما افزوده شد.';
+              tr('{0} به کیفِ شما افزوده شد.', [formatMinor(credited, intent.creditCurrency, minorScale(intent.creditCurrency))]);
         });
       } else {
         setState(() {
           _stage = _Stage.crypto;
-          _error = 'پرداخت هنوز تأیید نشده است (وضعیت: $status).';
+          _error = tr('پرداخت هنوز تأیید نشده است (وضعیت: {0}).', [status]);
         });
       }
     } catch (e) {
@@ -241,7 +242,7 @@ class _TopupScreenState extends State<TopupScreen> {
         }
       },
       child: Scaffold(
-        appBar: AppBar(title: const Text('شارژِ کیف‌پول')),
+        appBar: AppBar(title: Text(tr('شارژِ کیف‌پول'))),
         body: _loading
             ? const Center(child: CircularProgressIndicator())
             : SafeArea(child: _body()),
@@ -261,13 +262,13 @@ class _TopupScreenState extends State<TopupScreen> {
       case _Stage.crypto:
         return _cryptoView();
       case _Stage.verifying:
-        return const Center(
+        return Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 12),
-              Text('در حالِ تأییدِ پرداخت…'),
+              const CircularProgressIndicator(),
+              const SizedBox(height: 12),
+              Text(tr('در حالِ تأییدِ پرداخت…')),
             ],
           ),
         );
@@ -285,7 +286,7 @@ class _TopupScreenState extends State<TopupScreen> {
         if (_gateways.isEmpty)
           const SizedBox.shrink()
         else ...[
-          Text('درگاهِ پرداخت', style: Theme.of(context).textTheme.titleSmall),
+          Text(tr('درگاهِ پرداخت'), style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
           for (final gw in _gateways)
             Card(
@@ -300,8 +301,8 @@ class _TopupScreenState extends State<TopupScreen> {
                 subtitle: Text(
                   [
                     if (gw.supportedCurrencies.isNotEmpty)
-                      gw.supportedCurrencies.join('، '),
-                    if (gw.isSandbox) 'آزمایشی',
+                      gw.supportedCurrencies.join(tr('، ')),
+                    if (gw.isSandbox) tr('آزمایشی'),
                   ].join(' • '),
                 ),
                 leading: gw.logoUrl != null && gw.logoUrl!.isNotEmpty
@@ -322,7 +323,7 @@ class _TopupScreenState extends State<TopupScreen> {
           if (currencies.length > 1)
             DropdownButtonFormField<String>(
               initialValue: currencies.contains(_currency) ? _currency : currencies.first,
-              decoration: const InputDecoration(labelText: 'ارزِ پرداخت'),
+              decoration: InputDecoration(labelText: tr('ارزِ پرداخت')),
               items: [
                 for (final c in currencies)
                   DropdownMenuItem(value: c, child: Text(c)),
@@ -334,9 +335,9 @@ class _TopupScreenState extends State<TopupScreen> {
             controller: _amountCtrl,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
-              labelText: _currency == 'IRR' ? 'مبلغ (تومان)' : 'مبلغ ($_currency)',
+              labelText: _currency == 'IRR' ? tr('مبلغ (تومان)') : tr('مبلغ ({0})', [_currency]),
               helperText:
-                  'حداقل ${formatMinor(_minMinor, _currency, _scale)}',
+                  tr('حداقل {0}', [formatMinor(_minMinor, _currency, _scale)]),
             ),
             onChanged: (_) => setState(() {}),
           ),
@@ -359,7 +360,7 @@ class _TopupScreenState extends State<TopupScreen> {
           ),
           if (widget.creditTo != null) ...[
             const SizedBox(height: 12),
-            Text('واریز به جیبِ ${widget.creditTo}',
+            Text(tr('واریز به جیبِ {0}', [widget.creditTo]),
                 style: Theme.of(context).textTheme.bodySmall),
           ],
           const SizedBox(height: 20),
@@ -371,7 +372,7 @@ class _TopupScreenState extends State<TopupScreen> {
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.payment),
-            label: const Text('ادامه و پرداخت'),
+            label: Text(tr('ادامه و پرداخت')),
           ),
         ],
       ],
@@ -400,11 +401,11 @@ class _TopupScreenState extends State<TopupScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('مبلغِ ${formatMinor(i.amount, i.currency, minorScale(i.currency))} را به آدرسِ زیر بفرستید.',
+                Text(tr('مبلغِ {0} را به آدرسِ زیر بفرستید.', [formatMinor(i.amount, i.currency, minorScale(i.currency))]),
                     style: Theme.of(context).textTheme.titleSmall),
                 if (i.network != null && i.network!.isNotEmpty) ...[
                   const SizedBox(height: 6),
-                  Text('شبکه: ${i.network}',
+                  Text(tr('شبکه: {0}', [i.network]),
                       style: Theme.of(context).textTheme.bodySmall),
                 ],
                 const SizedBox(height: 12),
@@ -419,15 +420,15 @@ class _TopupScreenState extends State<TopupScreen> {
                           await Clipboard.setData(ClipboardData(text: address));
                           if (!mounted) return;
                           messenger.showSnackBar(
-                            const SnackBar(content: Text('آدرس کپی شد.')),
+                            SnackBar(content: Text(tr('آدرس کپی شد.'))),
                           );
                         },
                   icon: const Icon(Icons.copy),
-                  label: const Text('کپیِ آدرس'),
+                  label: Text(tr('کپیِ آدرس')),
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'ارسال به شبکهٔ اشتباه باعثِ از دست رفتنِ دارایی می‌شود. پس از واریز، دکمهٔ زیر را بزنید.',
+                  tr('ارسال به شبکهٔ اشتباه باعثِ از دست رفتنِ دارایی می‌شود. پس از واریز، دکمهٔ زیر را بزنید.'),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
@@ -438,7 +439,7 @@ class _TopupScreenState extends State<TopupScreen> {
         FilledButton.icon(
           onPressed: () => _verify(),
           icon: const Icon(Icons.check),
-          label: const Text('واریز کردم، بررسی کن'),
+          label: Text(tr('واریز کردم، بررسی کن')),
         ),
       ],
     );
@@ -457,7 +458,7 @@ class _TopupScreenState extends State<TopupScreen> {
             const SizedBox(height: 20),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('بازگشت به کیف‌پول'),
+              child: Text(tr('بازگشت به کیف‌پول')),
             ),
           ],
         ),

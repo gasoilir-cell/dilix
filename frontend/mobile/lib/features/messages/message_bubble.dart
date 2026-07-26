@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/config.dart';
 import '../../models/models.dart';
 
+import '../../core/l10n.dart';
 /// حبابِ یک پیامِ چت با پوششِ کاملِ `MessageOut` دیلیکس‌اِی‌پی‌آی:
 /// متن، عکس/ویدیو/صوت/فایل، استیکر، موقعیتِ ثابت و زنده، نظرسنجی، مخاطب،
 /// رویداد، هدیهٔ نقدی، پاسخ (reply)، بازارسال، سنجاق، واکنش‌ها و رسیدِ خواندن.
@@ -54,7 +55,7 @@ class MessageBubble extends StatelessWidget {
         context,
         mine: mine,
         bg: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        child: Text('این پیام حذف شد',
+        child: Text(tr('این پیام حذف شد'),
             style: TextStyle(
                 fontStyle: FontStyle.italic,
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.6))),
@@ -125,8 +126,8 @@ class MessageBubble extends StatelessWidget {
             const SizedBox(width: 4),
             Text(
               message.forwardedFrom == null
-                  ? 'بازارسال‌شده'
-                  : 'بازارسال از ${message.forwardedFrom}',
+                  ? tr('بازارسال‌شده')
+                  : tr('بازارسال از {0}', [message.forwardedFrom]),
               style: TextStyle(
                   fontSize: 10, fontStyle: FontStyle.italic, color: muted),
             ),
@@ -151,11 +152,11 @@ class MessageBubble extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(r.senderName ?? 'پاسخ',
+            Text(r.senderName ?? tr('پاسخ'),
                 style: TextStyle(
                     fontSize: 10, fontWeight: FontWeight.bold, color: fg)),
             Text(
-              r.isDeleted ? 'پیامِ حذف‌شده' : r.content,
+              r.isDeleted ? tr('پیامِ حذف‌شده') : r.content,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
@@ -183,14 +184,14 @@ class MessageBubble extends StatelessWidget {
         ];
       case 'voice':
         return [
-          _fileTile(context, fg, icon: Icons.mic, title: 'پیامِ صوتی'),
+          _fileTile(context, fg, icon: Icons.mic, title: tr('پیامِ صوتی')),
           if (caption.isNotEmpty) _text(caption, fg),
         ];
       case 'file':
         return [
           _fileTile(context, fg,
               icon: Icons.insert_drive_file,
-              title: message.mediaName ?? 'فایل'),
+              title: message.mediaName ?? tr('فایل')),
           if (caption.isNotEmpty) _text(caption, fg),
         ];
       case 'location':
@@ -337,8 +338,8 @@ class MessageBubble extends StatelessWidget {
               children: [
                 Text(
                   live
-                      ? (loc.active ? 'موقعیتِ زنده (فعال)' : 'موقعیتِ زنده (پایان‌یافته)')
-                      : (loc.label ?? 'موقعیتِ مکانی'),
+                      ? (loc.active ? tr('موقعیتِ زنده (فعال)') : tr('موقعیتِ زنده (پایان‌یافته)'))
+                      : (loc.label ?? tr('موقعیتِ مکانی')),
                   style: TextStyle(
                       color: fg, fontWeight: FontWeight.w600, fontSize: 13),
                 ),
@@ -379,7 +380,7 @@ class MessageBubble extends StatelessWidget {
             _pollOption(poll, i, fg),
           const SizedBox(height: 2),
           Text(
-            '${poll.totalVotes} رأی${poll.multiple ? ' • چندگزینه‌ای' : ''}',
+            tr('{0} رأی{1}', [poll.totalVotes, poll.multiple ? tr(' • چندگزینه‌ای') : '']),
             style: TextStyle(fontSize: 10, color: fg.withValues(alpha: 0.7)),
           ),
         ],
@@ -537,7 +538,7 @@ class MessageBubble extends StatelessWidget {
                   child: Text(
                     p.greeting?.isNotEmpty == true
                         ? p.greeting!
-                        : 'هدیهٔ نقدی',
+                        : tr('هدیهٔ نقدی'),
                     style: const TextStyle(
                         color: Colors.white, fontWeight: FontWeight.bold),
                   ),
@@ -545,10 +546,10 @@ class MessageBubble extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 6),
-            Text('$toman تومان • ${p.count} سهم',
+            Text(tr('{0} تومان • {1} سهم', [toman, p.count]),
                 style: const TextStyle(color: Colors.white, fontSize: 12)),
             Text(
-              p.mode == 'random' ? 'تقسیمِ شانسی' : 'تقسیمِ مساوی',
+              p.mode == 'random' ? tr('تقسیمِ شانسی') : tr('تقسیمِ مساوی'),
               style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.85), fontSize: 10),
             ),
@@ -571,7 +572,7 @@ class MessageBubble extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            Text('${p.claimedCount} از ${p.count} برداشته شد',
+            Text(tr('{0} از {1} برداشته شد', [p.claimedCount, p.count]),
                 style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.85), fontSize: 9)),
           ],
@@ -582,12 +583,12 @@ class MessageBubble extends StatelessWidget {
 
   String _redPacketLabel(RedPacketInfo p) {
     if (p.claimed && p.myAmount != null) {
-      return 'سهمِ تو: ${(p.myAmount! / 10).round()} تومان';
+      return tr('سهمِ تو: {0} تومان', [(p.myAmount! / 10).round()]);
     }
-    if (p.isMine) return 'مشاهدهٔ جزئیات';
-    if (p.status == 'refunded') return 'بازگردانده شد';
-    if (p.isExhausted || p.status == 'finished') return 'تمام شد';
-    return 'بازکردن';
+    if (p.isMine) return tr('مشاهدهٔ جزئیات');
+    if (p.status == 'refunded') return tr('بازگردانده شد');
+    if (p.isExhausted || p.status == 'finished') return tr('تمام شد');
+    return tr('بازکردن');
   }
 
   Widget _translationBox(Color fg) => Container(
@@ -624,7 +625,7 @@ class MessageBubble extends StatelessWidget {
               style: TextStyle(fontSize: 10, color: muted)),
           if (message.edited) ...[
             const SizedBox(width: 4),
-            Text('ویرایش', style: TextStyle(fontSize: 10, color: muted)),
+            Text(tr('ویرایش'), style: TextStyle(fontSize: 10, color: muted)),
           ],
           if (message.isMine) ...[
             const SizedBox(width: 4),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app.dart';
 import '../../models/models.dart';
 
+import '../../core/l10n.dart';
 /// بیمه — parity با جریانِ dilix-api: انتخابِ محصول از کاتالوگ، استعلامِ نرخ
 /// (`/quote`) و ثبتِ درخواست (`/requests`). همهٔ مبالغ به تومان‌اند.
 class InsuranceScreen extends StatefulWidget {
@@ -14,14 +15,20 @@ class InsuranceScreen extends StatefulWidget {
 
 class _InsuranceScreenState extends State<InsuranceScreen> {
   // برچسبِ فارسیِ نوعِ پوشش (منطبق با COVERAGE_LABEL بک‌اند).
-  static const _coverageTypes = <(String, String)>[
+  static List<(String, String)> get _coverageTypes =>
+      _coverageTypesSrc.map((e) => (e.$1, tr(e.$2))).toList();
+
+  static const _coverageTypesSrc = <(String, String)>[
     ('basic', 'پایه'),
     ('comprehensive', 'جامع'),
     ('all_risk', 'تمام‌خطر'),
   ];
 
   // برچسبِ فارسیِ وضعیتِ درخواست.
-  static const _statusLabels = <String, String>{
+  static Map<String, String> get _statusLabels =>
+      _statusLabelsSrc.map((k, v) => MapEntry(k, tr(v)));
+
+  static const _statusLabelsSrc = <String, String>{
     'pending': 'در انتظار',
     'quoted': 'استعلام‌شده',
     'submitted': 'ثبت‌شده',
@@ -80,7 +87,7 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
     super.dispose();
   }
 
-  String _money(int toman) => '${toman.toString()} تومان';
+  String _money(int toman) => tr('{0} تومان', [toman.toString()]);
 
   int? _readValue() {
     final v = int.tryParse(_valueCtrl.text.trim().replaceAll(',', ''));
@@ -91,11 +98,11 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
   Future<void> _quoteNow() async {
     final value = _readValue();
     if (_product == null) {
-      setState(() => _error = 'محصولِ بیمه را انتخاب کنید.');
+      setState(() => _error = tr('محصولِ بیمه را انتخاب کنید.'));
       return;
     }
     if (value == null) {
-      setState(() => _error = 'مبلغِ سرمایه/ارزش (تومان) معتبر وارد کنید.');
+      setState(() => _error = tr('مبلغِ سرمایه/ارزش (تومان) معتبر وارد کنید.'));
       return;
     }
     setState(() {
@@ -115,13 +122,13 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
       if (!mounted) return;
       setState(() {
         _quote = q;
-        _notice = 'حقِ بیمه: ${_money(q.premium)} (نرخِ پایه ${q.baseRatePct}٪)';
+        _notice = tr('حقِ بیمه: {0} (نرخِ پایه {1}٪)', [_money(q.premium), q.baseRatePct]);
         _busy = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'استعلام ناموفق بود: $e';
+        _error = tr('استعلام ناموفق بود: {0}', [e]);
         _busy = false;
       });
     }
@@ -130,7 +137,7 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
   Future<void> _compareNow() async {
     final value = _readValue();
     if (_product == null || value == null) {
-      setState(() => _error = 'ابتدا محصول و مبلغِ سرمایه را کامل کنید.');
+      setState(() => _error = tr('ابتدا محصول و مبلغِ سرمایه را کامل کنید.'));
       return;
     }
     setState(() {
@@ -153,14 +160,14 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
         // ارزان‌ترین گزینه پیش‌فرض انتخاب می‌شود.
         _providerId = c.options.isEmpty ? null : c.options.first.providerId;
         _notice = c.providerCount == 0
-            ? 'در حالِ حاضر مرکزِ فعالی پاسخ نداد؛ فقط نرخِ پایهٔ دیلیکس در دسترس است.'
-            : '${c.providerCount} مرکز پاسخ دادند.';
+            ? tr('در حالِ حاضر مرکزِ فعالی پاسخ نداد؛ فقط نرخِ پایهٔ دیلیکس در دسترس است.')
+            : tr('{0} مرکز پاسخ دادند.', [c.providerCount]);
         _busy = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'مقایسهٔ نرخ ناموفق بود: $e';
+        _error = tr('مقایسهٔ نرخ ناموفق بود: {0}', [e]);
         _busy = false;
       });
     }
@@ -183,13 +190,13 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
         _prefill = r.found ? r.prefill : const {};
         _notice = r.bonusMalus == null
             ? r.message
-            : '${r.message} — سطحِ تخفیفِ عدم‌خسارت: ${r.bonusMalus}';
+            : tr('{0} — سطحِ تخفیفِ عدم‌خسارت: {1}', [r.message, r.bonusMalus]);
         _busy = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'استعلامِ سوابق ناموفق بود: $e';
+        _error = tr('استعلامِ سوابق ناموفق بود: {0}', [e]);
         _busy = false;
       });
     }
@@ -198,7 +205,7 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
   Future<void> _submitRequest() async {
     final value = _readValue();
     if (_product == null || value == null) {
-      setState(() => _error = 'ابتدا محصول و مبلغِ سرمایه را کامل کنید.');
+      setState(() => _error = tr('ابتدا محصول و مبلغِ سرمایه را کامل کنید.'));
       return;
     }
     setState(() {
@@ -219,15 +226,14 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
       );
       if (!mounted) return;
       setState(() {
-        _notice = 'درخواست ثبت شد — کدِ پیگیری: ${req.ref}'
-            '${req.providerName == null ? '' : ' · ${req.providerName}'}';
+        _notice = tr('درخواست ثبت شد — کدِ پیگیری: {0}{1}', [req.ref, req.providerName == null ? '' : ' · ${req.providerName}']);
         _requests = ApiScope.of(context).insuranceRequests();
         _busy = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'ثبتِ درخواست ناموفق بود: $e';
+        _error = tr('ثبتِ درخواست ناموفق بود: {0}', [e]);
         _busy = false;
       });
     }
@@ -236,7 +242,7 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('بیمه')),
+      appBar: AppBar(title: Text(tr('بیمه'))),
       body: ListView(
         padding: const EdgeInsets.all(12),
         children: [
@@ -270,7 +276,7 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
             }
             final products = snap.data ?? const <InsuranceProduct>[];
             if (products.isEmpty) {
-              return Text('بارگذاریِ محصولاتِ بیمه ممکن نشد.\n${snap.error ?? ''}',
+              return Text(tr('بارگذاریِ محصولاتِ بیمه ممکن نشد.\n{0}', [snap.error ?? '']),
                   style: Theme.of(context).textTheme.bodySmall);
             }
             _product ??= products.first.id;
@@ -279,11 +285,11 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('استعلامِ بیمه', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(tr('استعلامِ بیمه'), style: const TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: _product,
-                  decoration: const InputDecoration(labelText: 'محصولِ بیمه'),
+                  initialValue: _product,
+                  decoration: InputDecoration(labelText: tr('محصولِ بیمه')),
                   items: [
                     for (final p in products)
                       DropdownMenuItem(value: p.id, child: Text('${p.emoji} ${p.label}')),
@@ -301,12 +307,12 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
                 TextField(
                   controller: _valueCtrl,
                   keyboardType: TextInputType.number,
-                  decoration: InputDecoration(labelText: '${selected.valueLabel} (تومان)'),
+                  decoration: InputDecoration(labelText: tr('{0} (تومان)', [selected.valueLabel])),
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  value: _coverageType,
-                  decoration: const InputDecoration(labelText: 'نوعِ پوشش'),
+                  initialValue: _coverageType,
+                  decoration: InputDecoration(labelText: tr('نوعِ پوشش')),
                   items: [
                     for (final c in _coverageTypes)
                       DropdownMenuItem(value: c.$1, child: Text(c.$2)),
@@ -317,19 +323,19 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
                   const SizedBox(height: 8),
                   TextField(
                     controller: _cargoTypeCtrl,
-                    decoration: const InputDecoration(labelText: 'نوعِ کالا'),
+                    decoration: InputDecoration(labelText: tr('نوعِ کالا')),
                   ),
                 ],
                 if (selected.needsRoute) ...[
                   const SizedBox(height: 8),
                   TextField(
                     controller: _originCtrl,
-                    decoration: const InputDecoration(labelText: 'مبدأ'),
+                    decoration: InputDecoration(labelText: tr('مبدأ')),
                   ),
                   const SizedBox(height: 8),
                   TextField(
                     controller: _destCtrl,
-                    decoration: const InputDecoration(labelText: 'مقصد'),
+                    decoration: InputDecoration(labelText: tr('مقصد')),
                   ),
                 ],
                 _inquirySection(selected),
@@ -339,14 +345,14 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: _busy ? null : _quoteNow,
-                        child: Text(_busy ? 'در حال…' : 'استعلامِ نرخ'),
+                        child: Text(_busy ? tr('در حال…') : tr('استعلامِ نرخ')),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: OutlinedButton(
                         onPressed: _busy ? null : _compareNow,
-                        child: const Text('مقایسهٔ مراکز'),
+                        child: Text(tr('مقایسهٔ مراکز')),
                       ),
                     ),
                   ],
@@ -356,7 +362,7 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
                   width: double.infinity,
                   child: FilledButton(
                     onPressed: _busy ? null : _submitRequest,
-                    child: const Text('ثبتِ درخواست'),
+                    child: Text(tr('ثبتِ درخواست')),
                   ),
                 ),
                 _compareSection(),
@@ -372,9 +378,9 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
                           Text('${_quote!.productLabel} · ${_quote!.coverageLabel}',
                               style: const TextStyle(fontWeight: FontWeight.bold)),
                           const SizedBox(height: 4),
-                          Text('حقِ بیمه: ${_money(_quote!.premium)}'),
+                          Text(tr('حقِ بیمه: {0}', [_money(_quote!.premium)])),
                           if (_quote!.providerName != null)
-                            Text('ارائه‌دهنده: ${_quote!.providerName}',
+                            Text(tr('ارائه‌دهنده: {0}', [_quote!.providerName]),
                                 style: Theme.of(context).textTheme.bodySmall),
                         ],
                       ),
@@ -399,26 +405,26 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
       children: [
         const SizedBox(height: 12),
         const Divider(),
-        Text('استعلامِ سوابق (اختیاری)',
+        Text(tr('استعلامِ سوابق (اختیاری)'),
             style: Theme.of(context).textTheme.titleSmall),
         Text(
           needsPlate
-              ? 'با پلاک یا کد ملی، سوابق و سطحِ تخفیف را می‌آوریم.'
-              : 'با کد ملی، اطلاعاتِ هویتی را می‌آوریم.',
+              ? tr('با پلاک یا کد ملی، سوابق و سطحِ تخفیف را می‌آوریم.')
+              : tr('با کد ملی، اطلاعاتِ هویتی را می‌آوریم.'),
           style: Theme.of(context).textTheme.bodySmall,
         ),
         if (needsPlate) ...[
           const SizedBox(height: 8),
           TextField(
             controller: _plateCtrl,
-            decoration: const InputDecoration(labelText: 'پلاکِ خودرو'),
+            decoration: InputDecoration(labelText: tr('پلاکِ خودرو')),
           ),
         ],
         const SizedBox(height: 8),
         TextField(
           controller: _nidCtrl,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'کد ملی'),
+          decoration: InputDecoration(labelText: tr('کد ملی')),
         ),
         const SizedBox(height: 8),
         Align(
@@ -426,14 +432,13 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
           child: OutlinedButton.icon(
             onPressed: _busy ? null : _inquiryNow,
             icon: const Icon(Icons.search, size: 18),
-            label: const Text('استعلام'),
+            label: Text(tr('استعلام')),
           ),
         ),
         if (_prefill.isNotEmpty) ...[
           const SizedBox(height: 8),
           Text(
-            'سوابقِ بازیابی‌شده همراهِ درخواست ثبت می‌شود: '
-            '${_prefill.keys.join('، ')}',
+            tr('سوابقِ بازیابی‌شده همراهِ درخواست ثبت می‌شود: {0}', [_prefill.keys.join(tr('، '))]),
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -449,7 +454,7 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 12),
-        Text('مقایسهٔ نرخ — ${c.productLabel} · ${c.coverageLabel}',
+        Text(tr('مقایسهٔ نرخ — {0} · {1}', [c.productLabel, c.coverageLabel]),
             style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
         for (final o in c.options)
@@ -464,10 +469,10 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
             onTap: () => setState(() => _providerId = o.providerId),
             title: Row(
               children: [
-                Expanded(child: Text(o.providerName ?? 'نرخِ پایهٔ دیلیکس')),
+                Expanded(child: Text(o.providerName ?? tr('نرخِ پایهٔ دیلیکس'))),
                 if (o.best)
-                  const Chip(
-                    label: Text('ارزان‌ترین'),
+                  Chip(
+                    label: Text(tr('ارزان‌ترین')),
                     visualDensity: VisualDensity.compact,
                   ),
               ],
@@ -498,10 +503,10 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('درخواست‌های من', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(tr('درخواست‌های من'), style: const TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 if (reqs.isEmpty)
-                  Text('هنوز درخواستی ثبت نشده.',
+                  Text(tr('هنوز درخواستی ثبت نشده.'),
                       style: Theme.of(context).textTheme.bodySmall)
                 else
                   ...reqs.map(
@@ -520,7 +525,7 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
                               Chip(label: Text(_statusLabels[r.status] ?? r.status)),
                             ],
                           ),
-                          Text('حقِ بیمه: ${_money(r.premium)}',
+                          Text(tr('حقِ بیمه: {0}', [_money(r.premium)]),
                               style: Theme.of(context).textTheme.bodySmall),
                         ],
                       ),

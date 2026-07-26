@@ -9,6 +9,7 @@ import '../reels/reels_screen.dart';
 import '../stories/highlights_screen.dart';
 import 'user_list_screen.dart';
 
+import '../../core/l10n.dart';
 /// پروفایلِ عمومیِ یک کاربر: دنبال‌کردن، شمارِ دنبال‌کننده/دنبال‌شونده و شروعِ گفتگو.
 ///
 /// تا پیش از این، کاربرانِ دیده‌شده روی کره یا در چت هیچ صفحهٔ مقصدی نداشتند و
@@ -106,7 +107,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _profile = p);
-      messenger.showSnackBar(SnackBar(content: Text('ناموفق بود: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('ناموفق بود: {0}', [e]))));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -124,14 +125,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .push(MaterialPageRoute<void>(builder: (_) => ChatScreen(room: room)));
     } catch (e) {
       messenger
-          .showSnackBar(SnackBar(content: Text('باز کردنِ گفتگو ناموفق بود: $e')));
+          .showSnackBar(SnackBar(content: Text(tr('باز کردنِ گفتگو ناموفق بود: {0}', [e]))));
     }
   }
 
   void _openList({required bool followersTab}) {
     Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => UserListScreen(
-        title: followersTab ? 'دنبال‌کنندگان' : 'دنبال‌شوندگان',
+        title: followersTab ? tr('دنبال‌کنندگان') : tr('دنبال‌شوندگان'),
         loader: (api) => followersTab
             ? api.followers(widget.earthId)
             : api.following(widget.earthId),
@@ -143,7 +144,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final p = _profile;
     return Scaffold(
-      appBar: AppBar(title: Text(p?.title ?? widget.fallbackName ?? 'پروفایل')),
+      appBar: AppBar(title: Text(p?.title ?? widget.fallbackName ?? tr('پروفایل'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : p == null
@@ -187,9 +188,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SizedBox(height: 24),
         Row(
           children: [
-            const Expanded(
-              child: Text('هایلایت‌ها',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+            Expanded(
+              child: Text(tr('هایلایت‌ها'),
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
             ),
             TextButton(
               onPressed: () async {
@@ -201,12 +202,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 );
                 if (mounted) await _load();
               },
-              child: Text(items.isEmpty ? 'ساختن' : 'همه'),
+              child: Text(items.isEmpty ? tr('ساختن') : tr('همه')),
             ),
           ],
         ),
         if (items.isEmpty)
-          Text('هنوز هایلایتی نساخته‌ای.',
+          Text(tr('هنوز هایلایتی نساخته‌ای.'),
               style: Theme.of(context).textTheme.bodySmall)
         else
           SizedBox(
@@ -264,10 +265,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               const Icon(Icons.person_off_outlined, size: 48),
               const SizedBox(height: 12),
-              Text('پروفایل باز نشد.\n${_error ?? ''}',
+              Text(tr('پروفایل باز نشد.\n{0}', [_error ?? '']),
                   textAlign: TextAlign.center),
               const SizedBox(height: 12),
-              FilledButton(onPressed: _load, child: const Text('تلاشِ دوباره')),
+              FilledButton(onPressed: _load, child: Text(tr('تلاشِ دوباره'))),
             ],
           ),
         ),
@@ -294,7 +295,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Padding(
             padding: const EdgeInsets.only(top: 6),
             child: Chip(
-              label: const Text('شما را دنبال می‌کند'),
+              label: Text(tr('شما را دنبال می‌کند')),
               visualDensity: VisualDensity.compact,
             ),
           ),
@@ -305,9 +306,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _counters(SocialProfile p) => Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _counter('دنبال‌کننده', p.followersCount,
+          _counter(tr('دنبال‌کننده'), p.followersCount,
               () => _openList(followersTab: true)),
-          _counter('دنبال‌شونده', p.followingCount,
+          _counter(tr('دنبال‌شونده'), p.followingCount,
               () => _openList(followersTab: false)),
         ],
       );
@@ -331,10 +332,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _actions(SocialProfile p) {
     if (p.isMe) {
-      return const Card(
+      return Card(
         child: ListTile(
-          leading: Icon(Icons.badge_outlined),
-          title: Text('این پروفایلِ خودِ شماست'),
+          leading: const Icon(Icons.badge_outlined),
+          title: Text(tr('این پروفایلِ خودِ شماست')),
         ),
       );
     }
@@ -345,12 +346,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ? OutlinedButton.icon(
                   onPressed: _busy ? null : _toggleFollow,
                   icon: const Icon(Icons.person_remove_outlined),
-                  label: const Text('لغوِ دنبال‌کردن'),
+                  label: Text(tr('لغوِ دنبال‌کردن')),
                 )
               : FilledButton.icon(
                   onPressed: _busy ? null : _toggleFollow,
                   icon: const Icon(Icons.person_add_alt),
-                  label: Text(p.isFollowedBy ? 'دنبالِ متقابل' : 'دنبال‌کردن'),
+                  label: Text(p.isFollowedBy ? tr('دنبالِ متقابل') : tr('دنبال‌کردن')),
                 ),
         ),
         const SizedBox(width: 12),
@@ -358,7 +359,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: OutlinedButton.icon(
             onPressed: _openChat,
             icon: const Icon(Icons.chat_bubble_outline),
-            label: const Text('پیام'),
+            label: Text(tr('پیام')),
           ),
         ),
       ],
@@ -379,7 +380,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('ریل‌ها (${reels.length})',
+        Text(tr('ریل‌ها ({0})', [reels.length]),
             style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         GridView.builder(
@@ -406,7 +407,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         builder: (_) => ReelPagerScreen(
           reels: reels,
           initialIndex: index,
-          title: _profile?.title ?? 'ریل‌ها',
+          title: _profile?.title ?? tr('ریل‌ها'),
         ),
       )),
       child: Container(
@@ -445,7 +446,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('پست‌ها (${posts.length})',
+        Text(tr('پست‌ها ({0})', [posts.length]),
             style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         for (final p in posts)
@@ -469,8 +470,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.verified_user_outlined),
-              title: const Text('سطحِ احرازِ هویت'),
-              subtitle: Text('سطح ${p.kycLevel}'),
+              title: Text(tr('سطحِ احرازِ هویت')),
+              subtitle: Text(tr('سطح {0}', [p.kycLevel])),
             ),
           ],
         ),

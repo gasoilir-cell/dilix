@@ -7,6 +7,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import '../../core/api_client.dart';
 import '../../core/config.dart';
 
+import '../../core/l10n.dart';
 /// اطلاعاتِ کاربرِ کره که هنگامِ لمسِ مارکر از صفحهٔ globe.gl به Flutter می‌رسد.
 class EarthTap {
   const EarthTap({required this.earthId, required this.name, this.role, this.online});
@@ -199,11 +200,11 @@ class _EarthGlobeViewState extends State<EarthGlobeView> {
   }
 
   Widget _defaultFallback() {
-    return const ColoredBox(
-      color: Color(0xFF080F22),
+    return ColoredBox(
+      color: const Color(0xFF080F22),
       child: Center(
-        child: Text('کره‌ی سه‌بعدی بارگذاری نشد.',
-            style: TextStyle(color: Color(0xB3FFFFFF))),
+        child: Text(tr('کره‌ی سه‌بعدی بارگذاری نشد.'),
+            style: const TextStyle(color: Color(0xB3FFFFFF))),
       ),
     );
   }

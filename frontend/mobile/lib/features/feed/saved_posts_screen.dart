@@ -4,6 +4,7 @@ import '../../app.dart';
 import '../../models/models.dart';
 import 'post_card.dart';
 
+import '../../core/l10n.dart';
 /// پست‌های ذخیره‌شدهٔ خودم (`GET /api/v1/posts/saved`).
 class SavedPostsScreen extends StatefulWidget {
   const SavedPostsScreen({super.key});
@@ -40,7 +41,7 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
   Widget build(BuildContext context) {
     final posts = _posts;
     return Scaffold(
-      appBar: AppBar(title: const Text('ذخیره‌شده‌ها')),
+      appBar: AppBar(title: Text(tr('ذخیره‌شده‌ها'))),
       body: _error != null
           ? Center(
               child: Padding(
@@ -48,11 +49,11 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('بارگذاری ممکن نشد.\n$_error',
+                    Text(tr('بارگذاری ممکن نشد.\n{0}', [_error]),
                         textAlign: TextAlign.center),
                     const SizedBox(height: 12),
                     OutlinedButton(
-                        onPressed: _load, child: const Text('تلاشِ دوباره')),
+                        onPressed: _load, child: Text(tr('تلاشِ دوباره'))),
                   ],
                 ),
               ),
@@ -60,11 +61,11 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
           : posts == null
               ? const Center(child: CircularProgressIndicator())
               : posts.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Padding(
-                        padding: EdgeInsets.all(32),
+                        padding: const EdgeInsets.all(32),
                         child: Text(
-                          'چیزی ذخیره نکرده‌اید.\nبا نشانِ بوکمارک روی هر پست آن را این‌جا نگه دارید.',
+                          tr('چیزی ذخیره نکرده‌اید.\nبا نشانِ بوکمارک روی هر پست آن را این‌جا نگه دارید.'),
                           textAlign: TextAlign.center,
                         ),
                       ),

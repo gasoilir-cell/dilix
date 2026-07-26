@@ -5,6 +5,7 @@ import '../../core/api_client.dart';
 import '../../core/config.dart';
 import '../../core/social_auth.dart';
 
+import '../../core/l10n.dart';
 /// صفحهٔ ورود — ورود با شناسه/رمز، ورودِ یک‌بارمصرف (OTP/پیامک) و
 /// ورودِ اجتماعی (فقط اگر در بیلد پیکربندی شده باشد).
 ///
@@ -64,7 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } on SocialAuthException catch (e) {
       setState(() => _error = e.message);
     } catch (e) {
-      setState(() => _error = 'خطای غیرمنتظره: $e');
+      setState(() => _error = tr('خطای غیرمنتظره: {0}', [e]));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -79,15 +80,15 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = _regEmailCtrl.text.trim();
     final phone = _regPhoneCtrl.text.trim();
     if (_nameCtrl.text.trim().length < 2) {
-      setState(() => _error = 'نامِ نمایشی باید حداقل ۲ نویسه باشد.');
+      setState(() => _error = tr('نامِ نمایشی باید حداقل ۲ نویسه باشد.'));
       return Future.value();
     }
     if (email.isEmpty && phone.isEmpty) {
-      setState(() => _error = 'ایمیل یا شمارهٔ موبایل را وارد کنید.');
+      setState(() => _error = tr('ایمیل یا شمارهٔ موبایل را وارد کنید.'));
       return Future.value();
     }
     if (_regPasswordCtrl.text.length < 8) {
-      setState(() => _error = 'رمز عبور باید حداقل ۸ نویسه باشد.');
+      setState(() => _error = tr('رمز عبور باید حداقل ۸ نویسه باشد.'));
       return Future.value();
     }
     return _run(() async {
@@ -131,7 +132,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'به دیلیکس خوش آمدید',
+                    tr('به دیلیکس خوش آمدید'),
                     textAlign: TextAlign.center,
                     style: TextStyle(color: scheme.onSurfaceVariant),
                   ),
@@ -168,9 +169,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _modeSwitch(ColorScheme scheme) {
     return SegmentedButton<_Mode>(
-      segments: const [
-        ButtonSegment(value: _Mode.login, label: Text('ورود'), icon: Icon(Icons.lock_outline)),
-        ButtonSegment(value: _Mode.register, label: Text('ثبت‌نام'), icon: Icon(Icons.person_add_alt_1)),
+      segments: [
+        ButtonSegment(value: _Mode.login, label: Text(tr('ورود')), icon: const Icon(Icons.lock_outline)),
+        ButtonSegment(value: _Mode.register, label: Text(tr('ثبت‌نام')), icon: const Icon(Icons.person_add_alt_1)),
       ],
       selected: {_mode},
       onSelectionChanged: _busy
@@ -188,9 +189,9 @@ class _LoginScreenState extends State<LoginScreen> {
           enabled: !_busy,
           keyboardType: TextInputType.emailAddress,
           textDirection: TextDirection.ltr,
-          decoration: const InputDecoration(
-            labelText: 'ایمیل / موبایل / شناسهٔ کاربری',
-            prefixIcon: Icon(Icons.person_outline),
+          decoration: InputDecoration(
+            labelText: tr('ایمیل / موبایل / شناسهٔ کاربری'),
+            prefixIcon: const Icon(Icons.person_outline),
           ),
         ),
         const SizedBox(height: 12),
@@ -200,17 +201,17 @@ class _LoginScreenState extends State<LoginScreen> {
           obscureText: true,
           textDirection: TextDirection.ltr,
           onSubmitted: (_) => _busy ? null : _loginWithPassword(),
-          decoration: const InputDecoration(
-            labelText: 'رمز عبور',
-            prefixIcon: Icon(Icons.lock_outline),
+          decoration: InputDecoration(
+            labelText: tr('رمز عبور'),
+            prefixIcon: const Icon(Icons.lock_outline),
           ),
         ),
         const SizedBox(height: 16),
         FilledButton(
           onPressed: _busy ? null : _loginWithPassword,
-          child: const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Text('ورود'),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Text(tr('ورود')),
           ),
         ),
       ];
@@ -219,9 +220,9 @@ class _LoginScreenState extends State<LoginScreen> {
         TextField(
           controller: _nameCtrl,
           enabled: !_busy,
-          decoration: const InputDecoration(
-            labelText: 'نامِ نمایشی',
-            prefixIcon: Icon(Icons.badge_outlined),
+          decoration: InputDecoration(
+            labelText: tr('نامِ نمایشی'),
+            prefixIcon: const Icon(Icons.badge_outlined),
           ),
         ),
         const SizedBox(height: 12),
@@ -230,9 +231,9 @@ class _LoginScreenState extends State<LoginScreen> {
           enabled: !_busy,
           keyboardType: TextInputType.emailAddress,
           textDirection: TextDirection.ltr,
-          decoration: const InputDecoration(
-            labelText: 'ایمیل (اختیاری)',
-            prefixIcon: Icon(Icons.email_outlined),
+          decoration: InputDecoration(
+            labelText: tr('ایمیل (اختیاری)'),
+            prefixIcon: const Icon(Icons.email_outlined),
           ),
         ),
         const SizedBox(height: 12),
@@ -241,15 +242,15 @@ class _LoginScreenState extends State<LoginScreen> {
           enabled: !_busy,
           keyboardType: TextInputType.phone,
           textDirection: TextDirection.ltr,
-          decoration: const InputDecoration(
-            labelText: 'شمارهٔ موبایل (اختیاری)',
+          decoration: InputDecoration(
+            labelText: tr('شمارهٔ موبایل (اختیاری)'),
             hintText: '+98...',
-            prefixIcon: Icon(Icons.phone_iphone),
+            prefixIcon: const Icon(Icons.phone_iphone),
           ),
         ),
         const SizedBox(height: 4),
         Text(
-          'حداقل یکی از ایمیل یا موبایل الزامی است.',
+          tr('حداقل یکی از ایمیل یا موبایل الزامی است.'),
           style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
         ),
         const SizedBox(height: 12),
@@ -259,27 +260,27 @@ class _LoginScreenState extends State<LoginScreen> {
           obscureText: true,
           textDirection: TextDirection.ltr,
           onSubmitted: (_) => _busy ? null : _register(),
-          decoration: const InputDecoration(
-            labelText: 'رمز عبور (حداقل ۸ نویسه)',
-            prefixIcon: Icon(Icons.lock_outline),
+          decoration: InputDecoration(
+            labelText: tr('رمز عبور (حداقل ۸ نویسه)'),
+            prefixIcon: const Icon(Icons.lock_outline),
           ),
         ),
         const SizedBox(height: 16),
         FilledButton(
           onPressed: _busy ? null : _register,
-          child: const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Text('ثبت‌نام'),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Text(tr('ثبت‌نام')),
           ),
         ),
       ];
 
   List<Widget> _socialButtons(ColorScheme scheme) {
     final providers = <MapEntry<String, String>>[
-      if (AppConfig.googleClientId.isNotEmpty) const MapEntry('google', 'ورود با Google'),
-      if (AppConfig.microsoftClientId.isNotEmpty) const MapEntry('microsoft', 'ورود با Microsoft'),
-      if (AppConfig.appleClientId.isNotEmpty) const MapEntry('apple', 'ورود با Apple'),
-      if (AppConfig.facebookAppId.isNotEmpty) const MapEntry('facebook', 'ورود با Facebook'),
+      if (AppConfig.googleClientId.isNotEmpty) MapEntry('google', tr('ورود با Google')),
+      if (AppConfig.microsoftClientId.isNotEmpty) MapEntry('microsoft', tr('ورود با Microsoft')),
+      if (AppConfig.appleClientId.isNotEmpty) MapEntry('apple', tr('ورود با Apple')),
+      if (AppConfig.facebookAppId.isNotEmpty) MapEntry('facebook', tr('ورود با Facebook')),
     ];
     if (providers.isEmpty) return const [];
     return [
@@ -288,7 +289,7 @@ class _LoginScreenState extends State<LoginScreen> {
         const Expanded(child: Divider()),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Text('یا', style: TextStyle(color: scheme.onSurfaceVariant)),
+          child: Text(tr('یا'), style: TextStyle(color: scheme.onSurfaceVariant)),
         ),
         const Expanded(child: Divider()),
       ]),

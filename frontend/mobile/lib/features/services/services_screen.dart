@@ -18,6 +18,7 @@ import '../stories/stories_screen.dart';
 import '../telecom/telecom_screen.dart';
 import '../wallet/wallet_screen.dart';
 
+import '../../core/l10n.dart';
 /// هابِ verticalها (سند ۷ §۲): حمل‌ونقل، بیمه، ارتباطات، بازارگاه.
 class ServicesScreen extends StatelessWidget {
   const ServicesScreen({super.key});
@@ -25,24 +26,24 @@ class ServicesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tiles = <_Service>[
-      _Service(Icons.movie_creation_outlined, 'ریلز', 'ویدیوهای کوتاه', const ReelsScreen()),
-      _Service(Icons.auto_stories_outlined, 'داستان‌ها', 'داستانِ ۲۴ساعته', const StoriesScreen()),
-      _Service(Icons.podcasts, 'پخشِ زنده', 'تماشا یا شروعِ پخش', const LiveScreen()),
-      _Service(Icons.local_shipping_outlined, 'حمل‌ونقل', 'اسنپِ بار', const FreightScreen()),
-      _Service(Icons.shield_outlined, 'بیمه', 'استعلام و صدور', const InsuranceScreen()),
-      _Service(Icons.signal_cellular_alt, 'ارتباطات', 'اینترنت و eSIM', const TelecomScreen()),
-      _Service(Icons.storefront_outlined, 'بازارگاه', 'خدمات و فریلنسری', const MarketplaceScreen()),
-      _Service(Icons.travel_explore, 'کشفِ اطراف', 'افراد و کسب‌وکارِ نزدیک', const DiscoveryScreen()),
-      _Service(Icons.trending_up, 'سرمایه‌گذاری', 'صندوق و NAV', const InvestmentScreen()),
-      _Service(Icons.workspace_premium_outlined, 'عضویت', 'پلن، نشان و اعتبار', const MembershipScreen()),
-      _Service(Icons.emoji_events_outlined, 'دستاوردها', 'امتیاز و نشان‌ها', const GamificationScreen()),
-      _Service(Icons.verified_outlined, 'اعتبار', 'امتیازِ اعتماد و نظرها', const ReputationScreen()),
-      _Service(Icons.hub_outlined, 'ارائه‌دهنده', 'KYB، API، sandbox و کلید', const ProviderScreen()),
-      _Service(Icons.account_balance_wallet_outlined, 'کیف پول', 'پاداش و پرداختِ امن', const WalletScreen()),
-      _Service(Icons.notifications_outlined, 'اعلان‌ها', 'رویدادها و پیام‌ها', const NotificationsScreen()),
+      _Service(Icons.movie_creation_outlined, tr('ریلز'), tr('ویدیوهای کوتاه'), const ReelsScreen()),
+      _Service(Icons.auto_stories_outlined, tr('داستان‌ها'), tr('داستانِ ۲۴ساعته'), const StoriesScreen()),
+      _Service(Icons.podcasts, tr('پخشِ زنده'), tr('تماشا یا شروعِ پخش'), const LiveScreen()),
+      _Service(Icons.local_shipping_outlined, tr('حمل‌ونقل'), tr('اسنپِ بار'), const FreightScreen()),
+      _Service(Icons.shield_outlined, tr('بیمه'), tr('استعلام و صدور'), const InsuranceScreen()),
+      _Service(Icons.signal_cellular_alt, tr('ارتباطات'), tr('اینترنت و eSIM'), const TelecomScreen()),
+      _Service(Icons.storefront_outlined, tr('بازارگاه'), tr('خدمات و فریلنسری'), const MarketplaceScreen()),
+      _Service(Icons.travel_explore, tr('کشفِ اطراف'), tr('افراد و کسب‌وکارِ نزدیک'), const DiscoveryScreen()),
+      _Service(Icons.trending_up, tr('سرمایه‌گذاری'), tr('صندوق و NAV'), const InvestmentScreen()),
+      _Service(Icons.workspace_premium_outlined, tr('عضویت'), tr('پلن، نشان و اعتبار'), const MembershipScreen()),
+      _Service(Icons.emoji_events_outlined, tr('دستاوردها'), tr('امتیاز و نشان‌ها'), const GamificationScreen()),
+      _Service(Icons.verified_outlined, tr('اعتبار'), tr('امتیازِ اعتماد و نظرها'), const ReputationScreen()),
+      _Service(Icons.hub_outlined, tr('ارائه‌دهنده'), tr('KYB، API، sandbox و کلید'), const ProviderScreen()),
+      _Service(Icons.account_balance_wallet_outlined, tr('کیف پول'), tr('پاداش و پرداختِ امن'), const WalletScreen()),
+      _Service(Icons.notifications_outlined, tr('اعلان‌ها'), tr('رویدادها و پیام‌ها'), const NotificationsScreen()),
     ];
     return Scaffold(
-      appBar: AppBar(title: const Text('خدمات')),
+      appBar: AppBar(title: Text(tr('خدمات'))),
       body: GridView.count(
         crossAxisCount: 2,
         padding: const EdgeInsets.all(12),
@@ -159,7 +160,7 @@ class _FreightScreenState extends State<FreightScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'بارگذاریِ فهرستِ بار ممکن نشد.\n$e';
+        _error = tr('بارگذاریِ فهرستِ بار ممکن نشد.\n{0}', [e]);
         _loading = false;
       });
     }
@@ -177,19 +178,19 @@ class _FreightScreenState extends State<FreightScreen> {
     final origin = _originCtrl.text.trim();
     final dest = _destCtrl.text.trim();
     final weightKg = double.tryParse(_weightCtrl.text.trim());
-    final price = int.tryParse(_priceCtrl.text.trim().replaceAll('،', ''));
+    final price = int.tryParse(_priceCtrl.text.trim().replaceAll(tr('،'), ''));
     if (title.isEmpty || origin.isEmpty || dest.isEmpty) {
-      setState(() => _error = 'عنوان، مبدأ و مقصد را وارد کنید.');
+      setState(() => _error = tr('عنوان، مبدأ و مقصد را وارد کنید.'));
       return;
     }
     if (weightKg == null || weightKg <= 0) {
-      setState(() => _error = 'وزنِ معتبر (کیلوگرم) وارد کنید.');
+      setState(() => _error = tr('وزنِ معتبر (کیلوگرم) وارد کنید.'));
       return;
     }
     // سرور `price > 0` را الزامی می‌کند و همین مبلغ هنگامِ پذیرشِ راننده از
     // کیفِ صاحبِ بار امانی می‌شود.
     if (price == null || price <= 0) {
-      setState(() => _error = 'کرایهٔ پیشنهادی را وارد کنید.');
+      setState(() => _error = tr('کرایهٔ پیشنهادی را وارد کنید.'));
       return;
     }
     setState(() {
@@ -220,7 +221,7 @@ class _FreightScreenState extends State<FreightScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'ثبتِ بار ناموفق بود. ابتدا وارد شوید.';
+        _error = tr('ثبتِ بار ناموفق بود. ابتدا وارد شوید.');
         _submitting = false;
       });
     }
@@ -229,26 +230,26 @@ class _FreightScreenState extends State<FreightScreen> {
   String _formatWeight(int grams) {
     final kg = grams / 1000;
     final text = kg == kg.roundToDouble() ? kg.round().toString() : kg.toStringAsFixed(1);
-    return '$text کیلوگرم';
+    return tr('{0} کیلوگرم', [text]);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('اسنپِ بار'),
+        title: Text(tr('اسنپِ بار')),
         actions: [
           IconButton(
             onPressed: _loading ? null : _load,
             icon: const Icon(Icons.refresh),
-            tooltip: 'تازه‌سازی',
+            tooltip: tr('تازه‌سازی'),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => setState(() => _showForm = !_showForm),
         icon: Icon(_showForm ? Icons.close : Icons.add),
-        label: Text(_showForm ? 'بستن' : 'ثبتِ بار'),
+        label: Text(_showForm ? tr('بستن') : tr('ثبتِ بار')),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -258,14 +259,14 @@ class _FreightScreenState extends State<FreightScreen> {
                 padding: const EdgeInsets.all(12),
                 children: [
                   Text(
-                    'ثبتِ بار، تطبیقِ راننده، بارنامه و ردیابیِ زنده',
+                    tr('ثبتِ بار، تطبیقِ راننده، بارنامه و ردیابیِ زنده'),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const SizedBox(height: 8),
                   SegmentedButton<bool>(
-                    segments: const [
-                      ButtonSegment(value: false, label: Text('بارهای باز')),
-                      ButtonSegment(value: true, label: Text('بارهای من')),
+                    segments: [
+                      ButtonSegment(value: false, label: Text(tr('بارهای باز'))),
+                      ButtonSegment(value: true, label: Text(tr('بارهای من'))),
                     ],
                     selected: {_mine},
                     onSelectionChanged: (s) {
@@ -284,9 +285,9 @@ class _FreightScreenState extends State<FreightScreen> {
                       ),
                     ),
                   if (_cargo.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(32),
-                      child: Text('باری برای نمایش نیست.', textAlign: TextAlign.center),
+                    Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Text(tr('باری برای نمایش نیست.'), textAlign: TextAlign.center),
                     )
                   else
                     ..._cargo.map(_cargoCard),
@@ -305,31 +306,31 @@ class _FreightScreenState extends State<FreightScreen> {
           children: [
             TextField(
               controller: _titleCtrl,
-              decoration: const InputDecoration(labelText: 'عنوانِ بار'),
+              decoration: InputDecoration(labelText: tr('عنوانِ بار')),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: _originCtrl,
-              decoration: const InputDecoration(labelText: 'مبدأ'),
+              decoration: InputDecoration(labelText: tr('مبدأ')),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: _destCtrl,
-              decoration: const InputDecoration(labelText: 'مقصد'),
+              decoration: InputDecoration(labelText: tr('مقصد')),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: _weightCtrl,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'وزن (کیلوگرم)'),
+              decoration: InputDecoration(labelText: tr('وزن (کیلوگرم)')),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: _priceCtrl,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'کرایهٔ پیشنهادی (تومان)',
-                helperText: 'هنگامِ پذیرشِ راننده از کیفِ شما امانی می‌شود',
+              decoration: InputDecoration(
+                labelText: tr('کرایهٔ پیشنهادی (تومان)'),
+                helperText: tr('هنگامِ پذیرشِ راننده از کیفِ شما امانی می‌شود'),
               ),
             ),
             if (_vehicles.isNotEmpty) ...[
@@ -337,20 +338,20 @@ class _FreightScreenState extends State<FreightScreen> {
               DropdownButtonFormField<String>(
                 initialValue: _vehicle,
                 isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'نوعِ ناوگان (اختیاری)',
+                decoration: InputDecoration(
+                  labelText: tr('نوعِ ناوگان (اختیاری)'),
                 ),
                 items: [
-                  const DropdownMenuItem<String>(
+                  DropdownMenuItem<String>(
                     value: null,
-                    child: Text('فرقی نمی‌کند'),
+                    child: Text(tr('فرقی نمی‌کند')),
                   ),
                   for (final v in _vehicles)
                     DropdownMenuItem<String>(
                       value: v.code,
                       child: Text(v.maxWeightKg == null
                           ? v.nameFa
-                          : '${v.nameFa} — تا ${v.maxWeightKg!.round()} کیلوگرم'),
+                          : tr('{0} — تا {1} کیلوگرم', [v.nameFa, v.maxWeightKg!.round()])),
                     ),
                 ],
                 onChanged: (v) => setState(() => _vehicle = v),
@@ -361,7 +362,7 @@ class _FreightScreenState extends State<FreightScreen> {
               width: double.infinity,
               child: FilledButton(
                 onPressed: _submitting ? null : _submit,
-                child: Text(_submitting ? 'در حال…' : 'ثبت'),
+                child: Text(_submitting ? tr('در حال…') : tr('ثبت')),
               ),
             ),
           ],
@@ -400,7 +401,7 @@ class _FreightScreenState extends State<FreightScreen> {
               if (c.offersCount > 0)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
-                  child: Text('${c.offersCount} پیشنهادِ در انتظار',
+                  child: Text(tr('{0} پیشنهادِ در انتظار', [c.offersCount]),
                       style: Theme.of(context).textTheme.bodySmall),
                 ),
             ],

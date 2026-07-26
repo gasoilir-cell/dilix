@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n.dart';
 /// اسنادِ حقوقی: قوانین و مقررات + حریمِ خصوصی به‌صورتِ آکاردئونی.
 /// معادلِ صفحه‌هایِ وبِ `app/legal/terms` و `app/legal/privacy`.
 class LegalScreen extends StatelessWidget {
   const LegalScreen({super.key});
 
   // بندهایِ هر سند — متن منطبق با صفحه‌هایِ وب.
-  static const _terms = <String>[
+  static List<String> get _terms =>
+      _termsSrc.map(tr).toList();
+
+  static const _termsSrc = <String>[
     'Dilix یک بسترِ واسط است و خود ارائه‌دهنده‌ی خدماتِ مالی، بیمه‌ای یا '
         'حمل‌ونقلِ دارای مجوز نیست. خدمات از طریقِ شرکای دارای مجوز ارائه '
         'می‌شوند و مسئولیتِ صدور و اجرای آن‌ها بر عهده‌ی همان ارائه‌دهنده است.',
@@ -15,7 +19,10 @@ class LegalScreen extends StatelessWidget {
         'اعتبارنامه‌های ورودِ خود باشید.',
   ];
 
-  static const _privacy = <String>[
+  static List<String> get _privacy =>
+      _privacySrc.map(tr).toList();
+
+  static const _privacySrc = <String>[
     'موقعیتِ مکانیِ شما به‌صورتِ پیش‌فرض روی نقشه نمایش داده نمی‌شود (Opt-in). '
         'در صورتِ فعال‌سازی نیز موقعیت به‌صورتِ محو شده (Location Fuzzing) و در '
         'سطحِ منطقه نمایش داده می‌شود؛ مختصاتِ دقیق هرگز فاش نمی‌شود (ADR-06).',
@@ -29,19 +36,19 @@ class LegalScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('اسنادِ حقوقی')),
+      appBar: AppBar(title: Text(tr('اسنادِ حقوقی'))),
       body: ListView(
         padding: const EdgeInsets.all(12),
         children: [
           Text(
-            'آخرین به‌روزرسانی: ۱۴۰۵',
+            tr('آخرین به‌روزرسانی: ۱۴۰۵'),
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
           Card(
             child: ExpansionTile(
               leading: const Icon(Icons.gavel_outlined),
-              title: const Text('قوانین و مقررات'),
+              title: Text(tr('قوانین و مقررات')),
               childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               expandedCrossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -56,7 +63,7 @@ class LegalScreen extends StatelessWidget {
           Card(
             child: ExpansionTile(
               leading: const Icon(Icons.privacy_tip_outlined),
-              title: const Text('حریمِ خصوصی'),
+              title: Text(tr('حریمِ خصوصی')),
               childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               expandedCrossAxisAlignment: CrossAxisAlignment.start,
               children: [

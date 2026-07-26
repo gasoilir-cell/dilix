@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app.dart';
 import '../../models/models.dart';
 
+import '../../core/l10n.dart';
 /// فهرستِ اعلان‌ها با علامت‌گذاریِ خوانده‌شده (تکی/همه). معادلِ صفحهٔ وبِ
 /// `app/notifications/page.tsx`.
 class NotificationsScreen extends StatefulWidget {
@@ -38,7 +39,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'بارگذاریِ اعلان‌ها ممکن نشد: $e';
+        _error = tr('بارگذاریِ اعلان‌ها ممکن نشد: {0}', [e]);
         _loading = false;
       });
     }
@@ -74,7 +75,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('خواندنِ همه ممکن نشد: $e')));
+          .showSnackBar(SnackBar(content: Text(tr('خواندنِ همه ممکن نشد: {0}', [e]))));
       return;
     }
     if (!mounted) return;
@@ -94,12 +95,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final unread = _items.where((n) => !n.read).length;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('اعلان‌ها'),
+        title: Text(tr('اعلان‌ها')),
         actions: [
           if (unread > 0)
             TextButton(
               onPressed: _markAllRead,
-              child: Text('خواندنِ همه ($unread)'),
+              child: Text(tr('خواندنِ همه ({0})', [unread])),
             ),
         ],
       ),
@@ -118,10 +119,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     )
                   : _items.isEmpty
                       ? ListView(
-                          children: const [
+                          children: [
                             Padding(
-                              padding: EdgeInsets.all(24),
-                              child: Center(child: Text('اعلانی وجود ندارد.')),
+                              padding: const EdgeInsets.all(24),
+                              child: Center(child: Text(tr('اعلانی وجود ندارد.'))),
                             ),
                           ],
                         )
@@ -154,7 +155,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                 trailing: n.read
                                     ? null
                                     : Chip(
-                                        label: const Text('جدید'),
+                                        label: Text(tr('جدید')),
                                         backgroundColor:
                                             Theme.of(context).colorScheme.primaryContainer,
                                       ),

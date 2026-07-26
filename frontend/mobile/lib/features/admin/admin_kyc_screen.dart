@@ -5,6 +5,7 @@ import '../../core/config.dart';
 import '../../models/models.dart';
 import '../messages/media_viewer.dart';
 
+import '../../core/l10n.dart';
 /// کنسولِ بررسیِ احرازِ هویت — فقط برای نقشِ `admin`/`super_admin`.
 ///
 /// معادلِ `/(main)/admin/kyc` در وب. سرور خودش نقش را چک می‌کند و برای بقیه
@@ -18,14 +19,20 @@ class AdminKycScreen extends StatefulWidget {
 }
 
 /// وضعیت‌هایی که سرور در فیلترِ `status` می‌پذیرد (`all` = بدونِ فیلتر).
-const _kycTabs = <(String, String)>[
+List<(String, String)> get _kycTabs =>
+    _kycTabsSrc.map((e) => (e.$1, tr(e.$2))).toList();
+
+const _kycTabsSrc = <(String, String)>[
   ('pending', 'در انتظار'),
   ('approved', 'تأییدشده'),
   ('rejected', 'ردشده'),
   ('all', 'همه'),
 ];
 
-const _kycStatusLabels = <String, String>{
+Map<String, String> get _kycStatusLabels =>
+    _kycStatusLabelsSrc.map((k, v) => MapEntry(k, tr(v)));
+
+const _kycStatusLabelsSrc = <String, String>{
   'pending': 'در انتظارِ بررسی',
   'approved': 'تأییدشده',
   'rejected': 'ردشده',
@@ -61,8 +68,8 @@ class _AdminKycScreenState extends State<AdminKycScreen> {
       if (!mounted) return;
       setState(() {
         _error = '$e'.contains('403')
-            ? 'این بخش فقط برای مدیرانِ پلتفرم است.'
-            : 'بارگذاریِ صفِ احرازِ هویت ممکن نشد.\n$e';
+            ? tr('این بخش فقط برای مدیرانِ پلتفرم است.')
+            : tr('بارگذاریِ صفِ احرازِ هویت ممکن نشد.\n{0}', [e]);
         _loading = false;
       });
     }
@@ -85,14 +92,14 @@ class _AdminKycScreenState extends State<AdminKycScreen> {
       setState(() => _busy = false);
       messenger.showSnackBar(SnackBar(
         content: Text(result == 'approved'
-            ? 'درخواست تأیید شد.'
-            : 'درخواست رد شد.'),
+            ? tr('درخواست تأیید شد.')
+            : tr('درخواست رد شد.')),
       ));
       await _load();
     } catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      messenger.showSnackBar(SnackBar(content: Text('ثبتِ بررسی ممکن نشد.\n$e')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('ثبتِ بررسی ممکن نشد.\n{0}', [e]))));
     }
   }
 
@@ -102,14 +109,14 @@ class _AdminKycScreenState extends State<AdminKycScreen> {
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(approve ? 'تأییدِ هویت' : 'ردِ درخواست'),
+        title: Text(approve ? tr('تأییدِ هویت') : tr('ردِ درخواست')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               approve
-                  ? 'سطحِ احرازِ هویتِ کاربر ارتقا می‌یابد.'
-                  : 'دلیلِ رد برای کاربر ثبت می‌شود.',
+                  ? tr('سطحِ احرازِ هویتِ کاربر ارتقا می‌یابد.')
+                  : tr('دلیلِ رد برای کاربر ثبت می‌شود.'),
               style: Theme.of(ctx).textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
@@ -117,7 +124,7 @@ class _AdminKycScreenState extends State<AdminKycScreen> {
               controller: ctrl,
               maxLines: 2,
               decoration: InputDecoration(
-                labelText: approve ? 'یادداشت (اختیاری)' : 'دلیلِ رد',
+                labelText: approve ? tr('یادداشت (اختیاری)') : tr('دلیلِ رد'),
                 border: const OutlineInputBorder(),
               ),
             ),
@@ -126,11 +133,11 @@ class _AdminKycScreenState extends State<AdminKycScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('انصراف'),
+            child: Text(tr('انصراف')),
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(ctrl.text.trim()),
-            child: Text(approve ? 'تأیید' : 'رد'),
+            child: Text(approve ? tr('تأیید') : tr('رد')),
           ),
         ],
       ),
@@ -141,12 +148,12 @@ class _AdminKycScreenState extends State<AdminKycScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('بررسیِ احرازِ هویت'),
+        title: Text(tr('بررسیِ احرازِ هویت')),
         actions: [
           IconButton(
             onPressed: _loading ? null : _load,
             icon: const Icon(Icons.refresh),
-            tooltip: 'تازه‌سازی',
+            tooltip: tr('تازه‌سازی'),
           ),
         ],
       ),
@@ -187,14 +194,14 @@ class _AdminKycScreenState extends State<AdminKycScreen> {
               const SizedBox(height: 12),
               Text(_error!, textAlign: TextAlign.center),
               const SizedBox(height: 12),
-              OutlinedButton(onPressed: _load, child: const Text('تلاشِ دوباره')),
+              OutlinedButton(onPressed: _load, child: Text(tr('تلاشِ دوباره'))),
             ],
           ),
         ),
       );
     }
     if (_items.isEmpty) {
-      return const Center(child: Text('درخواستی در این وضعیت نیست.'));
+      return Center(child: Text(tr('درخواستی در این وضعیت نیست.')));
     }
     return RefreshIndicator(
       onRefresh: _load,
@@ -219,7 +226,7 @@ class _AdminKycScreenState extends State<AdminKycScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    item.fullName?.isNotEmpty == true ? item.fullName! : 'بدونِ نام',
+                    item.fullName?.isNotEmpty == true ? item.fullName! : tr('بدونِ نام'),
                     style: theme.textTheme.titleMedium,
                   ),
                 ),
@@ -230,17 +237,17 @@ class _AdminKycScreenState extends State<AdminKycScreen> {
               ],
             ),
             const SizedBox(height: 6),
-            _row('کدِ ملی', item.nationalId),
-            _row('تاریخِ تولد', item.dateOfBirth),
-            _row('سطحِ درخواستی', '${item.level}'),
+            _row(tr('کدِ ملی'), item.nationalId),
+            _row(tr('تاریخِ تولد'), item.dateOfBirth),
+            _row(tr('سطحِ درخواستی'), '${item.level}'),
             if (item.createdAt != null)
-              _row('تاریخِ ثبت', _fmtDate(item.createdAt!)),
+              _row(tr('تاریخِ ثبت'), _fmtDate(item.createdAt!)),
             const SizedBox(height: 10),
             Row(
               children: [
-                Expanded(child: _doc('تصویرِ مدرک', item.docFrontUrl)),
+                Expanded(child: _doc(tr('تصویرِ مدرک'), item.docFrontUrl)),
                 const SizedBox(width: 8),
-                Expanded(child: _doc('سلفی', item.docSelfieUrl)),
+                Expanded(child: _doc(tr('سلفی'), item.docSelfieUrl)),
               ],
             ),
             if (item.isPending) ...[
@@ -251,7 +258,7 @@ class _AdminKycScreenState extends State<AdminKycScreen> {
                     child: OutlinedButton.icon(
                       onPressed: _busy ? null : () => _review(item, false),
                       icon: const Icon(Icons.close),
-                      label: const Text('رد'),
+                      label: Text(tr('رد')),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -259,7 +266,7 @@ class _AdminKycScreenState extends State<AdminKycScreen> {
                     child: FilledButton.icon(
                       onPressed: _busy ? null : () => _review(item, true),
                       icon: const Icon(Icons.check),
-                      label: const Text('تأیید'),
+                      label: Text(tr('تأیید')),
                     ),
                   ),
                 ],
@@ -300,7 +307,7 @@ class _AdminKycScreenState extends State<AdminKycScreen> {
           border: Border.all(color: Theme.of(context).dividerColor),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Text('$label ندارد',
+        child: Text(tr('{0} ندارد', [label]),
             style: Theme.of(context).textTheme.bodySmall),
       );
     }

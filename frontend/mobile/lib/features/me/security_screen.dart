@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app.dart';
 import '../../models/models.dart';
 
+import '../../core/l10n.dart';
 /// امنیتِ حساب (فقط‌خواندنی) — نمای وضعیتِ حسابِ کاربر از `GET /api/v1/auth/me`.
 /// شناسه‌ی Earth، ایمیل، تلفن، وضعیتِ احرازِ هویت و کدِ ملی را نشان می‌دهد.
 class SecurityScreen extends StatefulWidget {
@@ -38,7 +39,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'بارگذاریِ اطلاعاتِ امنیتی ممکن نشد: $e';
+        _error = tr('بارگذاریِ اطلاعاتِ امنیتی ممکن نشد: {0}', [e]);
         _loading = false;
       });
     }
@@ -47,13 +48,13 @@ class _SecurityScreenState extends State<SecurityScreen> {
   String _kycLabel(String status) {
     switch (status) {
       case 'approved':
-        return 'تأییدشده';
+        return tr('تأییدشده');
       case 'pending':
-        return 'در حالِ بررسی';
+        return tr('در حالِ بررسی');
       case 'rejected':
-        return 'ردشده';
+        return tr('ردشده');
       default:
-        return 'ثبت‌نشده';
+        return tr('ثبت‌نشده');
     }
   }
 
@@ -61,7 +62,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
   Widget build(BuildContext context) {
     final me = _me;
     return Scaffold(
-      appBar: AppBar(title: const Text('امنیت')),
+      appBar: AppBar(title: Text(tr('امنیت'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
@@ -80,10 +81,10 @@ class _SecurityScreenState extends State<SecurityScreen> {
                           _row(Icons.badge_outlined, 'Earth ID',
                               me?.earthId ?? '—'),
                           const Divider(height: 1),
-                          _row(Icons.email_outlined, 'ایمیل',
+                          _row(Icons.email_outlined, tr('ایمیل'),
                               _valueOr(me?.email)),
                           const Divider(height: 1),
-                          _row(Icons.phone_outlined, 'تلفن',
+                          _row(Icons.phone_outlined, tr('تلفن'),
                               _valueOr(me?.phone)),
                         ],
                       ),
@@ -94,33 +95,32 @@ class _SecurityScreenState extends State<SecurityScreen> {
                         children: [
                           _row(
                             Icons.verified_user_outlined,
-                            'وضعیتِ احرازِ هویت',
-                            '${_kycLabel(me?.kycStatus ?? 'none')} (سطح ${me?.kycLevel ?? 0})',
+                            tr('وضعیتِ احرازِ هویت'),
+                            tr('{0} (سطح {1})', [_kycLabel(me?.kycStatus ?? 'none'), me?.kycLevel ?? 0]),
                           ),
                           const Divider(height: 1),
                           _row(
                             Icons.credit_card,
-                            'کدِ ملی',
+                            tr('کدِ ملی'),
                             (me?.nationalIdSet ?? false)
-                                ? 'ثبت‌شده'
-                                : 'ثبت‌نشده',
+                                ? tr('ثبت‌شده')
+                                : tr('ثبت‌نشده'),
                           ),
                           const Divider(height: 1),
                           _row(
                             Icons.public_outlined,
-                            'نمایش روی کره',
-                            (me?.privacyOnMap ?? false) ? 'خاموش' : 'روشن',
+                            tr('نمایش روی کره'),
+                            (me?.privacyOnMap ?? false) ? tr('خاموش') : tr('روشن'),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 12),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 4),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: Text(
-                        'برای تغییرِ رمزِ عبور یا مدیریتِ نشست‌ها، از نسخهٔ وبِ '
-                        'Earth ID استفاده کنید.',
-                        style: TextStyle(fontSize: 12),
+                        tr('برای تغییرِ رمزِ عبور یا مدیریتِ نشست‌ها، از نسخهٔ وبِ Earth ID استفاده کنید.'),
+                        style: const TextStyle(fontSize: 12),
                       ),
                     ),
                   ],
@@ -128,7 +128,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
     );
   }
 
-  String _valueOr(String? v) => (v == null || v.isEmpty) ? 'ثبت‌نشده' : v;
+  String _valueOr(String? v) => (v == null || v.isEmpty) ? tr('ثبت‌نشده') : v;
 
   Widget _row(IconData icon, String label, String value) {
     return ListTile(

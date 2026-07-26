@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../messages/messages_screen.dart';
 
+import '../../core/l10n.dart';
 /// صفحهٔ پشتیبانی — parity با `app/support/page.tsx` وب:
 /// راه‌های ارتباط + تماسِ مستقیم + سوالاتِ متداول (FAQ).
 /// بدونِ افزودنِ dependency جدید (مثلِ url_launcher): «پشتیبانیِ آنلاین»
@@ -10,38 +11,39 @@ import '../messages/messages_screen.dart';
 class SupportScreen extends StatelessWidget {
   const SupportScreen({super.key});
 
-  // FAQِ منطبق با نسخهٔ وب.
-  static const List<(String, String)> _faq = [
+  // FAQِ منطبق با نسخهٔ وب. getter است نه const: `tr()` به زبانِ جاری وابسته
+  // است و مقدارِ ثابت با تعویضِ زبان به‌روز نمی‌شود.
+  static List<(String, String)> get _faq => [
     (
-      'در Core فعلی کیف پول چه کاری انجام می‌دهد؟',
-      'در نسخهٔ فعلی، کیفِ پاداش و پرداختِ امانی فعال است. شارژِ مستقیم و برداشتِ بانکی به‌صورتِ غیرفعالِ توضیح‌دار نمایش داده می‌شود تا با وضعیتِ واقعیِ Core هم‌خوان باشد.',
+      tr('در Core فعلی کیف پول چه کاری انجام می‌دهد؟'),
+      tr('در نسخهٔ فعلی، کیفِ پاداش و پرداختِ امانی فعال است. شارژِ مستقیم و برداشتِ بانکی به‌صورتِ غیرفعالِ توضیح‌دار نمایش داده می‌شود تا با وضعیتِ واقعیِ Core هم‌خوان باشد.'),
     ),
     (
-      'چطور بار ثبت کنم؟',
-      'از بخشِ «خدمات» → «اسنپِ بار» → «ثبتِ بار» را انتخاب کنید. مبدأ، مقصد، عنوانِ بار و وزن را وارد کنید. بارِ شما به رانندگانِ در مسیر نمایش داده می‌شود.',
+      tr('چطور بار ثبت کنم؟'),
+      tr('از بخشِ «خدمات» → «اسنپِ بار» → «ثبتِ بار» را انتخاب کنید. مبدأ، مقصد، عنوانِ بار و وزن را وارد کنید. بارِ شما به رانندگانِ در مسیر نمایش داده می‌شود.'),
     ),
     (
-      'تأیید هویت (KYC) چیست و چرا مهم است؟',
-      'KYC (Know Your Customer) برای امنیتِ حساب و افزایشِ سقفِ تراکنش‌ها الزامی است. سطح ۱: تأییدِ شماره موبایل. سطح ۲: بارگذاریِ کارتِ ملی. سطح ۳: تأییدِ کامل با selfie.',
+      tr('تأیید هویت (KYC) چیست و چرا مهم است؟'),
+      tr('KYC (Know Your Customer) برای امنیتِ حساب و افزایشِ سقفِ تراکنش‌ها الزامی است. سطح ۱: تأییدِ شماره موبایل. سطح ۲: بارگذاریِ کارتِ ملی. سطح ۳: تأییدِ کامل با selfie.'),
     ),
     (
-      'دستیارِ هوشمند Dilix چه کمکی می‌کند؟',
-      'دستیارِ هوشمند به سوالات دربارهٔ نرخ‌های حمل، بیمهٔ بار، راهنمای استفاده از پلتفرم و اطلاعاتِ مسیرها پاسخ می‌دهد.',
+      tr('دستیارِ هوشمند Dilix چه کمکی می‌کند؟'),
+      tr('دستیارِ هوشمند به سوالات دربارهٔ نرخ‌های حمل، بیمهٔ بار، راهنمای استفاده از پلتفرم و اطلاعاتِ مسیرها پاسخ می‌دهد.'),
     ),
     (
-      'آیا می‌توانم با رانندگان مستقیم در تماس باشم؟',
-      'بله. از طریقِ بخشِ «پیام‌ها» می‌توانید با هر کاربری که Earth ID آن را دارید چت کنید. کافیست Earth ID را در کادرِ «گفتگویِ جدید» وارد کنید.',
+      tr('آیا می‌توانم با رانندگان مستقیم در تماس باشم؟'),
+      tr('بله. از طریقِ بخشِ «پیام‌ها» می‌توانید با هر کاربری که Earth ID آن را دارید چت کنید. کافیست Earth ID را در کادرِ «گفتگویِ جدید» وارد کنید.'),
     ),
     (
-      'انتقالِ امن به کاربرِ دیگر چطور است؟',
-      'از کیفِ پول → «انتقالِ امن» استفاده کنید و Earth ID گیرنده را وارد کنید. این جریان سفارشِ امانی می‌سازد تا پیش از تسویه، وضعیتِ پرداخت قابلِ پیگیری و برگشت باشد.',
+      tr('انتقالِ امن به کاربرِ دیگر چطور است؟'),
+      tr('از کیفِ پول → «انتقالِ امن» استفاده کنید و Earth ID گیرنده را وارد کنید. این جریان سفارشِ امانی می‌سازد تا پیش از تسویه، وضعیتِ پرداخت قابلِ پیگیری و برگشت باشد.'),
     ),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('پشتیبانی')),
+      appBar: AppBar(title: Text(tr('پشتیبانی'))),
       body: ListView(
         padding: const EdgeInsets.all(12),
         children: [
@@ -52,7 +54,7 @@ class SupportScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('راه‌های ارتباط', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(tr('راه‌های ارتباط'), style: const TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 8,
@@ -60,7 +62,7 @@ class SupportScreen extends StatelessWidget {
                     children: [
                       ActionChip(
                         avatar: const Icon(Icons.chat_bubble_outline, size: 18),
-                        label: const Text('پشتیبانیِ آنلاین'),
+                        label: Text(tr('پشتیبانیِ آنلاین')),
                         onPressed: () => Navigator.of(context).push(
                           MaterialPageRoute(builder: (_) => const MessagesScreen()),
                         ),
@@ -69,9 +71,9 @@ class SupportScreen extends StatelessWidget {
                         avatar: Icon(Icons.email_outlined, size: 18),
                         label: Text('support@dilix.ir'),
                       ),
-                      const Chip(
-                        avatar: Icon(Icons.phone_outlined, size: 18),
-                        label: Text('۰۲۱-۰۰۰۰۰۰۰۰'),
+                      Chip(
+                        avatar: const Icon(Icons.phone_outlined, size: 18),
+                        label: Text(tr('۰۲۱-۰۰۰۰۰۰۰۰')),
                       ),
                     ],
                   ),
@@ -85,12 +87,12 @@ class SupportScreen extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text('تماسِ مستقیم', style: TextStyle(fontWeight: FontWeight.bold)),
-                  SizedBox(height: 8),
-                  Text('خطِ پشتیبانی: ۰۲۱-۰۰۰۰۰۰۰۰'),
-                  SizedBox(height: 4),
-                  SelectableText('ایمیل: support@dilix.ir'),
+                children: [
+                  Text(tr('تماسِ مستقیم'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text(tr('خطِ پشتیبانی: ۰۲۱-۰۰۰۰۰۰۰۰')),
+                  const SizedBox(height: 4),
+                  SelectableText(tr('ایمیل: support@dilix.ir')),
                 ],
               ),
             ),
@@ -102,9 +104,9 @@ class SupportScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.all(8),
-                    child: Text('سوالاتِ متداول', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Text(tr('سوالاتِ متداول'), style: const TextStyle(fontWeight: FontWeight.bold)),
                   ),
                   for (final item in _faq)
                     ExpansionTile(
@@ -118,8 +120,8 @@ class SupportScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          const Center(
-            child: Text('Dilix v1.0.0 · ساخته‌شده با ❤️ در ایران'),
+          Center(
+            child: Text(tr('Dilix v1.0.0 · ساخته‌شده با ❤️ در ایران')),
           ),
           const SizedBox(height: 16),
         ],

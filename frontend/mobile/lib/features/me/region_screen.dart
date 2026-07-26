@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app.dart';
 import '../../models/models.dart';
 
+import '../../core/l10n.dart';
 /// زبان، ارز و منطقهٔ **حساب** (`/api/v1/i18n/*`).
 ///
 /// این با «زبانِ برنامه» در تنظیمات فرق دارد: آن ترجیحِ محلیِ همین گوشی است،
@@ -52,7 +53,7 @@ class _RegionScreenState extends State<RegionScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'بارگذاریِ تنظیماتِ منطقه ممکن نشد.\n$e';
+        _error = tr('بارگذاریِ تنظیماتِ منطقه ممکن نشد.\n{0}', [e]);
         _loading = false;
       });
     }
@@ -72,11 +73,11 @@ class _RegionScreenState extends State<RegionScreen> {
         _prefs = updated;
         _saving = false;
       });
-      messenger.showSnackBar(const SnackBar(content: Text('ذخیره شد.')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('ذخیره شد.'))));
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      messenger.showSnackBar(SnackBar(content: Text('ذخیره نشد: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('ذخیره نشد: {0}', [e]))));
     }
   }
 
@@ -92,7 +93,7 @@ class _RegionScreenState extends State<RegionScreen> {
               ListTile(
                 leading: Text(l.flag ?? '🏳', style: const TextStyle(fontSize: 22)),
                 title: Text(l.native),
-                subtitle: Text('${l.english} · ${l.isRtl ? 'راست‌به‌چپ' : 'چپ‌به‌راست'}'),
+                subtitle: Text(tr('{0} · {1}', [l.english, l.isRtl ? tr('راست‌به‌چپ') : tr('چپ‌به‌راست')])),
                 trailing: _prefs?.locale == l.code ? const Icon(Icons.check) : null,
                 onTap: () => Navigator.pop(ctx, l.code),
               ),
@@ -116,7 +117,7 @@ class _RegionScreenState extends State<RegionScreen> {
                 leading: Text(cur.symbol, style: const TextStyle(fontSize: 18)),
                 title: Text('${cur.nameFa} (${cur.code})'),
                 subtitle: cur.subunit != null
-                    ? Text('واحدِ نمایش: ${cur.subunit}')
+                    ? Text(tr('واحدِ نمایش: {0}', [cur.subunit]))
                     : Text(cur.nameEn),
                 trailing:
                     _prefs?.currency == cur.code ? const Icon(Icons.check) : null,
@@ -132,7 +133,7 @@ class _RegionScreenState extends State<RegionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('زبان و ارزِ حساب')),
+      appBar: AppBar(title: Text(tr('زبان و ارزِ حساب'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
@@ -151,7 +152,7 @@ class _RegionScreenState extends State<RegionScreen> {
                         children: [
                           ListTile(
                             leading: const Icon(Icons.translate),
-                            title: const Text('زبانِ حساب'),
+                            title: Text(tr('زبانِ حساب')),
                             subtitle: Text(_localeLabel()),
                             trailing: const Icon(Icons.chevron_left),
                             onTap: _saving ? null : _pickLocale,
@@ -159,7 +160,7 @@ class _RegionScreenState extends State<RegionScreen> {
                           const Divider(height: 1),
                           ListTile(
                             leading: const Icon(Icons.payments_outlined),
-                            title: const Text('ارزِ نمایش'),
+                            title: Text(tr('ارزِ نمایش')),
                             subtitle: Text(_currencyLabel()),
                             trailing: const Icon(Icons.chevron_left),
                             onTap: _saving ? null : _pickCurrency,
@@ -167,14 +168,14 @@ class _RegionScreenState extends State<RegionScreen> {
                           const Divider(height: 1),
                           ListTile(
                             leading: const Icon(Icons.flag_outlined),
-                            title: const Text('کشور'),
-                            subtitle: Text(_prefs?.countryCode ?? 'ثبت نشده'),
+                            title: Text(tr('کشور')),
+                            subtitle: Text(_prefs?.countryCode ?? tr('ثبت نشده')),
                           ),
                           const Divider(height: 1),
                           ListTile(
                             leading: const Icon(Icons.schedule),
-                            title: const Text('منطقهٔ زمانی'),
-                            subtitle: Text(_prefs?.timezone ?? 'ثبت نشده'),
+                            title: Text(tr('منطقهٔ زمانی')),
+                            subtitle: Text(_prefs?.timezone ?? tr('ثبت نشده')),
                           ),
                         ],
                       ),
@@ -193,13 +194,11 @@ class _RegionScreenState extends State<RegionScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('پیشنهادِ خودکار',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(tr('پیشنهادِ خودکار'),
+                style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
             Text(
-              'بر اساسِ ${_sourceLabel(s.source)}: زبانِ ${s.locale.toUpperCase()} '
-              'و ارزِ ${s.currency}'
-              '${s.country != null ? ' (کشورِ ${s.country})' : ''}',
+              tr('بر اساسِ {0}: زبانِ {1} و ارزِ {2}{3}', [_sourceLabel(s.source), s.locale.toUpperCase(), s.currency, s.country != null ? tr(' (کشورِ {0})', [s.country]) : '']),
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 8),
@@ -213,7 +212,7 @@ class _RegionScreenState extends State<RegionScreen> {
                           currency: s.currency,
                           countryCode: s.country,
                         ),
-                child: Text(same ? 'همین حالا اعمال شده' : 'اعمالِ پیشنهاد'),
+                child: Text(same ? tr('همین حالا اعمال شده') : tr('اعمالِ پیشنهاد')),
               ),
             ),
           ],
@@ -237,8 +236,8 @@ class _RegionScreenState extends State<RegionScreen> {
   }
 
   static String _sourceLabel(String? s) => switch (s) {
-        'geoip' => 'موقعیتِ شبکه',
-        'accept-language' => 'زبانِ دستگاه',
-        _ => 'پیش‌فرض',
+        'geoip' => tr('موقعیتِ شبکه'),
+        'accept-language' => tr('زبانِ دستگاه'),
+        _ => tr('پیش‌فرض'),
       };
 }

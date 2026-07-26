@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
+import 'l10n.dart';
 /// نتیجهٔ یک تلاش برای گرفتنِ موقعیت: یا مختصات، یا پیامِ خطایِ قابلِ نمایش.
 class LocationFix {
   const LocationFix.ok(this.lat, this.lng, this.accuracy) : error = null;
@@ -26,9 +27,9 @@ class LocationService {
 
   /// دقتِ متوسط برای به‌روزرسانی‌های پیوسته (مصرفِ باتریِ کمتر) و دقتِ بالا برای
   /// ثبتِ تک‌باره.
-  static final _highAccuracy =
+  static const _highAccuracy =
       LocationSettings(accuracy: LocationAccuracy.high);
-  static final _mediumAccuracy =
+  static const _mediumAccuracy =
       LocationSettings(accuracy: LocationAccuracy.medium);
 
   /// مجوز را در صورتِ نیاز درخواست می‌کند و موقعیتِ فعلی را برمی‌گرداند.
@@ -36,25 +37,25 @@ class LocationService {
   Future<LocationFix> current({bool highAccuracy = true}) async {
     try {
       if (!await Geolocator.isLocationServiceEnabled()) {
-        return const LocationFix.failed(
-            'مکان‌یابِ دستگاه خاموش است. آن را روشن کن و دوباره تلاش کن.');
+        return LocationFix.failed(
+            tr('مکان‌یابِ دستگاه خاموش است. آن را روشن کن و دوباره تلاش کن.'));
       }
       var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
       }
       if (permission == LocationPermission.deniedForever) {
-        return const LocationFix.failed(
-            'اجازهٔ دسترسی به مکان برای همیشه رد شده است؛ از تنظیماتِ اپ آن را فعال کن.');
+        return LocationFix.failed(
+            tr('اجازهٔ دسترسی به مکان برای همیشه رد شده است؛ از تنظیماتِ اپ آن را فعال کن.'));
       }
       if (permission == LocationPermission.denied) {
-        return const LocationFix.failed('اجازهٔ دسترسی به مکان داده نشد.');
+        return LocationFix.failed(tr('اجازهٔ دسترسی به مکان داده نشد.'));
       }
       final p = await Geolocator.getCurrentPosition(
           locationSettings: highAccuracy ? _highAccuracy : _mediumAccuracy);
       return LocationFix.ok(p.latitude, p.longitude, p.accuracy);
     } catch (e) {
-      return LocationFix.failed('دریافتِ موقعیت ناموفق بود: $e');
+      return LocationFix.failed(tr('دریافتِ موقعیت ناموفق بود: {0}', [e]));
     }
   }
 
@@ -92,7 +93,7 @@ class LocationService {
           foregroundNotificationConfig: ForegroundNotificationConfig(
             notificationTitle: notificationTitle,
             notificationText: notificationText,
-            notificationChannelName: 'اشتراکِ موقعیتِ زنده',
+            notificationChannelName: tr('اشتراکِ موقعیتِ زنده'),
             // بدونِ wake lock، فیکس‌ها تا بیدارشدنِ دستگاه انبار می‌شوند و
             // «زنده» بودنِ اشتراک از بین می‌رود.
             enableWakeLock: true,
@@ -115,7 +116,7 @@ class LocationService {
         handleData: (p, sink) =>
             sink.add(LocationFix.ok(p.latitude, p.longitude, p.accuracy)),
         handleError: (e, _, sink) =>
-            sink.add(LocationFix.failed('دریافتِ موقعیت قطع شد: $e')),
+            sink.add(LocationFix.failed(tr('دریافتِ موقعیت قطع شد: {0}', [e]))),
       ),
     );
   }

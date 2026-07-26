@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app.dart';
 import '../../models/models.dart';
 
+import '../../core/l10n.dart';
 /// اعتبار: امتیازِ اعتماد به‌تفکیکِ حوزه + ستاره‌ها + نظرهای دریافتی.
 /// معادلِ صفحهٔ وبِ `app/reputation` (بر پایه‌ی تراکنش‌های واقعی).
 class ReputationScreen extends StatefulWidget {
@@ -50,7 +51,7 @@ class _ReputationScreenState extends State<ReputationScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'بارگذاریِ اعتبار ممکن نشد. ابتدا وارد شوید.';
+        _error = tr('بارگذاریِ اعتبار ممکن نشد. ابتدا وارد شوید.');
         _loading = false;
       });
     }
@@ -60,12 +61,12 @@ class _ReputationScreenState extends State<ReputationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('اعتبار'),
+        title: Text(tr('اعتبار')),
         actions: [
           IconButton(
             onPressed: _loading ? null : _load,
             icon: const Icon(Icons.refresh),
-            tooltip: 'تازه‌سازی',
+            tooltip: tr('تازه‌سازی'),
           ),
         ],
       ),
@@ -77,7 +78,7 @@ class _ReputationScreenState extends State<ReputationScreen> {
                 padding: const EdgeInsets.all(12),
                 children: [
                   Text(
-                    'امتیازِ اعتبار و نظرهای دریافتی (بر پایه‌ی تراکنش‌های واقعی)',
+                    tr('امتیازِ اعتبار و نظرهای دریافتی (بر پایه‌ی تراکنش‌های واقعی)'),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const SizedBox(height: 8),
@@ -104,10 +105,10 @@ class _ReputationScreenState extends State<ReputationScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('امتیازِ اعتبار', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(tr('امتیازِ اعتبار'), style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             if (_scores.isEmpty)
-              Text('هنوز امتیازی ثبت نشده است.',
+              Text(tr('هنوز امتیازی ثبت نشده است.'),
                   style: Theme.of(context).textTheme.bodySmall)
             else
               ..._scores.map(
@@ -118,7 +119,7 @@ class _ReputationScreenState extends State<ReputationScreen> {
                     children: [
                       Text(s.domain),
                       Text(
-                        '${(s.score / 10).toStringAsFixed(1)}/۱۰ · ${s.reviewCount} نظر',
+                        tr('{0}/۱۰ · {1} نظر', [(s.score / 10).toStringAsFixed(1), s.reviewCount]),
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ],
@@ -138,10 +139,10 @@ class _ReputationScreenState extends State<ReputationScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('نظرهای دریافتی', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(tr('نظرهای دریافتی'), style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             if (_reviews.isEmpty)
-              Text('هنوز نظری ثبت نشده است.',
+              Text(tr('هنوز نظری ثبت نشده است.'),
                   style: Theme.of(context).textTheme.bodySmall)
             else
               ..._reviews.map(

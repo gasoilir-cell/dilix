@@ -3,6 +3,7 @@ import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 
 import 'config.dart';
 
+import 'l10n.dart';
 /// خطایِ ورودِ اجتماعی (لغو توسطِ کاربر یا نبودِ پیکربندی).
 class SocialAuthException implements Exception {
   SocialAuthException(this.message);
@@ -56,7 +57,7 @@ class SocialAuth {
       case 'facebook':
         return _facebookAccessToken();
       default:
-        throw SocialAuthException('ارائه‌دهنده‌ی ناشناخته: $provider');
+        throw SocialAuthException(tr('ارائه‌دهنده‌ی ناشناخته: {0}', [provider]));
     }
   }
 
@@ -66,7 +67,7 @@ class SocialAuth {
     required String label,
   }) async {
     if (clientId.isEmpty) {
-      throw SocialAuthException('ورود با $label پیکربندی نشده است.');
+      throw SocialAuthException(tr('ورود با {0} پیکربندی نشده است.', [label]));
     }
     final result = await _appAuth.authorizeAndExchangeCode(
       AuthorizationTokenRequest(
@@ -76,21 +77,21 @@ class SocialAuth {
         scopes: const ['openid', 'email', 'profile'],
       ),
     );
-    final idToken = result?.idToken;
+    final idToken = result.idToken;
     if (idToken == null || idToken.isEmpty) {
-      throw SocialAuthException('توکنِ $label دریافت نشد.');
+      throw SocialAuthException(tr('توکنِ {0} دریافت نشد.', [label]));
     }
     return idToken;
   }
 
   Future<String> _facebookAccessToken() async {
     if (AppConfig.facebookAppId.isEmpty) {
-      throw SocialAuthException('ورود با Facebook پیکربندی نشده است.');
+      throw SocialAuthException(tr('ورود با Facebook پیکربندی نشده است.'));
     }
     final result = await _facebook.login(permissions: const ['public_profile', 'email']);
     final token = result.accessToken?.tokenString;
     if (result.status != LoginStatus.success || token == null) {
-      throw SocialAuthException('ورود با Facebook لغو شد.');
+      throw SocialAuthException(tr('ورود با Facebook لغو شد.'));
     }
     return token;
   }

@@ -8,6 +8,7 @@ import '../../models/models.dart';
 import '../social/comments_sheet.dart';
 import '../social/profile_screen.dart';
 
+import '../../core/l10n.dart';
 /// فیدِ ریلز: پیمایشِ عمودیِ تمام‌صفحه با `PageView`.
 ///
 /// ⚠ ریل موجودیتِ جدا از پست است؛ پیش‌تر این صفحه فید را در مدلِ `Post`
@@ -71,10 +72,10 @@ class _ReelsScreenState extends State<ReelsScreen> {
       await api.createReel(
           filePath: picked.path, caption: caption.isEmpty ? null : caption);
       if (!mounted) return;
-      messenger.showSnackBar(const SnackBar(content: Text('ریل منتشر شد.')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('ریل منتشر شد.'))));
       await _load();
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('انتشارِ ریل ناموفق بود: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('انتشارِ ریل ناموفق بود: {0}', [e]))));
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
@@ -89,7 +90,7 @@ class _ReelsScreenState extends State<ReelsScreen> {
       if (!mounted) return;
       await _load();
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('حذف ناموفق بود: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('حذف ناموفق بود: {0}', [e]))));
     }
   }
 
@@ -98,13 +99,13 @@ class _ReelsScreenState extends State<ReelsScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('ریلز'),
+        title: Text(tr('ریلز')),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
           IconButton(
-            tooltip: 'انتشارِ ریل',
+            tooltip: tr('انتشارِ ریل'),
             icon: _uploading
                 ? const SizedBox(
                     width: 20,
@@ -124,7 +125,7 @@ class _ReelsScreenState extends State<ReelsScreen> {
   Widget _body() {
     if (_error != null) {
       return _Message(
-          text: 'بارگذاری ریلز ممکن نشد.\n$_error', onRetry: _load);
+          text: tr('بارگذاری ریلز ممکن نشد.\n{0}', [_error]), onRetry: _load);
     }
     final reels = _reels;
     if (reels == null) {
@@ -132,7 +133,7 @@ class _ReelsScreenState extends State<ReelsScreen> {
     }
     if (reels.isEmpty) {
       return _Message(
-        text: 'هنوز ریلی نیست.\nاولین ویدیوی کوتاه را منتشر کنید.',
+        text: tr('هنوز ریلی نیست.\nاولین ویدیوی کوتاه را منتشر کنید.'),
         onRetry: _load,
       );
     }
@@ -155,15 +156,15 @@ Future<bool> _confirmDeleteReel(BuildContext context) async {
   final ok = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: const Text('حذفِ ریل'),
-      content: const Text('این ریل برای همیشه حذف می‌شود.'),
+      title: Text(tr('حذفِ ریل')),
+      content: Text(tr('این ریل برای همیشه حذف می‌شود.')),
       actions: [
         TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('انصراف')),
+            child: Text(tr('انصراف'))),
         FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('حذف')),
+            child: Text(tr('حذف'))),
       ],
     ),
   );
@@ -178,12 +179,14 @@ class ReelPagerScreen extends StatefulWidget {
     super.key,
     required this.reels,
     this.initialIndex = 0,
-    this.title = 'ریلز',
+    // پیش‌فرضِ پارامتر باید ثابتِ زمانِ کامپایل باشد و `tr()` نیست؛ `null`
+    // یعنی «عنوانِ پیش‌فرض» و هنگامِ ساخت به زبانِ جاری حل می‌شود.
+    this.title,
   });
 
   final List<Reel> reels;
   final int initialIndex;
-  final String title;
+  final String? title;
 
   @override
   State<ReelPagerScreen> createState() => _ReelPagerScreenState();
@@ -215,7 +218,7 @@ class _ReelPagerScreenState extends State<ReelPagerScreen> {
       });
       if (_reels.isEmpty) navigator.pop();
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('حذف ناموفق بود: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('حذف ناموفق بود: {0}', [e]))));
     }
   }
 
@@ -225,13 +228,13 @@ class _ReelPagerScreenState extends State<ReelPagerScreen> {
       backgroundColor: Colors.black,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text(widget.title),
+        title: Text(widget.title ?? tr('ریلز')),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
       body: _reels.isEmpty
-          ? const _Message(text: 'ریلی نمانده است.')
+          ? _Message(text: tr('ریلی نمانده است.'))
           : PageView.builder(
               controller: _pageController,
               scrollDirection: Axis.vertical,
@@ -369,7 +372,7 @@ class _ReelPageState extends State<_ReelPage> {
         _liked = wasLiked;
         _likes = wasCount;
       });
-      messenger.showSnackBar(SnackBar(content: Text('ثبتِ واکنش ناموفق بود: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('ثبتِ واکنش ناموفق بود: {0}', [e]))));
     }
   }
 
@@ -425,9 +428,9 @@ class _ReelPageState extends State<_ReelPage> {
     // می‌گرفت و رسانه اصلاً نمایش داده نمی‌شد.
     if (!widget.reel.isVideo) {
       return url == null
-          ? const Center(
-              child: Text('این ریل رسانه‌ای ندارد',
-                  style: TextStyle(color: Colors.white70)))
+          ? Center(
+              child: Text(tr('این ریل رسانه‌ای ندارد'),
+                  style: const TextStyle(color: Colors.white70)))
           : Center(child: Image.network(url, fit: BoxFit.contain));
     }
     final c = _controller;
@@ -497,7 +500,7 @@ class _ReelPageState extends State<_ReelPage> {
                     ),
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
-                    child: Text('${widget.reel.viewCount} بازدید',
+                    child: Text(tr('{0} بازدید', [widget.reel.viewCount]),
                         style: const TextStyle(
                             color: Colors.white70, fontSize: 12)),
                   ),
@@ -517,7 +520,7 @@ class _ReelPageState extends State<_ReelPage> {
                     _openComments),
                 if (widget.reel.isMine) ...[
                   const SizedBox(height: 16),
-                  _action(Icons.delete_outline, 'حذف', widget.onDelete),
+                  _action(Icons.delete_outline, tr('حذف'), widget.onDelete),
                 ],
               ],
             ),
@@ -560,22 +563,22 @@ class _CaptionDialogState extends State<_CaptionDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: const Text('کپشنِ ریل'),
+        title: Text(tr('کپشنِ ریل')),
         content: TextField(
           controller: _ctrl,
           autofocus: true,
-          decoration: const InputDecoration(
-            hintText: 'اختیاری',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            hintText: tr('اختیاری'),
+            border: const OutlineInputBorder(),
           ),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('انصراف')),
+              child: Text(tr('انصراف'))),
           FilledButton(
               onPressed: () => Navigator.of(context).pop(_ctrl.text.trim()),
-              child: const Text('انتشار')),
+              child: Text(tr('انتشار'))),
         ],
       );
 }
@@ -600,7 +603,7 @@ class _Message extends StatelessWidget {
               padding: const EdgeInsets.only(top: 12),
               child: OutlinedButton(
                 onPressed: onRetry,
-                child: const Text('تلاشِ دوباره'),
+                child: Text(tr('تلاشِ دوباره')),
               ),
             ),
         ],

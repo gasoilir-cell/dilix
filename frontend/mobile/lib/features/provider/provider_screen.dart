@@ -5,6 +5,7 @@ import '../../core/api_client.dart';
 import '../../models/models.dart';
 import '../admin/insurance_commissions_screen.dart';
 
+import '../../core/l10n.dart';
 /// پورتالِ ارائه‌دهنده — parity با `app/provider/page.tsx` وب:
 /// ثبت‌نامِ KYB، ثبتِ API، تستِ sandbox، webhook و صدورِ کلید (خودسرویس).
 class ProviderScreen extends StatefulWidget {
@@ -17,7 +18,10 @@ class ProviderScreen extends StatefulWidget {
 class _ProviderScreenState extends State<ProviderScreen> {
   // نوعِ ارائه‌دهنده → برچسبِ فارسی. اگر کاتالوگِ سرور بیاید جایگزین می‌شود؛
   // این فقط fallbackِ آفلاین است.
-  static const _fallbackTypes = <(String, String)>[
+  static List<(String, String)> get _fallbackTypes =>
+      _fallbackTypesSrc.map((e) => (e.$1, tr(e.$2))).toList();
+
+  static const _fallbackTypesSrc = <(String, String)>[
     ('psp', 'شرکتِ پرداخت (PSP)'),
     ('insurer', 'شرکتِ بیمه'),
     ('bank', 'بانک'),
@@ -152,7 +156,7 @@ class _ProviderScreenState extends State<ProviderScreen> {
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.detail);
     } catch (_) {
-      if (mounted) setState(() => _error = 'عملیات ناموفق بود. ابتدا وارد شوید.');
+      if (mounted) setState(() => _error = tr('عملیات ناموفق بود. ابتدا وارد شوید.'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -162,15 +166,15 @@ class _ProviderScreenState extends State<ProviderScreen> {
         final name = _legalNameCtrl.text.trim();
         final license = _licenseNoCtrl.text.trim();
         if (name.length < 2) {
-          setState(() => _error = 'نامِ حقوقی را وارد کنید.');
+          setState(() => _error = tr('نامِ حقوقی را وارد کنید.'));
           return;
         }
         if (license.length < 2) {
-          setState(() => _error = 'کدِ مجوز/بیمه‌ای را وارد کنید.');
+          setState(() => _error = tr('کدِ مجوز/بیمه‌ای را وارد کنید.'));
           return;
         }
         if (!_agreementAccepted) {
-          setState(() => _error = 'برای ثبت‌نام باید توافق‌نامهٔ همکاری را بپذیرید.');
+          setState(() => _error = tr('برای ثبت‌نام باید توافق‌نامهٔ همکاری را بپذیرید.'));
           return;
         }
         final p = await ApiScope.of(context).registerProvider(
@@ -186,11 +190,11 @@ class _ProviderScreenState extends State<ProviderScreen> {
         final name = _apiNameCtrl.text.trim();
         final baseUrl = _baseUrlCtrl.text.trim();
         if (name.length < 2 || _provider == null) {
-          setState(() => _error = 'نامِ سرویس را وارد کنید.');
+          setState(() => _error = tr('نامِ سرویس را وارد کنید.'));
           return;
         }
         if (baseUrl.length < 4) {
-          setState(() => _error = 'آدرسِ پایهٔ API را وارد کنید.');
+          setState(() => _error = tr('آدرسِ پایهٔ API را وارد کنید.'));
           return;
         }
         final api = await ApiScope.of(context).registerProviderApi(
@@ -217,7 +221,7 @@ class _ProviderScreenState extends State<ProviderScreen> {
   Future<void> _addWebhook() => _run(() async {
         final url = _webhookUrlCtrl.text.trim();
         if (url.length < 8 || _provider == null) {
-          setState(() => _error = 'آدرسِ webhook معتبر نیست.');
+          setState(() => _error = tr('آدرسِ webhook معتبر نیست.'));
           return;
         }
         final w = await ApiScope.of(context).registerProviderWebhook(_provider!.id, url: url);
@@ -258,11 +262,11 @@ class _ProviderScreenState extends State<ProviderScreen> {
         final label = _credLabelCtrl.text.trim();
         final secret = _credSecretCtrl.text.trim();
         if (label.length < 2 || _provider == null) {
-          setState(() => _error = 'نامِ کلید (label) را وارد کنید.');
+          setState(() => _error = tr('نامِ کلید (label) را وارد کنید.'));
           return;
         }
         if (secret.length < 4) {
-          setState(() => _error = 'رازِ کلید حداقل ۴ نویسه است.');
+          setState(() => _error = tr('رازِ کلید حداقل ۴ نویسه است.'));
           return;
         }
         final c = await ApiScope.of(context).addProviderCredential(
@@ -285,17 +289,17 @@ class _ProviderScreenState extends State<ProviderScreen> {
   Widget build(BuildContext context) {
     if (_loading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('پورتالِ ارائه‌دهنده')),
+        appBar: AppBar(title: Text(tr('پورتالِ ارائه‌دهنده'))),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
     return Scaffold(
-      appBar: AppBar(title: const Text('پورتالِ ارائه‌دهنده')),
+      appBar: AppBar(title: Text(tr('پورتالِ ارائه‌دهنده'))),
       body: ListView(
         padding: const EdgeInsets.all(12),
         children: [
           Text(
-            'ثبتِ سرویس، تستِ sandbox، webhook و کلیدها — خودسرویس (Provider Adapter Framework).',
+            tr('ثبتِ سرویس، تستِ sandbox، webhook و کلیدها — خودسرویس (Provider Adapter Framework).'),
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
@@ -317,21 +321,21 @@ class _ProviderScreenState extends State<ProviderScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('ثبت‌نامِ ارائه‌دهنده (KYB)', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(tr('ثبت‌نامِ ارائه‌دهنده (KYB)'), style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             TextField(
               controller: _legalNameCtrl,
-              decoration: const InputDecoration(labelText: 'نامِ حقوقی'),
+              decoration: InputDecoration(labelText: tr('نامِ حقوقی')),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: _licenseNoCtrl,
-              decoration: const InputDecoration(labelText: 'کدِ مجوز / بیمه‌ای / کارگزاری'),
+              decoration: InputDecoration(labelText: tr('کدِ مجوز / بیمه‌ای / کارگزاری')),
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              value: _providerType,
-              decoration: const InputDecoration(labelText: 'نوعِ ارائه‌دهنده'),
+              initialValue: _providerType,
+              decoration: InputDecoration(labelText: tr('نوعِ ارائه‌دهنده')),
               items: _types.isNotEmpty
                   ? [
                       for (final t in _types)
@@ -352,14 +356,14 @@ class _ProviderScreenState extends State<ProviderScreen> {
               controlAffinity: ListTileControlAffinity.leading,
               value: _agreementAccepted,
               onChanged: (v) => setState(() => _agreementAccepted = v ?? false),
-              title: const Text('توافق‌نامهٔ همکاری را می‌پذیرم.'),
+              title: Text(tr('توافق‌نامهٔ همکاری را می‌پذیرم.')),
             ),
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: FilledButton(
                 onPressed: _busy ? null : _register,
-                child: Text(_busy ? 'در حال…' : 'ثبت‌نام'),
+                child: Text(_busy ? tr('در حال…') : tr('ثبت‌نام')),
               ),
             ),
           ],
@@ -376,9 +380,7 @@ class _ProviderScreenState extends State<ProviderScreen> {
         child: ListTile(
           title: Text(p.legalName, style: const TextStyle(fontWeight: FontWeight.bold)),
           subtitle: Text(
-            '${p.providerTypeLabel.isEmpty ? p.providerType : p.providerTypeLabel}'
-            ' · ${p.countryFlag}${p.country} · ${p.currency}'
-            ' · کمیسیون ${p.commissionRate}٪',
+            tr('{0} · {1}{2} · {3} · کمیسیون {4}٪', [p.providerTypeLabel.isEmpty ? p.providerType : p.providerTypeLabel, p.countryFlag, p.country, p.currency, p.commissionRate]),
           ),
           trailing: Chip(
             label: Text(
@@ -389,25 +391,24 @@ class _ProviderScreenState extends State<ProviderScreen> {
       if (!p.isVerified)
         Card(
           color: Theme.of(context).colorScheme.secondaryContainer,
-          child: const Padding(
-            padding: EdgeInsets.all(12),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
             child: Text(
-              'تا وقتی KYB تأیید نشود، نرخِ شما در مقایسهٔ کاربران نشان داده '
-              'نمی‌شود. می‌توانید در همین فاصله سرویس و کلیدها را آماده کنید.',
+              tr('تا وقتی KYB تأیید نشود، نرخِ شما در مقایسهٔ کاربران نشان داده نمی‌شود. می‌توانید در همین فاصله سرویس و کلیدها را آماده کنید.'),
             ),
           ),
         ),
       Card(
         child: ListTile(
           leading: const Icon(Icons.receipt_long_outlined),
-          title: const Text('صورت‌حسابِ کارمزد'),
-          subtitle: const Text('کارمزدِ بیمه‌نامه‌های صادرشده از این مرکز'),
+          title: Text(tr('صورت‌حسابِ کارمزد')),
+          subtitle: Text(tr('کارمزدِ بیمه‌نامه‌های صادرشده از این مرکز')),
           trailing: const Icon(Icons.chevron_left),
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute<void>(
               builder: (_) => InsuranceCommissionsScreen(
                 providerId: p.id,
-                title: 'کارمزدِ ${p.legalName}',
+                title: tr('کارمزدِ {0}', [p.legalName]),
               ),
             ),
           ),
@@ -421,28 +422,28 @@ class _ProviderScreenState extends State<ProviderScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('ثبتِ API', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(tr('ثبتِ API'), style: const TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               TextField(
                 controller: _apiNameCtrl,
-                decoration: const InputDecoration(labelText: 'نامِ سرویس/API'),
+                decoration: InputDecoration(labelText: tr('نامِ سرویس/API')),
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: _baseUrlCtrl,
-                decoration: const InputDecoration(labelText: 'آدرسِ پایهٔ API (base URL)'),
+                decoration: InputDecoration(labelText: tr('آدرسِ پایهٔ API (base URL)')),
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: _specUrlCtrl,
-                decoration: const InputDecoration(labelText: 'آدرسِ OpenAPI spec (اختیاری)'),
+                decoration: InputDecoration(labelText: tr('آدرسِ OpenAPI spec (اختیاری)')),
               ),
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: _busy ? null : _addApi,
-                  child: const Text('افزودنِ API'),
+                  child: Text(tr('افزودنِ API')),
                 ),
               ),
             ],
@@ -469,12 +470,12 @@ class _ProviderScreenState extends State<ProviderScreen> {
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: _busy ? null : _addWebhook,
-                  child: const Text('ثبتِ webhook'),
+                  child: Text(tr('ثبتِ webhook')),
                 ),
               ),
               if (_webhook?.secret != null) ...[
                 const SizedBox(height: 8),
-                _secretBox('secretِ امضای HMAC (فقط همین یک‌بار):', _webhook!.secret!),
+                _secretBox(tr('secretِ امضای HMAC (فقط همین یک‌بار):'), _webhook!.secret!),
               ],
             ],
           ),
@@ -487,27 +488,27 @@ class _ProviderScreenState extends State<ProviderScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('کلیدهای API', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(tr('کلیدهای API'), style: const TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
               Text(
-                'رازِ فراخوانیِ سرویسِ شما را وارد کنید؛ رمزنگاری‌شده ذخیره می‌شود و دیگر نمایش داده نمی‌شود.',
+                tr('رازِ فراخوانیِ سرویسِ شما را وارد کنید؛ رمزنگاری‌شده ذخیره می‌شود و دیگر نمایش داده نمی‌شود.'),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: _credLabelCtrl,
-                decoration: const InputDecoration(labelText: 'نامِ کلید (label)'),
+                decoration: InputDecoration(labelText: tr('نامِ کلید (label)')),
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: _credSecretCtrl,
                 obscureText: true,
-                decoration: const InputDecoration(labelText: 'رازِ کلید (secret)'),
+                decoration: InputDecoration(labelText: tr('رازِ کلید (secret)')),
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _credEnv,
-                decoration: const InputDecoration(labelText: 'محیط'),
+                initialValue: _credEnv,
+                decoration: InputDecoration(labelText: tr('محیط')),
                 items: const [
                   DropdownMenuItem(value: 'sandbox', child: Text('sandbox')),
                   DropdownMenuItem(value: 'production', child: Text('production')),
@@ -519,32 +520,32 @@ class _ProviderScreenState extends State<ProviderScreen> {
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: _busy ? null : _addCredential,
-                  child: const Text('ثبتِ کلید'),
+                  child: Text(tr('ثبتِ کلید')),
                 ),
               ),
               if (_credential != null) ...[
                 const SizedBox(height: 8),
                 _secretBox(
-                  'کلیدِ ثبت‌شده «${_credential!.label}» (${_credential!.env} · ${_credential!.status}):',
-                  '${_credential!.keyPrefix}… (ذخیره‌شدهٔ رمزنگاری)',
+                  tr('کلیدِ ثبت‌شده «{0}» ({1} · {2}):', [_credential!.label, _credential!.env, _credential!.status]),
+                  tr('{0}… (ذخیره‌شدهٔ رمزنگاری)', [_credential!.keyPrefix]),
                 ),
               ],
               if (_credentials.isNotEmpty) ...[
                 const Divider(height: 24),
-                Text('کلیدهای موجود',
+                Text(tr('کلیدهای موجود'),
                     style: Theme.of(context).textTheme.titleSmall),
                 for (final c in _credentials)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(c.label),
                     subtitle: Text(
-                      '${c.env} · ${c.keyPrefix}… · ${c.isActive ? 'فعال' : 'ابطال‌شده'}',
+                      tr('{0} · {1}… · {2}', [c.env, c.keyPrefix, c.isActive ? tr('فعال') : tr('ابطال‌شده')]),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     trailing: c.isActive
                         ? TextButton(
                             onPressed: _busy ? null : () => _revokeCredential(c),
-                            child: const Text('ابطال'),
+                            child: Text(tr('ابطال')),
                           )
                         : null,
                   ),
@@ -566,12 +567,12 @@ class _ProviderScreenState extends State<ProviderScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('محصولاتِ تحتِ پوشش',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(tr('محصولاتِ تحتِ پوشش'),
+                style: const TextStyle(fontWeight: FontWeight.bold)),
             Text(
               _products.isEmpty
-                  ? 'هیچ‌کدام انتخاب نشده — یعنی همهٔ محصولات.'
-                  : '${_products.length} محصول انتخاب شده.',
+                  ? tr('هیچ‌کدام انتخاب نشده — یعنی همهٔ محصولات.')
+                  : tr('{0} محصول انتخاب شده.', [_products.length]),
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 8),
@@ -594,7 +595,7 @@ class _ProviderScreenState extends State<ProviderScreen> {
               width: double.infinity,
               child: OutlinedButton(
                 onPressed: _busy ? null : _saveProducts,
-                child: const Text('ذخیرهٔ محصولات'),
+                child: Text(tr('ذخیرهٔ محصولات')),
               ),
             ),
           ],
@@ -613,13 +614,13 @@ class _ProviderScreenState extends State<ProviderScreen> {
           children: [
             Row(
               children: [
-                const Expanded(
-                  child: Text('رویدادهای دریافتی',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                Expanded(
+                  child: Text(tr('رویدادهای دریافتی'),
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
                 TextButton(
                   onPressed: _busy ? null : _refreshEvents,
-                  child: const Text('به‌روزرسانی'),
+                  child: Text(tr('به‌روزرسانی')),
                 ),
               ],
             ),
@@ -630,7 +631,7 @@ class _ProviderScreenState extends State<ProviderScreen> {
               const SizedBox(height: 8),
             ],
             if (_events.isEmpty)
-              Text('هنوز رویدادی دریافت نشده است.',
+              Text(tr('هنوز رویدادی دریافت نشده است.'),
                   style: Theme.of(context).textTheme.bodySmall)
             else
               for (final e in _events)
@@ -674,14 +675,14 @@ class _ProviderScreenState extends State<ProviderScreen> {
                 ),
                 OutlinedButton(
                   onPressed: _busy ? null : () => _runSandbox(a.id),
-                  child: const Text('تستِ sandbox'),
+                  child: Text(tr('تستِ sandbox')),
                 ),
               ],
             ),
             if (tested != null) ...[
               const SizedBox(height: 8),
               Text(
-                reachable ? '✓ اتصال برقرار شد (tested)' : '✕ اتصال ناموفق (failed)',
+                reachable ? tr('✓ اتصال برقرار شد (tested)') : tr('✕ اتصال ناموفق (failed)'),
                 style: TextStyle(
                   color: reachable
                       ? Theme.of(context).colorScheme.onSurfaceVariant

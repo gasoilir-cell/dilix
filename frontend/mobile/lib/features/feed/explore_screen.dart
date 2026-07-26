@@ -6,6 +6,7 @@ import '../../app.dart';
 import '../../models/models.dart';
 import 'post_card.dart';
 
+import '../../core/l10n.dart';
 /// کشفِ پست‌ها: «کشف» (عمومی)، «برای تو» (بر پایهٔ علاقه‌مندی‌ها)، جستجوی متنی
 /// و هشتگ‌های پرتکرار.
 ///
@@ -109,7 +110,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('کشف')),
+      appBar: AppBar(title: Text(tr('کشف'))),
       body: Column(
         children: [
           Padding(
@@ -120,7 +121,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
               textInputAction: TextInputAction.search,
               onSubmitted: (_) => _load(),
               decoration: InputDecoration(
-                hintText: 'جستجو در پست‌ها…',
+                hintText: tr('جستجو در پست‌ها…'),
                 prefixIcon: const Icon(Icons.search),
                 border: const OutlineInputBorder(),
                 isDense: true,
@@ -150,13 +151,13 @@ class _ExploreScreenState extends State<ExploreScreen> {
         child: Row(
           children: [
             ChoiceChip(
-              label: const Text('کشف'),
+              label: Text(tr('کشف')),
               selected: !_forYou && _activeTag == null,
               onSelected: (_) => _selectTab(false),
             ),
             const SizedBox(width: 8),
             ChoiceChip(
-              label: const Text('برای تو'),
+              label: Text(tr('برای تو')),
               selected: _forYou && _activeTag == null,
               onSelected: (_) => _selectTab(true),
             ),
@@ -175,7 +176,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
   Widget _body() {
     if (_error != null) {
       return _Centered(
-        text: 'بارگذاری ممکن نشد.\n$_error',
+        text: tr('بارگذاری ممکن نشد.\n{0}', [_error]),
         onRetry: _load,
       );
     }
@@ -186,8 +187,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
     if (posts.isEmpty) {
       return _Centered(
         text: _ctrl.text.trim().isEmpty
-            ? 'اینجا هنوز پستی نیست.'
-            : 'برای «${_ctrl.text.trim()}» چیزی پیدا نشد.',
+            ? tr('اینجا هنوز پستی نیست.')
+            : tr('برای «{0}» چیزی پیدا نشد.', [_ctrl.text.trim()]),
         onRetry: _load,
       );
     }
@@ -228,7 +229,7 @@ class _Centered extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
                   child: OutlinedButton(
-                      onPressed: onRetry, child: const Text('تلاشِ دوباره')),
+                      onPressed: onRetry, child: Text(tr('تلاشِ دوباره'))),
                 ),
             ],
           ),

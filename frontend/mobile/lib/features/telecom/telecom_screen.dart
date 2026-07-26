@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app.dart';
 import '../../models/models.dart';
 
+import '../../core/l10n.dart';
 /// ارتباطات: شارژ/بستهٔ اینترنت (top-up) و فعال‌سازیِ eSIM.
 /// دو تبِ ساده روی endpointهایِ `/v1/telecom`.
 class TelecomScreen extends StatefulWidget {
@@ -14,7 +15,10 @@ class TelecomScreen extends StatefulWidget {
 
 class _TelecomScreenState extends State<TelecomScreen> with SingleTickerProviderStateMixin {
   // برچسبِ فارسیِ وضعیت — منطبق با STATUS_LABEL صفحهٔ وب.
-  static const _statusLabels = <String, String>{
+  static Map<String, String> get _statusLabels =>
+      _statusLabelsSrc.map((k, v) => MapEntry(k, tr(v)));
+
+  static const _statusLabelsSrc = <String, String>{
     'pending': 'در انتظار',
     'processing': 'در حال پردازش',
     'completed': 'انجام‌شده',
@@ -51,7 +55,7 @@ class _TelecomScreenState extends State<TelecomScreen> with SingleTickerProvider
 
   String _formatMoney(int amountMinor, String currency) {
     final cur = currency.toUpperCase();
-    if (cur == 'IRR') return '${(amountMinor / 10).round()} تومان';
+    if (cur == 'IRR') return tr('{0} تومان', [(amountMinor / 10).round()]);
     return '${(amountMinor / 100).toStringAsFixed(2)} $cur';
   }
 
@@ -60,15 +64,15 @@ class _TelecomScreenState extends State<TelecomScreen> with SingleTickerProvider
     final product = _productCtrl.text.trim();
     final amount = double.tryParse(_amountCtrl.text.trim());
     if (msisdn.length < 10) {
-      setState(() => _error = 'شمارهٔ موبایل معتبر (حداقل ۱۰ رقم) وارد کنید.');
+      setState(() => _error = tr('شمارهٔ موبایل معتبر (حداقل ۱۰ رقم) وارد کنید.'));
       return;
     }
     if (product.isEmpty) {
-      setState(() => _error = 'کدِ محصول را وارد کنید.');
+      setState(() => _error = tr('کدِ محصول را وارد کنید.'));
       return;
     }
     if (amount == null || amount <= 0) {
-      setState(() => _error = 'مبلغِ معتبر (تومان) وارد کنید.');
+      setState(() => _error = tr('مبلغِ معتبر (تومان) وارد کنید.'));
       return;
     }
     setState(() {
@@ -85,13 +89,13 @@ class _TelecomScreenState extends State<TelecomScreen> with SingleTickerProvider
       if (!mounted) return;
       setState(() {
         _topUps.insert(0, result);
-        _notice = 'شارژ ثبت شد (${_statusLabel(result.status)}).';
+        _notice = tr('شارژ ثبت شد ({0}).', [_statusLabel(result.status)]);
         _busy = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'شارژ ناموفق بود: $e';
+        _error = tr('شارژ ناموفق بود: {0}', [e]);
         _busy = false;
       });
     }
@@ -101,11 +105,11 @@ class _TelecomScreenState extends State<TelecomScreen> with SingleTickerProvider
     final iccid = _iccidCtrl.text.trim();
     final country = _countryCtrl.text.trim();
     if (iccid.length < 18) {
-      setState(() => _error = 'ICCID معتبر (حداقل ۱۸ رقم) وارد کنید.');
+      setState(() => _error = tr('ICCID معتبر (حداقل ۱۸ رقم) وارد کنید.'));
       return;
     }
     if (country.length < 2) {
-      setState(() => _error = 'کدِ کشور را وارد کنید (مثلاً IR).');
+      setState(() => _error = tr('کدِ کشور را وارد کنید (مثلاً IR).'));
       return;
     }
     setState(() {
@@ -121,13 +125,13 @@ class _TelecomScreenState extends State<TelecomScreen> with SingleTickerProvider
       if (!mounted) return;
       setState(() {
         _esims.insert(0, result);
-        _notice = 'eSIM فعال شد (${_statusLabel(result.status)}).';
+        _notice = tr('eSIM فعال شد ({0}).', [_statusLabel(result.status)]);
         _busy = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'فعال‌سازیِ eSIM ناموفق بود: $e';
+        _error = tr('فعال‌سازیِ eSIM ناموفق بود: {0}', [e]);
         _busy = false;
       });
     }
@@ -137,12 +141,12 @@ class _TelecomScreenState extends State<TelecomScreen> with SingleTickerProvider
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ارتباطات'),
+        title: Text(tr('ارتباطات')),
         bottom: TabBar(
           controller: _tab,
-          tabs: const [
-            Tab(text: 'شارژ / اینترنت'),
-            Tab(text: 'eSIM'),
+          tabs: [
+            Tab(text: tr('شارژ / اینترنت')),
+            const Tab(text: 'eSIM'),
           ],
         ),
       ),
@@ -185,25 +189,25 @@ class _TelecomScreenState extends State<TelecomScreen> with SingleTickerProvider
                 TextField(
                   controller: _msisdnCtrl,
                   keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(labelText: 'شمارهٔ موبایل'),
+                  decoration: InputDecoration(labelText: tr('شمارهٔ موبایل')),
                 ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _productCtrl,
-                  decoration: const InputDecoration(labelText: 'کدِ محصول (مثلاً data_5gb)'),
+                  decoration: InputDecoration(labelText: tr('کدِ محصول (مثلاً data_5gb)')),
                 ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _amountCtrl,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'مبلغ (تومان)'),
+                  decoration: InputDecoration(labelText: tr('مبلغ (تومان)')),
                 ),
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
                     onPressed: _busy ? null : _topUp,
-                    child: Text(_busy ? 'در حال…' : 'ثبتِ شارژ'),
+                    child: Text(_busy ? tr('در حال…') : tr('ثبتِ شارژ')),
                   ),
                 ),
               ],
@@ -217,7 +221,7 @@ class _TelecomScreenState extends State<TelecomScreen> with SingleTickerProvider
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('شارژهای همین نشست', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(tr('شارژهای همین نشست'), style: const TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   ..._topUps.map(
                     (t) => Padding(
@@ -258,19 +262,19 @@ class _TelecomScreenState extends State<TelecomScreen> with SingleTickerProvider
               children: [
                 TextField(
                   controller: _iccidCtrl,
-                  decoration: const InputDecoration(labelText: 'ICCID (۱۸ تا ۲۲ رقم)'),
+                  decoration: InputDecoration(labelText: tr('ICCID (۱۸ تا ۲۲ رقم)')),
                 ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _countryCtrl,
-                  decoration: const InputDecoration(labelText: 'کدِ کشور (مثلاً IR)'),
+                  decoration: InputDecoration(labelText: tr('کدِ کشور (مثلاً IR)')),
                 ),
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
                     onPressed: _busy ? null : _activateEsim,
-                    child: Text(_busy ? 'در حال…' : 'فعال‌سازیِ eSIM'),
+                    child: Text(_busy ? tr('در حال…') : tr('فعال‌سازیِ eSIM')),
                   ),
                 ),
               ],
@@ -284,7 +288,7 @@ class _TelecomScreenState extends State<TelecomScreen> with SingleTickerProvider
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('eSIMهای همین نشست', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(tr('eSIMهای همین نشست'), style: const TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   ..._esims.map(
                     (e) => Padding(

@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../app.dart';
 import '../../models/models.dart';
 
+import '../../core/l10n.dart';
 /// جریانِ ارتقای سطحِ تأیید (KYC سطح ۲) — `POST /api/v1/auth/me/kyc`.
 /// کاربر کدِ ملی، نام، تاریخِ تولد و دو تصویر (کارتِ ملی + سلفی) را ثبت می‌کند.
 class KycScreen extends StatefulWidget {
@@ -61,7 +62,7 @@ class _KycScreenState extends State<KycScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'بارگذاریِ وضعیت ممکن نشد: $e';
+        _error = tr('بارگذاریِ وضعیت ممکن نشد: {0}', [e]);
         _loading = false;
       });
     }
@@ -93,7 +94,7 @@ class _KycScreenState extends State<KycScreen> {
   Future<void> _submit() async {
     if (!_canSubmit) {
       setState(() => _error =
-          'همهٔ فیلدها را کامل کنید (کدِ ملیِ ۱۰رقمی، تاریخ ۱۴۰۳-۰۱-۰۱، دو تصویر).');
+          tr('همهٔ فیلدها را کامل کنید (کدِ ملیِ ۱۰رقمی، تاریخ ۱۴۰۳-۰۱-۰۱، دو تصویر).'));
       return;
     }
     setState(() {
@@ -114,12 +115,12 @@ class _KycScreenState extends State<KycScreen> {
         _submitting = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('مدارکِ شما برای بررسی ثبت شد.')),
+        SnackBar(content: Text(tr('مدارکِ شما برای بررسی ثبت شد.'))),
       );
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'ثبتِ مدارک ممکن نشد: $e';
+        _error = tr('ثبتِ مدارک ممکن نشد: {0}', [e]);
         _submitting = false;
       });
     }
@@ -128,7 +129,7 @@ class _KycScreenState extends State<KycScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('ارتقای سطحِ تأیید')),
+      appBar: AppBar(title: Text(tr('ارتقای سطحِ تأیید'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
@@ -136,10 +137,9 @@ class _KycScreenState extends State<KycScreen> {
               children: [
                 if (_status != null) _statusBanner(_status!),
                 const SizedBox(height: 8),
-                const Text(
-                  'برای ارتقا به سطحِ ۲، مدارکِ زیر را ثبت کنید. اطلاعات پس از '
-                  'بررسیِ کارشناس تأیید می‌شود.',
-                  style: TextStyle(fontSize: 13),
+                Text(
+                  tr('برای ارتقا به سطحِ ۲، مدارکِ زیر را ثبت کنید. اطلاعات پس از بررسیِ کارشناس تأیید می‌شود.'),
+                  style: const TextStyle(fontSize: 13),
                 ),
                 const SizedBox(height: 16),
                 TextField(
@@ -148,8 +148,8 @@ class _KycScreenState extends State<KycScreen> {
                   maxLength: 10,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   onChanged: (_) => setState(() {}),
-                  decoration: const InputDecoration(
-                    labelText: 'کدِ ملی',
+                  decoration: InputDecoration(
+                    labelText: tr('کدِ ملی'),
                     counterText: '',
                   ),
                 ),
@@ -157,22 +157,22 @@ class _KycScreenState extends State<KycScreen> {
                 TextField(
                   controller: _nameCtrl,
                   onChanged: (_) => setState(() {}),
-                  decoration: const InputDecoration(labelText: 'نام و نامِ خانوادگی'),
+                  decoration: InputDecoration(labelText: tr('نام و نامِ خانوادگی')),
                 ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _dobCtrl,
                   keyboardType: TextInputType.datetime,
                   onChanged: (_) => setState(() {}),
-                  decoration: const InputDecoration(
-                    labelText: 'تاریخِ تولد',
-                    hintText: '۱۴۰۳-۰۱-۰۱ (سال-ماه-روز)',
+                  decoration: InputDecoration(
+                    labelText: tr('تاریخِ تولد'),
+                    hintText: tr('۱۴۰۳-۰۱-۰۱ (سال-ماه-روز)'),
                   ),
                 ),
                 const SizedBox(height: 16),
-                _imagePicker('تصویرِ کارتِ ملی', _frontPath, () => _pick(true)),
+                _imagePicker(tr('تصویرِ کارتِ ملی'), _frontPath, () => _pick(true)),
                 const SizedBox(height: 8),
-                _imagePicker('عکسِ سلفی', _selfiePath, () => _pick(false)),
+                _imagePicker(tr('عکسِ سلفی'), _selfiePath, () => _pick(false)),
                 const SizedBox(height: 16),
                 if (_error != null) ...[
                   Text(_error!,
@@ -189,7 +189,7 @@ class _KycScreenState extends State<KycScreen> {
                             height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('ثبتِ مدارک'),
+                        : Text(tr('ثبتِ مدارک')),
                   ),
                 ),
               ],
@@ -206,22 +206,22 @@ class _KycScreenState extends State<KycScreen> {
       case 'approved':
         bg = theme.colorScheme.primaryContainer;
         icon = Icons.verified;
-        label = 'احرازِ هویتِ شما تأیید شده است (سطح ${s.level}).';
+        label = tr('احرازِ هویتِ شما تأیید شده است (سطح {0}).', [s.level]);
         break;
       case 'pending':
         bg = theme.colorScheme.secondaryContainer;
         icon = Icons.hourglass_top;
-        label = 'مدارکِ شما در حالِ بررسی است.';
+        label = tr('مدارکِ شما در حالِ بررسی است.');
         break;
       case 'rejected':
         bg = theme.colorScheme.errorContainer;
         icon = Icons.cancel_outlined;
-        label = s.message ?? 'مدارکِ شما رد شد. لطفاً دوباره ارسال کنید.';
+        label = s.message ?? tr('مدارکِ شما رد شد. لطفاً دوباره ارسال کنید.');
         break;
       default:
         bg = theme.colorScheme.surfaceContainerHighest;
         icon = Icons.info_outline;
-        label = 'هنوز مدارکی ثبت نکرده‌اید.';
+        label = tr('هنوز مدارکی ثبت نکرده‌اید.');
     }
     return Container(
       padding: const EdgeInsets.all(12),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'l10n.dart';
+
 /// یک زبانِ قابلِ انتخاب در صفحهٔ اولِ آنبوردینگ.
 class AppLanguage {
   const AppLanguage(this.code, this.native, this.english, this.flag);
@@ -64,6 +66,9 @@ class PreferencesController extends ChangeNotifier {
     _locale = Locale(
       (code != null && code.isNotEmpty) ? code : deviceSuggestedLanguage(),
     );
+    // جدولِ ترجمه باید پیش از ساختِ نخستین فریم فعال باشد، وگرنه صفحهٔ اول
+    // فارسی رندر می‌شود و بعد می‌پرد.
+    L10n.setLanguage(_locale!.languageCode);
     _themeMode = _parseThemeMode(prefs.getString(_kThemeMode));
     _onboardingComplete = prefs.getBool(_kOnboarding) ?? false;
     _loaded = true;
@@ -78,6 +83,7 @@ class PreferencesController extends ChangeNotifier {
 
   Future<void> setLocale(String code) async {
     _locale = Locale(code);
+    L10n.setLanguage(code);
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_kLocale, code);

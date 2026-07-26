@@ -6,6 +6,7 @@ import '../earth/earth_screen.dart';
 import '../services/services_screen.dart';
 import '../wallet/wallet_screen.dart';
 
+import '../../core/l10n.dart';
 /// داشبوردِ نقش‌محور — parity با `app/dashboard/page.tsx` وب:
 /// سلامِ زمان‌محور + هویت/نقش + کیفِ پاداش + پنل‌های میان‌برِ مخصوصِ نقش
 /// + میان‌برِ کره و همهٔ خدمات.
@@ -18,7 +19,10 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   // برچسبِ فارسیِ نقش‌ها — منطبق با ROLE_LABELS صفحهٔ وب.
-  static const _roleLabels = <String, String>{
+  static Map<String, String> get _roleLabels =>
+      _roleLabelsSrc.map((k, v) => MapEntry(k, tr(v)));
+
+  static const _roleLabelsSrc = <String, String>{
     'individual': 'کاربر',
     'driver': 'راننده',
     'cargo_owner': 'صاحبِ بار',
@@ -27,7 +31,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   // پنل‌های میان‌برِ مخصوصِ نقش — منطبق با PANELS_BY_ROLE صفحهٔ وب.
   // (title, subtitle, هدف). هدف: 'freight' → FreightScreen، 'services' → ServicesScreen.
-  static const _panelsByRole = <String, List<(String, String, String)>>{
+  static Map<String, List<(String, String, String)>> get _panelsByRole =>
+      _panelsByRoleSrc.map((k, v) => MapEntry(
+          k, v.map((e) => (tr(e.$1), tr(e.$2), e.$3)).toList()));
+
+  static const _panelsByRoleSrc = <String, List<(String, String, String)>>{
     'driver': [
       ('پنلِ راننده', 'بارهای موجود، ثبتِ پیشنهاد و سفرهای فعال', 'freight'),
     ],
@@ -62,7 +70,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       setState(() => _me = me);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'بارگذاریِ حساب ممکن نشد.');
+      setState(() => _error = tr('بارگذاریِ حساب ممکن نشد.'));
     }
     try {
       final wallet = await api.rewardWallet();
@@ -76,11 +84,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   String _greeting() {
     final h = DateTime.now().hour;
-    if (h < 6) return 'شب بخیر';
-    if (h < 12) return 'صبح بخیر';
-    if (h < 17) return 'ظهر بخیر';
-    if (h < 21) return 'عصر بخیر';
-    return 'شب بخیر';
+    if (h < 6) return tr('شب بخیر');
+    if (h < 12) return tr('صبح بخیر');
+    if (h < 17) return tr('ظهر بخیر');
+    if (h < 21) return tr('عصر بخیر');
+    return tr('شب بخیر');
   }
 
   void _openTarget(String target) {
@@ -94,12 +102,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final panels = _panelsByRole[role] ?? const [];
     return Scaffold(
       appBar: AppBar(
-        title: const Text('نمای کلی'),
+        title: Text(tr('نمای کلی')),
         actions: [
           IconButton(
             onPressed: _loading ? null : _load,
             icon: const Icon(Icons.refresh),
-            tooltip: 'تازه‌سازی',
+            tooltip: tr('تازه‌سازی'),
           ),
         ],
       ),
@@ -117,24 +125,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   _greetingCard(role),
                   _walletTile(),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Text('خدماتِ من', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(tr('خدماتِ من'), style: const TextStyle(fontWeight: FontWeight.bold)),
                   ),
                   for (final p in panels)
                     _tile(Icons.dashboard_customize_outlined, p.$1, p.$2, () => _openTarget(p.$3)),
                   _tile(
                     Icons.public,
-                    'کرهٔ زمین',
-                    'اکتشافِ جهانیِ افراد و کسب‌وکارها روی نقشهٔ سه‌بعدی',
+                    tr('کرهٔ زمین'),
+                    tr('اکتشافِ جهانیِ افراد و کسب‌وکارها روی نقشهٔ سه‌بعدی'),
                     () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const EarthScreen()),
                     ),
                   ),
                   _tile(
                     Icons.grid_view,
-                    'همهٔ خدمات',
-                    'حمل‌ونقل، بیمه، بازار، ارتباطات و بیشتر',
+                    tr('همهٔ خدمات'),
+                    tr('حمل‌ونقل، بیمه، بازار، ارتباطات و بیشتر'),
                     () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const ServicesScreen()),
                     ),
@@ -146,7 +154,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _greetingCard(String role) {
-    final name = _me?.displayName ?? 'کاربرِ دیلیکس';
+    final name = _me?.displayName ?? tr('کاربرِ دیلیکس');
     final earthId = _me?.earthId;
     return Card(
       child: Padding(
@@ -158,12 +166,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('${_greeting()}،', style: Theme.of(context).textTheme.bodySmall),
+                  Text(tr('{0}،', [_greeting()]), style: Theme.of(context).textTheme.bodySmall),
                   const SizedBox(height: 2),
                   Text('$name 👋', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
                   Chip(
-                    label: Text(_roleLabels[role] ?? 'کاربر'),
+                    label: Text(_roleLabels[role] ?? tr('کاربر')),
                     visualDensity: VisualDensity.compact,
                   ),
                 ],
@@ -193,14 +201,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final parts = balances
           .map((b) => '${(b.amountMinor / 100).toStringAsFixed(2)} ${b.currency}')
           .join(' · ');
-      final pending = (_wallet?.pendingCount ?? 0) > 0 ? ' · ${_wallet!.pendingCount} در انتظار' : '';
+      final pending = (_wallet?.pendingCount ?? 0) > 0 ? tr(' · {0} در انتظار', [_wallet!.pendingCount]) : '';
       subtitle = '$parts$pending';
     } else {
-      subtitle = 'مالی، escrow و پرداخت‌ها';
+      subtitle = tr('مالی، escrow و پرداخت‌ها');
     }
     return _tile(
       Icons.account_balance_wallet_outlined,
-      'کیفِ پول',
+      tr('کیفِ پول'),
       subtitle,
       () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const WalletScreen())),
     );

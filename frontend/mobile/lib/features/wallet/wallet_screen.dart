@@ -5,6 +5,7 @@ import '../../models/models.dart';
 import 'holdings_screen.dart';
 import 'topup_screen.dart';
 
+import '../../core/l10n.dart';
 /// کیفِ پول: کیفِ پاداش + پرداختِ امانی (escrow) + سهم از درآمد و لینکِ دعوت.
 /// معادلِ صفحهٔ وبِ `app/wallet/page.tsx`. شارژ از درگاهِ پرداخت و جیب‌های ارزی
 /// در صفحه‌های جداگانه (`TopupScreen` / `HoldingsScreen`) باز می‌شوند.
@@ -63,7 +64,7 @@ class _WalletScreenState extends State<WalletScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'بارگذاریِ کیف پول ممکن نشد: $e';
+        _error = tr('بارگذاریِ کیف پول ممکن نشد: {0}', [e]);
         _loading = false;
       });
     }
@@ -71,7 +72,7 @@ class _WalletScreenState extends State<WalletScreen> {
 
   String _formatMoney(int amountMinor, String currency) {
     final cur = currency.toUpperCase();
-    if (cur == 'IRR') return '${(amountMinor / 10).round()} تومان';
+    if (cur == 'IRR') return tr('{0} تومان', [(amountMinor / 10).round()]);
     return '${(amountMinor / 100).toStringAsFixed(2)} $cur';
   }
 
@@ -85,7 +86,7 @@ class _WalletScreenState extends State<WalletScreen> {
     if (created != null && mounted) {
       setState(() {
         _orders.insert(0, created);
-        _notice = 'سفارشِ امانی ساخته شد. برای تسویه یا برگشت از همان کارت استفاده کنید.';
+        _notice = tr('سفارشِ امانی ساخته شد. برای تسویه یا برگشت از همان کارت استفاده کنید.');
       });
     }
   }
@@ -98,7 +99,7 @@ class _WalletScreenState extends State<WalletScreen> {
       builder: (_) => const _TransferSheet(),
     );
     if (done == true && mounted) {
-      setState(() => _notice = 'انتقال انجام شد.');
+      setState(() => _notice = tr('انتقال انجام شد.'));
       await _load();
     }
   }
@@ -117,11 +118,11 @@ class _WalletScreenState extends State<WalletScreen> {
       setState(() {
         final i = _orders.indexWhere((o) => o.id == order.id);
         if (i >= 0) _orders[i] = updated;
-        _notice = action == 'capture' ? 'سفارشِ امانی تسویه شد.' : 'سفارشِ امانی برگشت خورد.';
+        _notice = action == 'capture' ? tr('سفارشِ امانی تسویه شد.') : tr('سفارشِ امانی برگشت خورد.');
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'عملیاتِ سفارش ناموفق بود: $e');
+      setState(() => _error = tr('عملیاتِ سفارش ناموفق بود: {0}', [e]));
     }
   }
 
@@ -129,12 +130,12 @@ class _WalletScreenState extends State<WalletScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('کیف پول'),
+        title: Text(tr('کیف پول')),
         actions: [
           IconButton(
             onPressed: _loading ? null : _load,
             icon: const Icon(Icons.refresh),
-            tooltip: 'تلاشِ مجدد',
+            tooltip: tr('تلاشِ مجدد'),
           ),
         ],
       ),
@@ -184,14 +185,14 @@ class _WalletScreenState extends State<WalletScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('موجودیِ پاداش', style: TextStyle(fontWeight: FontWeight.bold)),
-                Chip(label: Text('${_wallet?.pendingCount ?? 0} در انتظار')),
+                Text(tr('موجودیِ پاداش'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                Chip(label: Text(tr('{0} در انتظار', [_wallet?.pendingCount ?? 0]))),
               ],
             ),
             const SizedBox(height: 8),
             if (balances.isEmpty)
               Text(
-                'هنوز پاداشی ثبت نشده است. کیف پول فعال است، اما موجودیِ پاداش ندارد.',
+                tr('هنوز پاداشی ثبت نشده است. کیف پول فعال است، اما موجودیِ پاداش ندارد.'),
                 style: Theme.of(context).textTheme.bodySmall,
               )
             else
@@ -241,32 +242,32 @@ class _WalletScreenState extends State<WalletScreen> {
       children: [
         _actionTile(
           icon: Icons.swap_horiz,
-          title: 'انتقالِ امن',
-          desc: 'ساختِ سفارشِ امانی',
+          title: tr('انتقالِ امن'),
+          desc: tr('ساختِ سفارشِ امانی'),
           onTap: _openEscrowSheet,
         ),
         _actionTile(
           icon: Icons.send_to_mobile,
-          title: 'انتقال به کاربر',
-          desc: 'پرداختِ مستقیم از کیف به کیف با Earth ID',
+          title: tr('انتقال به کاربر'),
+          desc: tr('پرداختِ مستقیم از کیف به کیف با Earth ID'),
           onTap: _openTransferSheet,
         ),
         _actionTile(
           icon: Icons.add_card,
-          title: 'شارژِ مستقیم',
-          desc: 'افزایشِ موجودی از درگاهِ پرداخت',
+          title: tr('شارژِ مستقیم'),
+          desc: tr('افزایشِ موجودی از درگاهِ پرداخت'),
           onTap: _openTopup,
         ),
         _actionTile(
           icon: Icons.account_balance_wallet_outlined,
-          title: 'جیب‌های ارزی',
-          desc: 'تبدیل، دریافت و برداشتِ چندارزی',
+          title: tr('جیب‌های ارزی'),
+          desc: tr('تبدیل، دریافت و برداشتِ چندارزی'),
           onTap: _openHoldings,
         ),
         _actionTile(
           icon: Icons.pie_chart_outline,
-          title: 'درآمد',
-          desc: (_revenue?.eligible ?? false) ? 'فعال' : 'غیرفعال',
+          title: tr('درآمد'),
+          desc: (_revenue?.eligible ?? false) ? tr('فعال') : tr('غیرفعال'),
           onTap: null,
         ),
       ],
@@ -315,10 +316,10 @@ class _WalletScreenState extends State<WalletScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
-              child: Text('گردشِ حساب',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: Text(tr('گردشِ حساب'),
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
             ),
             for (final t in _transactions)
               ListTile(
@@ -369,13 +370,13 @@ class _WalletScreenState extends State<WalletScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('سهم از درآمد', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(tr('سهم از درآمد'), style: const TextStyle(fontWeight: FontWeight.bold)),
                 Chip(label: Text(r.plan)),
               ],
             ),
             const SizedBox(height: 6),
             Text(
-              'سهمِ فعلی: ${(r.entitlementBps / 100).toStringAsFixed(2)}٪ · واحدِ سرمایه‌گذاری: ${r.investmentUnits}',
+              tr('سهمِ فعلی: {0}٪ · واحدِ سرمایه‌گذاری: {1}', [(r.entitlementBps / 100).toStringAsFixed(2), r.investmentUnits]),
               style: Theme.of(context).textTheme.bodySmall,
             ),
             if (r.note.isNotEmpty) ...[
@@ -393,11 +394,11 @@ class _WalletScreenState extends State<WalletScreen> {
     return Card(
       child: ListTile(
         leading: const Icon(Icons.link),
-        title: const Text('لینکِ دعوت'),
+        title: Text(tr('لینکِ دعوت')),
         subtitle: Text(
           ref == null
-              ? 'در دسترس نیست'
-              : '${ref.url}\nدعوت‌شده‌ها: ${ref.totalReferred}',
+              ? tr('در دسترس نیست')
+              : tr('{0}\nدعوت‌شده‌ها: {1}', [ref.url, ref.totalReferred]),
         ),
         isThreeLine: ref != null,
       ),
@@ -411,7 +412,7 @@ class _WalletScreenState extends State<WalletScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('سفارش‌های امانیِ همین نشست', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(tr('سفارش‌های امانیِ همین نشست'), style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             ..._orders.map(
               (o) => Padding(
@@ -426,17 +427,17 @@ class _WalletScreenState extends State<WalletScreen> {
                         Chip(label: Text(o.status)),
                       ],
                     ),
-                    Text('مقصد: ${o.payeeEarthId}', style: Theme.of(context).textTheme.bodySmall),
+                    Text(tr('مقصد: {0}', [o.payeeEarthId]), style: Theme.of(context).textTheme.bodySmall),
                     if (o.status == 'held')
                       Row(
                         children: [
                           TextButton(
                             onPressed: () => _updateOrder(o, 'capture'),
-                            child: const Text('تسویه'),
+                            child: Text(tr('تسویه')),
                           ),
                           TextButton(
                             onPressed: () => _updateOrder(o, 'refund'),
-                            child: const Text('برگشت'),
+                            child: Text(tr('برگشت')),
                           ),
                         ],
                       ),
@@ -480,11 +481,11 @@ class _TransferSheetState extends State<_TransferSheet> {
     final to = _toCtrl.text.trim();
     final toman = int.tryParse(_amountCtrl.text.trim().replaceAll(',', ''));
     if (to.length < 3) {
-      setState(() => _error = 'Earth ID مقصد را وارد کنید.');
+      setState(() => _error = tr('Earth ID مقصد را وارد کنید.'));
       return;
     }
     if (toman == null || toman <= 0) {
-      setState(() => _error = 'مبلغِ معتبر (تومان) وارد کنید.');
+      setState(() => _error = tr('مبلغِ معتبر (تومان) وارد کنید.'));
       return;
     }
     setState(() {
@@ -501,7 +502,7 @@ class _TransferSheetState extends State<_TransferSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'انتقال ناموفق بود: $e';
+        _error = tr('انتقال ناموفق بود: {0}', [e]);
         _sending = false;
       });
     }
@@ -516,24 +517,24 @@ class _TransferSheetState extends State<_TransferSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('انتقال به کیفِ کاربرِ دیگر',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          Text(tr('انتقال به کیفِ کاربرِ دیگر'),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 12),
           TextField(
             controller: _toCtrl,
-            decoration: const InputDecoration(labelText: 'Earth ID مقصد'),
+            decoration: InputDecoration(labelText: tr('Earth ID مقصد')),
           ),
           const SizedBox(height: 8),
           TextField(
             controller: _amountCtrl,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-                labelText: 'مبلغ (تومان)', hintText: 'مثلاً ۵۰۰۰۰'),
+            decoration: InputDecoration(
+                labelText: tr('مبلغ (تومان)'), hintText: tr('مثلاً ۵۰۰۰۰')),
           ),
           const SizedBox(height: 8),
           TextField(
             controller: _noteCtrl,
-            decoration: const InputDecoration(labelText: 'توضیح (اختیاری)'),
+            decoration: InputDecoration(labelText: tr('توضیح (اختیاری)')),
           ),
           if (_error != null) ...[
             const SizedBox(height: 8),
@@ -545,7 +546,7 @@ class _TransferSheetState extends State<_TransferSheet> {
             width: double.infinity,
             child: FilledButton(
               onPressed: _sending ? null : _submit,
-              child: Text(_sending ? 'در حالِ انتقال…' : 'انتقال'),
+              child: Text(_sending ? tr('در حالِ انتقال…') : tr('انتقال')),
             ),
           ),
         ],
@@ -579,11 +580,11 @@ class _EscrowSheetState extends State<_EscrowSheet> {
     final payee = _payeeCtrl.text.trim();
     final amount = double.tryParse(_amountCtrl.text.trim());
     if (payee.isEmpty) {
-      setState(() => _error = 'Earth ID مقصد را وارد کنید.');
+      setState(() => _error = tr('Earth ID مقصد را وارد کنید.'));
       return;
     }
     if (amount == null || amount <= 0) {
-      setState(() => _error = 'مبلغِ معتبر وارد کنید.');
+      setState(() => _error = tr('مبلغِ معتبر وارد کنید.'));
       return;
     }
     setState(() {
@@ -604,7 +605,7 @@ class _EscrowSheetState extends State<_EscrowSheet> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = 'ساختِ سفارش ناموفق بود: $e';
+          _error = tr('ساختِ سفارش ناموفق بود: {0}', [e]);
           _sending = false;
         });
       }
@@ -620,26 +621,26 @@ class _EscrowSheetState extends State<_EscrowSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('انتقالِ امن (Escrow)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          Text(tr('انتقالِ امن (Escrow)'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 12),
           TextField(
             controller: _payeeCtrl,
-            decoration: const InputDecoration(labelText: 'Earth ID مقصد (UUID)'),
+            decoration: InputDecoration(labelText: tr('Earth ID مقصد (UUID)')),
           ),
           const SizedBox(height: 8),
           TextField(
             controller: _amountCtrl,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'مبلغ (مثلاً ۵۰۰۰۰)'),
+            decoration: InputDecoration(labelText: tr('مبلغ (مثلاً ۵۰۰۰۰)')),
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
-            value: _currency,
-            decoration: const InputDecoration(labelText: 'ارز'),
-            items: const [
-              DropdownMenuItem(value: 'IRR', child: Text('IRR (ورودی به تومان)')),
-              DropdownMenuItem(value: 'USD', child: Text('USD')),
-              DropdownMenuItem(value: 'EUR', child: Text('EUR')),
+            initialValue: _currency,
+            decoration: InputDecoration(labelText: tr('ارز')),
+            items: [
+              DropdownMenuItem(value: 'IRR', child: Text(tr('IRR (ورودی به تومان)'))),
+              const DropdownMenuItem(value: 'USD', child: Text('USD')),
+              const DropdownMenuItem(value: 'EUR', child: Text('EUR')),
             ],
             onChanged: (v) => setState(() => _currency = v ?? 'IRR'),
           ),
@@ -652,7 +653,7 @@ class _EscrowSheetState extends State<_EscrowSheet> {
             width: double.infinity,
             child: FilledButton(
               onPressed: _sending ? null : _submit,
-              child: Text(_sending ? 'در حالِ ساخت…' : 'ساختِ سفارشِ امانی'),
+              child: Text(_sending ? tr('در حالِ ساخت…') : tr('ساختِ سفارشِ امانی')),
             ),
           ),
         ],

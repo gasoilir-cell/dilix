@@ -6,6 +6,7 @@ import '../../models/models.dart';
 import 'circles_screen.dart';
 import 'highlights_screen.dart';
 
+import '../../core/l10n.dart';
 /// فیدِ داستان‌ها: هر نویسنده یک حلقه؛ با لمسِ حلقه، نمایش‌گرِ داستان‌های آن
 /// نویسنده باز می‌شود و بازدیدِ هر داستان ثبت می‌گردد. هم‌سبکِ سایرِ featureها.
 class StoriesScreen extends StatefulWidget {
@@ -58,11 +59,11 @@ class _StoriesScreenState extends State<StoriesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('داستان‌ها'),
+        title: Text(tr('داستان‌ها')),
         actions: [
           IconButton(
             icon: const Icon(Icons.groups_outlined),
-            tooltip: 'حلقه‌های مخاطب',
+            tooltip: tr('حلقه‌های مخاطب'),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const CirclesScreen()),
             ),
@@ -70,7 +71,7 @@ class _StoriesScreenState extends State<StoriesScreen> {
           if (_myEarthId != null)
             IconButton(
               icon: const Icon(Icons.auto_awesome_motion_outlined),
-              tooltip: 'هایلایت‌های من',
+              tooltip: tr('هایلایت‌های من'),
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (_) =>
@@ -93,7 +94,7 @@ class _StoriesScreenState extends State<StoriesScreen> {
                 children: [
                   const SizedBox(height: 120),
                   Center(
-                    child: Text('بارگذاری ممکن نشد.\n${snap.error}',
+                    child: Text(tr('بارگذاری ممکن نشد.\n{0}', [snap.error]),
                         textAlign: TextAlign.center),
                   ),
                 ],
@@ -102,9 +103,9 @@ class _StoriesScreenState extends State<StoriesScreen> {
             final rings = snap.data ?? const <StoryRing>[];
             if (rings.isEmpty) {
               return ListView(
-                children: const [
-                  SizedBox(height: 120),
-                  Center(child: Text('هنوز داستانی نیست.')),
+                children: [
+                  const SizedBox(height: 120),
+                  Center(child: Text(tr('هنوز داستانی نیست.'))),
                 ],
               );
             }
@@ -121,8 +122,8 @@ class _StoriesScreenState extends State<StoriesScreen> {
 
   Widget _ringTile(StoryRing ring) {
     final label = ring.isMe
-        ? 'داستان‌های من'
-        : 'کاربر ${ring.authorEarthId.substring(0, 8)}…';
+        ? tr('داستان‌های من')
+        : tr('کاربر {0}…', [ring.authorEarthId.substring(0, 8)]);
     return Card(
       child: ListTile(
         leading: CircleAvatar(
@@ -138,7 +139,7 @@ class _StoriesScreenState extends State<StoriesScreen> {
         ),
         title: Text(label,
             style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text('${ring.storyCount} داستان'),
+        subtitle: Text(tr('{0} داستان', [ring.storyCount])),
         trailing: ring.hasUnseen
             ? const Icon(Icons.circle, size: 12, color: Colors.redAccent)
             : const Icon(Icons.chevron_left),
@@ -213,9 +214,9 @@ class _StoryViewerState extends State<StoryViewer> {
           }
           final viewers = snap.data ?? const <StoryViewerEntry>[];
           if (viewers.isEmpty) {
-            return const SizedBox(
+            return SizedBox(
               height: 160,
-              child: Center(child: Text('هنوز کسی این داستان را ندیده است.')),
+              child: Center(child: Text(tr('هنوز کسی این داستان را ندیده است.'))),
             );
           }
           return SafeArea(
@@ -248,16 +249,16 @@ class _StoryViewerState extends State<StoryViewer> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('حذفِ داستان'),
-        content: const Text('این داستان برای همیشه حذف شود؟'),
+        title: Text(tr('حذفِ داستان')),
+        content: Text(tr('این داستان برای همیشه حذف شود؟')),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('انصراف'),
+            child: Text(tr('انصراف')),
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('حذف'),
+            child: Text(tr('حذف')),
           ),
         ],
       ),
@@ -283,7 +284,7 @@ class _StoryViewerState extends State<StoryViewer> {
     );
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(ok ? 'به هایلایت افزوده شد.' : 'انجام نشد.')),
+      SnackBar(content: Text(ok ? tr('به هایلایت افزوده شد.') : tr('انجام نشد.'))),
     );
   }
 
@@ -321,9 +322,9 @@ class _StoryViewerState extends State<StoryViewer> {
 
   Widget _storyPage(Story s) {
     if (_deleted.contains(s.id)) {
-      return const Center(
-        child: Text('این داستان حذف شد.',
-            style: TextStyle(color: Colors.white70)),
+      return Center(
+        child: Text(tr('این داستان حذف شد.'),
+            style: const TextStyle(color: Colors.white70)),
       );
     }
     return Stack(
@@ -387,13 +388,13 @@ class _StoryViewerState extends State<StoryViewer> {
               itemBuilder: (_) => [
                 PopupMenuItem(
                   value: 'viewers',
-                  child: Text('بازدیدکنندگان (${s.viewCount})'),
+                  child: Text(tr('بازدیدکنندگان ({0})', [s.viewCount])),
                 ),
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'highlight',
-                  child: Text('افزودن به هایلایت'),
+                  child: Text(tr('افزودن به هایلایت')),
                 ),
-                const PopupMenuItem(value: 'delete', child: Text('حذفِ داستان')),
+                PopupMenuItem(value: 'delete', child: Text(tr('حذفِ داستان'))),
               ],
             ),
           ),

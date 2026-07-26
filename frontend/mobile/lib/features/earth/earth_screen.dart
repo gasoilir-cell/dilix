@@ -9,6 +9,7 @@ import '../messages/chat_screen.dart';
 import '../social/profile_screen.dart';
 import 'earth_globe_view.dart';
 
+import '../../core/l10n.dart';
 /// کشفِ افراد/کسب‌وکار روی کره (امضای محصول، سند ۷ §۳).
 ///
 /// کره‌ی سه‌بعدیِ **بومی** است: صفحهٔ خودبسندهٔ globe.gl (همان کاشیِ ماهواره‌ایِ
@@ -89,7 +90,7 @@ class _EarthScreenState extends State<EarthScreen> {
                 // «لحظه‌ها»: پست‌های مکان‌دارِ کره.
                 FloatingActionButton(
                   heroTag: 'earth-moments',
-                  tooltip: 'لحظه‌های روی کره',
+                  tooltip: tr('لحظه‌های روی کره'),
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
                         builder: (_) => const MomentsScreen()),
@@ -99,7 +100,7 @@ class _EarthScreenState extends State<EarthScreen> {
                 const SizedBox(height: 12),
                 FloatingActionButton(
                   heroTag: 'earth-locate',
-                  tooltip: 'ثبتِ موقعیتِ من روی کره',
+                  tooltip: tr('ثبتِ موقعیتِ من روی کره'),
                   onPressed: _locating ? null : _registerMyLocation,
                   child: _locating
                       ? const SizedBox(
@@ -129,7 +130,7 @@ class _EarthScreenState extends State<EarthScreen> {
               leading: CircleAvatar(
                 backgroundColor:
                     (tap.online ?? false) ? const Color(0xFF22C55E) : Colors.grey,
-                child: Text(tap.name.isNotEmpty ? tap.name.characters.first : '؟',
+                child: Text(tap.name.isNotEmpty ? tap.name.characters.first : tr('؟'),
                     style: const TextStyle(color: Colors.white)),
               ),
               title: Text(tap.name.isEmpty ? tap.earthId : tap.name),
@@ -138,7 +139,7 @@ class _EarthScreenState extends State<EarthScreen> {
             const Divider(height: 1),
             ListTile(
               leading: const Icon(Icons.chat_bubble_outline),
-              title: const Text('گفتگو'),
+              title: Text(tr('گفتگو')),
               onTap: () {
                 Navigator.of(ctx).pop();
                 _openChat(tap);
@@ -146,7 +147,7 @@ class _EarthScreenState extends State<EarthScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.person_outline),
-              title: const Text('پروفایل'),
+              title: Text(tr('پروفایل')),
               onTap: () {
                 Navigator.of(ctx).pop();
                 Navigator.of(context).push(MaterialPageRoute<void>(
@@ -173,7 +174,7 @@ class _EarthScreenState extends State<EarthScreen> {
         MaterialPageRoute<void>(builder: (_) => ChatScreen(room: room)),
       );
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('باز کردنِ گفتگو ناموفق بود: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('باز کردنِ گفتگو ناموفق بود: {0}', [e]))));
     }
   }
 
@@ -198,12 +199,12 @@ class _EarthScreenState extends State<EarthScreen> {
       await _globe.refreshUsers();
       await _globe.focusOn(fix.lat, fix.lng, altitude: 0.35);
       messenger.showSnackBar(
-          const SnackBar(content: Text('موقعیتِ تو روی کره ثبت شد.')));
+          SnackBar(content: Text(tr('موقعیتِ تو روی کره ثبت شد.'))));
     } catch (e) {
       if (!mounted) return;
       setState(() => _locating = false);
       messenger
-          .showSnackBar(SnackBar(content: Text('ثبتِ موقعیت ناموفق بود: $e')));
+          .showSnackBar(SnackBar(content: Text(tr('ثبتِ موقعیت ناموفق بود: {0}', [e]))));
     }
   }
 
@@ -228,13 +229,13 @@ class _EarthScreenState extends State<EarthScreen> {
         ),
       ),
       alignment: Alignment.center,
-      child: const Column(
+      child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('🌍', style: TextStyle(fontSize: 96)),
-          SizedBox(height: 8),
-          Text('کره‌ی سه‌بعدی روی دستگاه بارگذاری می‌شود',
-              style: TextStyle(color: Color(0xB3FFFFFF))),
+          const Text('🌍', style: TextStyle(fontSize: 96)),
+          const SizedBox(height: 8),
+          Text(tr('کره‌ی سه‌بعدی روی دستگاه بارگذاری می‌شود'),
+              style: const TextStyle(color: Color(0xB3FFFFFF))),
         ],
       ),
     );
@@ -312,8 +313,8 @@ class _EarthScreenState extends State<EarthScreen> {
                 textInputAction: TextInputAction.search,
                 onChanged: (_) => setState(() {}),
                 onSubmitted: (_) => _search(),
-                decoration: const InputDecoration(
-                  hintText: 'جستجوی نام یا Earth ID…',
+                decoration: InputDecoration(
+                  hintText: tr('جستجوی نام یا Earth ID…'),
                   border: InputBorder.none,
                 ),
               ),
@@ -349,13 +350,13 @@ class _EarthScreenState extends State<EarthScreen> {
             : _searchError != null
                 ? Padding(
                     padding: const EdgeInsets.all(14),
-                    child: Text('جستجو ناموفق بود: $_searchError',
+                    child: Text(tr('جستجو ناموفق بود: {0}', [_searchError]),
                         style: const TextStyle(fontSize: 12)),
                   )
                 : (results == null || results.isEmpty)
-                    ? const Padding(
-                        padding: EdgeInsets.all(14),
-                        child: Text('نتیجه‌ای پیدا نشد.'),
+                    ? Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Text(tr('نتیجه‌ای پیدا نشد.')),
                       )
                     : ListView.separated(
                         shrinkWrap: true,
@@ -375,7 +376,7 @@ class _EarthScreenState extends State<EarthScreen> {
       leading: CircleAvatar(
         radius: 16,
         backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-        child: Text(name.isEmpty ? '؟' : name.characters.first),
+        child: Text(name.isEmpty ? tr('؟') : name.characters.first),
       ),
       title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(
@@ -383,7 +384,7 @@ class _EarthScreenState extends State<EarthScreen> {
         style: const TextStyle(fontSize: 11),
       ),
       trailing: IconButton(
-        tooltip: 'گفتگو',
+        tooltip: tr('گفتگو'),
         icon: const Icon(Icons.chat_bubble_outline, size: 18),
         onPressed: () {
           FocusScope.of(context).unfocus();

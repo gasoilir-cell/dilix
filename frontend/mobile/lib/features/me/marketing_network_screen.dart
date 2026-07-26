@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../app.dart';
 import '../../models/models.dart';
 
+import '../../core/l10n.dart';
 /// شبکه و درآمدِ بازاریابیِ چندسطحی — `GET /api/v1/referral/stats` و
 /// `GET /api/v1/referral/network`. دعوت‌شدگانِ مستقیم، سطوح و پاداشِ کسب‌شده.
 class MarketingNetworkScreen extends StatefulWidget {
@@ -53,7 +54,7 @@ class _MarketingNetworkScreenState extends State<MarketingNetworkScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'بارگذاریِ شبکه ممکن نشد: $e';
+        _error = tr('بارگذاریِ شبکه ممکن نشد: {0}', [e]);
         _loading = false;
       });
     }
@@ -64,13 +65,13 @@ class _MarketingNetworkScreenState extends State<MarketingNetworkScreen> {
     await Clipboard.setData(ClipboardData(text: value));
     if (!mounted) return;
     ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text('$label کپی شد.')));
+        .showSnackBar(SnackBar(content: Text(tr('{0} کپی شد.', [label]))));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('شبکه و درآمد')),
+      appBar: AppBar(title: Text(tr('شبکه و درآمد'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
@@ -94,13 +95,13 @@ class _MarketingNetworkScreenState extends State<MarketingNetworkScreen> {
                       _commissionsCard(),
                       const SizedBox(height: 16),
                       if (_network != null && _network!.levels.isNotEmpty) ...[
-                        Text('سطوحِ شبکه',
+                        Text(tr('سطوحِ شبکه'),
                             style: Theme.of(context).textTheme.titleMedium),
                         const SizedBox(height: 8),
                         ..._network!.levels.map(_levelTile),
                         const SizedBox(height: 16),
                       ],
-                      Text('دعوت‌شدگانِ مستقیم',
+                      Text(tr('دعوت‌شدگانِ مستقیم'),
                           style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 8),
                       _directList(),
@@ -117,11 +118,11 @@ class _MarketingNetworkScreenState extends State<MarketingNetworkScreen> {
     final network = _link?.totalNetwork ?? _network?.totalNetwork ?? 0;
     return Row(
       children: [
-        _box('$toman', 'تومان پاداش', theme.colorScheme.primaryContainer),
+        _box('$toman', tr('تومان پاداش'), theme.colorScheme.primaryContainer),
         const SizedBox(width: 8),
-        _box('$referred', 'دعوتِ مستقیم', theme.colorScheme.secondaryContainer),
+        _box('$referred', tr('دعوتِ مستقیم'), theme.colorScheme.secondaryContainer),
         const SizedBox(width: 8),
-        _box('$network', 'کلِ شبکه', theme.colorScheme.tertiaryContainer),
+        _box('$network', tr('کلِ شبکه'), theme.colorScheme.tertiaryContainer),
       ],
     );
   }
@@ -160,15 +161,15 @@ class _MarketingNetworkScreenState extends State<MarketingNetworkScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('لینکِ دعوت',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(tr('لینکِ دعوت'),
+                style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             if (code.isNotEmpty)
               InkWell(
-                onTap: () => _copy('کدِ دعوت', code),
+                onTap: () => _copy(tr('کدِ دعوت'), code),
                 child: Row(
                   children: [
-                    Text('کد: $code',
+                    Text(tr('کد: {0}', [code]),
                         style: theme.textTheme.bodyMedium
                             ?.copyWith(color: theme.colorScheme.primary)),
                     const SizedBox(width: 6),
@@ -178,7 +179,7 @@ class _MarketingNetworkScreenState extends State<MarketingNetworkScreen> {
               ),
             const SizedBox(height: 8),
             InkWell(
-              onTap: () => _copy('لینکِ دعوت', link),
+              onTap: () => _copy(tr('لینکِ دعوت'), link),
               child: Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -190,7 +191,7 @@ class _MarketingNetworkScreenState extends State<MarketingNetworkScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        link.isEmpty ? 'لینکِ دعوت در دسترس نیست' : link,
+                        link.isEmpty ? tr('لینکِ دعوت در دسترس نیست') : link,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall,
@@ -217,11 +218,10 @@ class _MarketingNetworkScreenState extends State<MarketingNetworkScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('معرفِ من', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(tr('معرفِ من'), style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
             Text(
-              'اگر کسی شما را به دیلیکس دعوت کرده، Earth ID او را ثبت کنید. '
-              'این کار فقط یک‌بار ممکن است.',
+              tr('اگر کسی شما را به دیلیکس دعوت کرده، Earth ID او را ثبت کنید. این کار فقط یک‌بار ممکن است.'),
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 8),
@@ -230,7 +230,7 @@ class _MarketingNetworkScreenState extends State<MarketingNetworkScreen> {
               child: OutlinedButton.icon(
                 onPressed: _applyReferral,
                 icon: const Icon(Icons.person_add_alt),
-                label: const Text('ثبتِ کدِ معرف'),
+                label: Text(tr('ثبتِ کدِ معرف')),
               ),
             ),
           ],
@@ -244,22 +244,22 @@ class _MarketingNetworkScreenState extends State<MarketingNetworkScreen> {
     final code = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('کدِ معرف'),
+        title: Text(tr('کدِ معرف')),
         content: TextField(
           controller: ctrl,
           autofocus: true,
           textCapitalization: TextCapitalization.characters,
-          decoration: const InputDecoration(hintText: 'مثلاً EID-XXXXXX'),
+          decoration: InputDecoration(hintText: tr('مثلاً EID-XXXXXX')),
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('انصراف')),
+              onPressed: () => Navigator.pop(ctx), child: Text(tr('انصراف'))),
           FilledButton(
             onPressed: () {
               final v = ctrl.text.trim();
               Navigator.pop(ctx, v.isEmpty ? null : v);
             },
-            child: const Text('ثبت'),
+            child: Text(tr('ثبت')),
           ),
         ],
       ),
@@ -270,11 +270,11 @@ class _MarketingNetworkScreenState extends State<MarketingNetworkScreen> {
       final name = await ApiScope.of(context).applyReferral(code);
       if (!mounted) return;
       messenger.showSnackBar(
-          SnackBar(content: Text('معرفِ شما ثبت شد: $name')));
+          SnackBar(content: Text(tr('معرفِ شما ثبت شد: {0}', [name]))));
       await _load();
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text('ثبت نشد: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('ثبت نشد: {0}', [e]))));
     }
   }
 
@@ -288,11 +288,11 @@ class _MarketingNetworkScreenState extends State<MarketingNetworkScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('کمیسیون‌های من',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(tr('کمیسیون‌های من'),
+                style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             if (ledger.totals.isEmpty)
-              Text('هنوز کمیسیونی ثبت نشده است.', style: theme.textTheme.bodySmall)
+              Text(tr('هنوز کمیسیونی ثبت نشده است.'), style: theme.textTheme.bodySmall)
             else
               Wrap(
                 spacing: 8,
@@ -318,10 +318,9 @@ class _MarketingNetworkScreenState extends State<MarketingNetworkScreen> {
                           children: [
                             Text('${_money(c.amount)} ${c.currency}'),
                             Text(
-                              'سطحِ ${c.level} · ٪${c.ratePercent.toStringAsFixed(
+                              tr('سطحِ {0} · ٪{1}{2}', [c.level, c.ratePercent.toStringAsFixed(
                                 c.rateBps % 100 == 0 ? 0 : 1,
-                              )}'
-                              '${c.sourceType != null ? ' · ${c.sourceType}' : ''}',
+                              ), c.sourceType != null ? ' · ${c.sourceType}' : '']),
                               style: theme.textTheme.bodySmall,
                             ),
                           ],
@@ -341,7 +340,7 @@ class _MarketingNetworkScreenState extends State<MarketingNetworkScreen> {
     final s = v.toString();
     final buf = StringBuffer();
     for (var i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) buf.write('،');
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(tr('،'));
       buf.write(s[i]);
     }
     return buf.toString();
@@ -352,9 +351,9 @@ class _MarketingNetworkScreenState extends State<MarketingNetworkScreen> {
     return Card(
       child: ListTile(
         leading: CircleAvatar(child: Text('${l.level}')),
-        title: Text('سطحِ ${l.level}'),
-        subtitle: Text('نرخِ پاداش: ٪$rate'),
-        trailing: Text('${l.count} نفر',
+        title: Text(tr('سطحِ {0}', [l.level])),
+        subtitle: Text(tr('نرخِ پاداش: ٪{0}', [rate])),
+        trailing: Text(tr('{0} نفر', [l.count]),
             style: Theme.of(context).textTheme.titleMedium),
       ),
     );
@@ -363,12 +362,12 @@ class _MarketingNetworkScreenState extends State<MarketingNetworkScreen> {
   Widget _directList() {
     final direct = _network?.direct ?? const [];
     if (direct.isEmpty) {
-      return const Card(
+      return Card(
         child: Padding(
-          padding: EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16),
           child: Align(
             alignment: Alignment.centerRight,
-            child: Text('هنوز کسی را مستقیماً دعوت نکرده‌اید.'),
+            child: Text(tr('هنوز کسی را مستقیماً دعوت نکرده‌اید.')),
           ),
         ),
       );
@@ -380,7 +379,7 @@ class _MarketingNetworkScreenState extends State<MarketingNetworkScreen> {
             ListTile(
               leading: const Icon(Icons.person_outline),
               title: Text(m.name.isEmpty ? m.earthId : m.name),
-              subtitle: m.joinedAt != null ? Text('عضویت: ${m.joinedAt}') : null,
+              subtitle: m.joinedAt != null ? Text(tr('عضویت: {0}', [m.joinedAt])) : null,
             ),
         ],
       ),

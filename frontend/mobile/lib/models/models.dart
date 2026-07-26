@@ -1,3 +1,5 @@
+import '../core/l10n.dart';
+
 /// مدل‌هایِ دامنه — هم‌خوان با سند ۵ (مشخصاتِ API).
 
 class TokenPair {
@@ -549,7 +551,7 @@ class CargoPost {
   /// شکلِ قدیمیِ Core (`title`/`weight_grams`/`budget_minor`).
   factory CargoPost.fromJson(Map<String, dynamic> j) => CargoPost(
         id: j['id'] as String,
-        title: (j['title'] ?? j['cargo_type'] ?? j['description'] ?? 'بار') as String,
+        title: (j['title'] ?? j['cargo_type'] ?? j['description'] ?? tr('بار')) as String,
         origin: j['origin'] as String,
         destination: j['destination'] as String,
         status: (j['status'] ?? 'open') as String,
@@ -1400,7 +1402,7 @@ class ChatRoom {
 
   /// عنوانِ نمایشیِ گفتگو: نامِ گروه یا نامِ طرفِ مقابل.
   String get displayTitle =>
-      title ?? partnerName ?? partnerEarthId ?? 'گفتگو';
+      title ?? partnerName ?? partnerEarthId ?? tr('گفتگو');
 
   factory ChatRoom.fromJson(Map<String, dynamic> j) => ChatRoom(
         id: j['id'] as String,
@@ -1740,7 +1742,7 @@ class RewardWallet {
             currency: currency, amountMinor: available + bonus, rewardCount: 0),
         if (escrow > 0)
           RewardBalance(
-              currency: '$currency · امانت', amountMinor: escrow, rewardCount: 0),
+              currency: tr('{0} · امانت', [currency]), amountMinor: escrow, rewardCount: 0),
       ],
       pendingCount: 0,
     );
@@ -1959,7 +1961,7 @@ class InsuranceProduct {
         emoji: (j['emoji'] ?? '') as String,
         needsRoute: (j['needs_route'] ?? false) as bool,
         needsCargoType: (j['needs_cargo_type'] ?? false) as bool,
-        valueLabel: (j['value_label'] ?? 'ارزش') as String,
+        valueLabel: (j['value_label'] ?? tr('ارزش')) as String,
         baseRatePct: (j['base_rate_pct'] as num?)?.toDouble(),
       );
 }

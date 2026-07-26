@@ -6,6 +6,7 @@ import '../../core/config.dart';
 import '../../models/models.dart';
 import 'profile_screen.dart';
 
+import '../../core/l10n.dart';
 /// فهرستِ کاربران با یک بارگذارِ تزریق‌شده.
 ///
 /// هر چهار اندپوینتِ فهرستیِ social دقیقاً یک شکل برمی‌گردانند، پس به‌جای چهار
@@ -15,12 +16,14 @@ class UserListScreen extends StatefulWidget {
     super.key,
     required this.title,
     required this.loader,
-    this.emptyText = 'کسی اینجا نیست.',
+    // پیش‌فرضِ پارامتر باید ثابتِ زمانِ کامپایل باشد و `tr()` نیست؛ `null`
+    // یعنی «متنِ پیش‌فرض» و هنگامِ ساخت به زبانِ جاری حل می‌شود.
+    this.emptyText,
   });
 
   final String title;
   final Future<List<SocialUser>> Function(ApiClient api) loader;
-  final String emptyText;
+  final String? emptyText;
 
   @override
   State<UserListScreen> createState() => _UserListScreenState();
@@ -60,18 +63,18 @@ class _UserListScreenState extends State<UserListScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('بارگذاری ناموفق بود.\n$_error',
+                  Text(tr('بارگذاری ناموفق بود.\n{0}', [_error]),
                       textAlign: TextAlign.center),
                   const SizedBox(height: 12),
                   FilledButton(
-                      onPressed: _load, child: const Text('تلاشِ دوباره')),
+                      onPressed: _load, child: Text(tr('تلاشِ دوباره'))),
                 ],
               ),
             )
           : users == null
               ? const Center(child: CircularProgressIndicator())
               : users.isEmpty
-                  ? Center(child: Text(widget.emptyText))
+                  ? Center(child: Text(widget.emptyText ?? tr('کسی اینجا نیست.')))
                   : RefreshIndicator(
                       onRefresh: _load,
                       child: ListView.separated(

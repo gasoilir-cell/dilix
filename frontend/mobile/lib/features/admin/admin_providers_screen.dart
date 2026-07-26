@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app.dart';
 import '../../models/models.dart';
 
+import '../../core/l10n.dart';
 /// کنسولِ KYBِ مراکزِ خدمات — `GET /providers/admin/all` و
 /// `POST /providers/{id}/kyb`. سرور نقشِ `admin`/`super_admin` می‌خواهد.
 class AdminProvidersScreen extends StatefulWidget {
@@ -13,7 +14,10 @@ class AdminProvidersScreen extends StatefulWidget {
 }
 
 class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
-  static const _kybLabels = <String, String>{
+  static Map<String, String> get _kybLabels =>
+      _kybLabelsSrc.map((k, v) => MapEntry(k, tr(v)));
+
+  static const _kybLabelsSrc = <String, String>{
     'pending': 'در انتظار',
     'verified': 'تأییدشده',
     'rejected': 'ردشده',
@@ -59,11 +63,11 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
         ];
       });
       messenger.showSnackBar(
-        SnackBar(content: Text('وضعیتِ «${p.legalName}» ثبت شد.')),
+        SnackBar(content: Text(tr('وضعیتِ «{0}» ثبت شد.', [p.legalName]))),
       );
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text('ثبتِ تصمیم ناموفق بود: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('ثبتِ تصمیم ناموفق بود: {0}', [e]))));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -75,18 +79,18 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(status == 'verified' ? 'تأییدِ مرکز' : 'ردِ مرکز'),
+        title: Text(status == 'verified' ? tr('تأییدِ مرکز') : tr('ردِ مرکز')),
         content: TextField(
           controller: ctrl,
           autofocus: true,
-          decoration: const InputDecoration(labelText: 'یادداشت (اختیاری)'),
+          decoration: InputDecoration(labelText: tr('یادداشت (اختیاری)')),
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('انصراف')),
+              onPressed: () => Navigator.pop(ctx), child: Text(tr('انصراف'))),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
-            child: const Text('ثبت'),
+            child: Text(tr('ثبت')),
           ),
         ],
       ),
@@ -96,7 +100,7 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('احرازِ مراکزِ خدمات (KYB)')),
+      appBar: AppBar(title: Text(tr('احرازِ مراکزِ خدمات (KYB)'))),
       body: _body(),
     );
   }
@@ -108,8 +112,8 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
           padding: const EdgeInsets.all(24),
           child: Text(
             _error!.contains('403')
-                ? 'این بخش فقط برای مدیرانِ پلتفرم است.'
-                : 'بارگذاری ممکن نشد.\n$_error',
+                ? tr('این بخش فقط برای مدیرانِ پلتفرم است.')
+                : tr('بارگذاری ممکن نشد.\n{0}', [_error]),
             textAlign: TextAlign.center,
           ),
         ),
@@ -118,7 +122,7 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
     final items = _items;
     if (items == null) return const Center(child: CircularProgressIndicator());
     if (items.isEmpty) {
-      return const Center(child: Text('مرکزی ثبت نشده است.'));
+      return Center(child: Text(tr('مرکزی ثبت نشده است.')));
     }
     return RefreshIndicator(
       onRefresh: _load,
@@ -150,13 +154,11 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
             ],
           ),
           Text(
-            '${p.providerTypeLabel.isEmpty ? p.providerType : p.providerTypeLabel}'
-            ' · ${p.countryFlag}${p.country} · ${p.currency}'
-            ' · کمیسیون ${p.commissionRate}٪',
+            tr('{0} · {1}{2} · {3} · کمیسیون {4}٪', [p.providerTypeLabel.isEmpty ? p.providerType : p.providerTypeLabel, p.countryFlag, p.country, p.currency, p.commissionRate]),
             style: Theme.of(context).textTheme.bodySmall,
           ),
           if (p.productsLabels.isNotEmpty)
-            Text('محصولات: ${p.productsLabels.join('، ')}',
+            Text(tr('محصولات: {0}', [p.productsLabels.join(tr('، '))]),
                 style: Theme.of(context).textTheme.bodySmall),
           if (pending) ...[
             const SizedBox(height: 8),
@@ -165,14 +167,14 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: _busy ? null : () => _decide(p, 'rejected'),
-                    child: const Text('رد'),
+                    child: Text(tr('رد')),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: FilledButton(
                     onPressed: _busy ? null : () => _decide(p, 'verified'),
-                    child: const Text('تأیید'),
+                    child: Text(tr('تأیید')),
                   ),
                 ),
               ],

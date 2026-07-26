@@ -7,6 +7,9 @@ import '../me/me_screen.dart';
 import '../messages/messages_screen.dart';
 import '../services/services_screen.dart';
 
+import '../../core/l10n.dart';
+import '../../core/preferences.dart';
+
 /// پوسته‌ی Super-App با ناوبریِ پایین ۵تایی + دکمه‌ی شناورِ دستیار (سند ۷ §۲).
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -37,22 +40,31 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
+    // خواندنِ زبان از [PreferencesScope] این پوسته را «وابسته» می‌کند؛ وگرنه
+    // `RootGate` پوسته را با نمونهٔ `const` می‌سازد و Flutter بازسازیِ زیردرخت را
+    // رد می‌کند، پس برچسب‌های نوارِ پایین با تعویضِ زبان فارسی می‌مانند.
+    final lang = PreferencesScope.of(context).locale?.languageCode ?? 'fa';
     return Scaffold(
-      body: IndexedStack(index: _index, children: _screens),
+      // صفحه‌های تب‌ها یک‌بار ساخته و در IndexedStack زنده نگه داشته می‌شوند؛
+      // کلیدِ زبان آن‌ها را با تعویضِ زبان از نو می‌سازد (تبِ فعال حفظ می‌شود).
+      body: KeyedSubtree(
+        key: ValueKey(lang),
+        child: IndexedStack(index: _index, children: _screens),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _openAssistant,
-        tooltip: 'دستیار هوشمند',
+        tooltip: tr('دستیار هوشمند'),
         child: const Icon(Icons.auto_awesome),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'خانه'),
-          NavigationDestination(icon: Icon(Icons.public_outlined), selectedIcon: Icon(Icons.public), label: 'کره'),
-          NavigationDestination(icon: Icon(Icons.chat_bubble_outline), selectedIcon: Icon(Icons.chat_bubble), label: 'پیام‌ها'),
-          NavigationDestination(icon: Icon(Icons.grid_view_outlined), selectedIcon: Icon(Icons.grid_view), label: 'خدمات'),
-          NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'من'),
+        destinations: [
+          NavigationDestination(icon: const Icon(Icons.home_outlined), selectedIcon: const Icon(Icons.home), label: tr('خانه')),
+          NavigationDestination(icon: const Icon(Icons.public_outlined), selectedIcon: const Icon(Icons.public), label: tr('کره')),
+          NavigationDestination(icon: const Icon(Icons.chat_bubble_outline), selectedIcon: const Icon(Icons.chat_bubble), label: tr('پیام‌ها')),
+          NavigationDestination(icon: const Icon(Icons.grid_view_outlined), selectedIcon: const Icon(Icons.grid_view), label: tr('خدمات')),
+          NavigationDestination(icon: const Icon(Icons.person_outline), selectedIcon: const Icon(Icons.person), label: tr('من')),
         ],
       ),
     );

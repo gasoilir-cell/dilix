@@ -4,6 +4,7 @@ import 'package:flutter/material.dart' hide Badge;
 import '../../app.dart';
 import '../../models/models.dart';
 
+import '../../core/l10n.dart';
 /// عضویت + گیمیفیکیشن (نشان‌ها) + اعتبار (امتیاز/نظرها).
 /// معادلِ صفحه‌هایِ وبِ `app/membership`, `app/gamification`, `app/reputation`.
 class MembershipScreen extends StatefulWidget {
@@ -16,12 +17,18 @@ class MembershipScreen extends StatefulWidget {
 class _MembershipScreenState extends State<MembershipScreen> {
   static const _plans = ['free', 'standard', 'premium'];
   // برچسب/توضیحِ فارسیِ پلن‌ها — منطبق با PLANS صفحهٔ وب.
-  static const _planLabels = <String, String>{
+  static Map<String, String> get _planLabels =>
+      _planLabelsSrc.map((k, v) => MapEntry(k, tr(v)));
+
+  static const _planLabelsSrc = <String, String>{
     'free': 'رایگان',
     'standard': 'استاندارد',
     'premium': 'ویژه',
   };
-  static const _planDescs = <String, String>{
+  static Map<String, String> get _planDescs =>
+      _planDescsSrc.map((k, v) => MapEntry(k, tr(v)));
+
+  static const _planDescsSrc = <String, String>{
     'free': 'امکاناتِ پایه',
     'standard': 'کش‌بک و مزایای بیشتر',
     'premium': 'بیشترین کش‌بک و اولویت',
@@ -73,7 +80,7 @@ class _MembershipScreenState extends State<MembershipScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'بارگذاریِ عضویت ممکن نشد: $e';
+        _error = tr('بارگذاریِ عضویت ممکن نشد: {0}', [e]);
         _loading = false;
       });
     }
@@ -90,13 +97,13 @@ class _MembershipScreenState extends State<MembershipScreen> {
       if (!mounted) return;
       setState(() {
         _membership = updated;
-        _notice = 'پلن به «$plan» تغییر کرد.';
+        _notice = tr('پلن به «{0}» تغییر کرد.', [plan]);
         _busy = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'تغییرِ پلن ناموفق بود: $e';
+        _error = tr('تغییرِ پلن ناموفق بود: {0}', [e]);
         _busy = false;
       });
     }
@@ -113,13 +120,13 @@ class _MembershipScreenState extends State<MembershipScreen> {
       if (!mounted) return;
       setState(() {
         _membership = updated;
-        _notice = 'عضویت لغو شد و به پلنِ رایگان بازگشتید.';
+        _notice = tr('عضویت لغو شد و به پلنِ رایگان بازگشتید.');
         _busy = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'لغوِ عضویت ناموفق بود: $e';
+        _error = tr('لغوِ عضویت ناموفق بود: {0}', [e]);
         _busy = false;
       });
     }
@@ -134,12 +141,12 @@ class _MembershipScreenState extends State<MembershipScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('عضویت و اعتبار'),
+        title: Text(tr('عضویت و اعتبار')),
         actions: [
           IconButton(
             onPressed: _loading ? null : _load,
             icon: const Icon(Icons.refresh),
-            tooltip: 'تلاشِ مجدد',
+            tooltip: tr('تلاشِ مجدد'),
           ),
         ],
       ),
@@ -187,26 +194,26 @@ class _MembershipScreenState extends State<MembershipScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('عضویتِ فعلی', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(tr('عضویتِ فعلی'), style: const TextStyle(fontWeight: FontWeight.bold)),
                 Chip(label: Text(m?.plan ?? 'free')),
               ],
             ),
             const SizedBox(height: 6),
-            Text('وضعیت: ${m?.status ?? '—'}', style: Theme.of(context).textTheme.bodySmall),
+            Text(tr('وضعیت: {0}', [m?.status ?? '—']), style: Theme.of(context).textTheme.bodySmall),
             Text(
-              'بازگشتِ نقدی: ${((m?.cashbackBps ?? 0) / 100).toStringAsFixed(2)}٪',
+              tr('بازگشتِ نقدی: {0}٪', [((m?.cashbackBps ?? 0) / 100).toStringAsFixed(2)]),
               style: Theme.of(context).textTheme.bodySmall,
             ),
             if (m?.expiresAt != null)
               Text(
-                'انقضا: ${_formatDate(m!.expiresAt!)}',
+                tr('انقضا: {0}', [_formatDate(m!.expiresAt!)]),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             if (m != null && m.plan != 'free') ...[
               const SizedBox(height: 8),
               OutlinedButton(
                 onPressed: _busy ? null : _cancel,
-                child: const Text('لغوِ عضویت'),
+                child: Text(tr('لغوِ عضویت')),
               ),
             ],
           ],
@@ -223,7 +230,7 @@ class _MembershipScreenState extends State<MembershipScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('پلن‌ها', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(tr('پلن‌ها'), style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             ..._plans.map(
               (plan) => Padding(
@@ -244,10 +251,10 @@ class _MembershipScreenState extends State<MembershipScreen> {
                       ),
                     ),
                     plan == current
-                        ? const Chip(label: Text('فعال'))
+                        ? Chip(label: Text(tr('فعال')))
                         : FilledButton.tonal(
                             onPressed: _busy ? null : () => _upgrade(plan),
-                            child: const Text('انتخاب'),
+                            child: Text(tr('انتخاب')),
                           ),
                   ],
                 ),
@@ -266,10 +273,10 @@ class _MembershipScreenState extends State<MembershipScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('نشان‌ها', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(tr('نشان‌ها'), style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             if (_badges.isEmpty)
-              Text('هنوز نشانی کسب نشده است.', style: Theme.of(context).textTheme.bodySmall)
+              Text(tr('هنوز نشانی کسب نشده است.'), style: Theme.of(context).textTheme.bodySmall)
             else
               Wrap(
                 spacing: 8,
@@ -294,10 +301,10 @@ class _MembershipScreenState extends State<MembershipScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('اعتبار', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(tr('اعتبار'), style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             if (_scores.isEmpty)
-              Text('هنوز امتیازِ اعتباری ثبت نشده است.',
+              Text(tr('هنوز امتیازِ اعتباری ثبت نشده است.'),
                   style: Theme.of(context).textTheme.bodySmall)
             else
               ..._scores.map(
@@ -308,7 +315,7 @@ class _MembershipScreenState extends State<MembershipScreen> {
                     children: [
                       Text(s.domain),
                       Text(
-                        '${s.score}/10 · ${s.reviewCount} نظر',
+                        tr('{0}/10 · {1} نظر', [s.score, s.reviewCount]),
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ],
@@ -317,7 +324,7 @@ class _MembershipScreenState extends State<MembershipScreen> {
               ),
             if (_reviews.isNotEmpty) ...[
               const Divider(height: 20),
-              const Text('نظرهای اخیر', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(tr('نظرهای اخیر'), style: const TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
               ..._reviews.take(5).map(
                     (r) => Padding(

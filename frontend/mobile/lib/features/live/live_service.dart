@@ -7,6 +7,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../../core/api_client.dart';
 import '../../models/models.dart';
 
+import '../../core/l10n.dart';
 /// نقشِ من در نشستِ زنده.
 enum LiveRole { idle, host, viewer }
 
@@ -95,7 +96,7 @@ class LiveService extends ChangeNotifier {
         'video': {'facingMode': 'user', 'width': 640, 'height': 480},
       });
     } catch (e) {
-      _error = 'دسترسی به دوربین/میکروفن ممکن نشد.';
+      _error = tr('دسترسی به دوربین/میکروفن ممکن نشد.');
       notifyListeners();
       return false;
     }
@@ -105,7 +106,7 @@ class LiveService extends ChangeNotifier {
       _iceServers = ice.isEmpty ? _fallbackIce : ice;
     } catch (e) {
       await _disposeLocal();
-      _error = 'شروعِ پخش ممکن نشد: $e';
+      _error = tr('شروعِ پخش ممکن نشد: {0}', [e]);
       notifyListeners();
       return false;
     }
@@ -210,7 +211,7 @@ class LiveService extends ChangeNotifier {
     try {
       final info = await _api.liveJoin(sessionId);
       if (info.isHost) {
-        _error = 'این پخشِ خودت است؛ از حالتِ میزبان مدیریتش کن.';
+        _error = tr('این پخشِ خودت است؛ از حالتِ میزبان مدیریتش کن.');
         notifyListeners();
         return false;
       }
@@ -228,8 +229,8 @@ class LiveService extends ChangeNotifier {
       return true;
     } catch (e) {
       _error = '$e'.contains('410')
-          ? 'این پخش پایان یافته است.'
-          : 'پیوستن ممکن نشد: $e';
+          ? tr('این پخش پایان یافته است.')
+          : tr('پیوستن ممکن نشد: {0}', [e]);
       _ended = '$e'.contains('410');
       notifyListeners();
       return false;
@@ -285,7 +286,7 @@ class LiveService extends ChangeNotifier {
         sdp: _desc(local),
       );
     } catch (e) {
-      _error = 'اتصال به پخش برقرار نشد.';
+      _error = tr('اتصال به پخش برقرار نشد.');
       notifyListeners();
     }
   }
@@ -300,7 +301,7 @@ class LiveService extends ChangeNotifier {
       _chat = [..._chat.where((m) => m.id != sent.id), sent];
       notifyListeners();
     } catch (_) {
-      _error = 'ارسالِ پیام ممکن نشد.';
+      _error = tr('ارسالِ پیام ممکن نشد.');
       notifyListeners();
     }
   }
