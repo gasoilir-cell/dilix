@@ -2154,6 +2154,17 @@ class ApiClient {
     return (rates, DateTime.tryParse((j['updated_at'] ?? '') as String));
   }
 
+  /// تازه‌سازیِ دستیِ نرخِ IRR از فیدِ زنده (فقط مدیر). سرور یک حلقهٔ دوره‌ای هم
+  /// دارد؛ این فقط trigger فوری است. خروجی: `(rialPerUsd, updatedAt)` —
+  /// اگر فید مقدارِ معتبری برنگرداند `rialPerUsd` صفر است.
+  Future<(int, DateTime?)> fxRefresh() async {
+    final j = await _post('/api/v1/fx/refresh', const {}) as Map<String, dynamic>;
+    return (
+      ((j['rial_per_usd'] ?? 0) as num).toInt(),
+      DateTime.tryParse((j['updated_at'] ?? '') as String),
+    );
+  }
+
   /// پیش‌فاکتورِ تبدیل، بدونِ اجرا (برای نمایشِ «چقدر می‌گیرم»).
   Future<FxQuote> fxQuote({
     required String from,

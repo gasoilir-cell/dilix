@@ -15,7 +15,9 @@ import '../legal/legal_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../feed/saved_posts_screen.dart';
 import '../social/people_screen.dart';
+import '../social/profile_qr_sheet.dart';
 import '../support/support_screen.dart';
+import '../wallet/holdings_screen.dart' show formatMinor;
 import '../wallet/wallet_screen.dart';
 import 'kyc_screen.dart';
 import 'marketing_network_screen.dart';
@@ -64,6 +66,7 @@ class _MeScreenState extends State<MeScreen> {
   final _otpCodeCtrl = TextEditingController();
   final _social = SocialAuth();
   Identity? _me;
+  bool _fxBusy = false;
   ReferralLink? _referral;
   RewardWallet? _wallet;
   List<NotificationItem> _notifications = const [];
@@ -224,6 +227,25 @@ class _MeScreenState extends State<MeScreen> {
     if (value.isEmpty) return;
     await Clipboard.setData(ClipboardData(text: value));
     _snack('$label کپی شد.');
+  }
+
+  /// trigger دستیِ فیدِ نرخ (فقط مدیر). سرور حلقهٔ دوره‌ای هم دارد، پس این
+  /// فقط برای وقتی است که نرخ باید همین حالا تازه شود.
+  Future<void> _refreshFx() async {
+    setState(() => _fxBusy = true);
+    final api = ApiScope.of(context);
+    try {
+      final (rial, _) = await api.fxRefresh();
+      if (!mounted) return;
+      _snack(rial > 0
+          ? 'نرخِ تازه: هر دلار ${formatMinor(rial, 'IRR', 1)}'
+          : 'فید نرخِ معتبری برنگرداند؛ نرخِ قبلی دست‌نخورده ماند.');
+    } catch (e) {
+      if (!mounted) return;
+      _snack('تازه‌سازیِ نرخ ناموفق بود: $e');
+    } finally {
+      if (mounted) setState(() => _fxBusy = false);
+    }
   }
 
   /// انتخابِ تصویر از گالری و آپلود به‌عنوانِ عکسِ پروفایل.
@@ -756,6 +778,17 @@ class _MeScreenState extends State<MeScreen> {
                   ),
                 ),
                 IconButton(
+                  tooltip: 'کدِ QR پروفایل',
+                  onPressed: (_me?.earthId ?? '').isEmpty
+                      ? null
+                      : () => showProfileQr(
+                            context,
+                            earthId: _me!.earthId,
+                            displayName: name,
+                          ),
+                  icon: const Icon(Icons.qr_code_2),
+                ),
+                IconButton(
                   tooltip: 'ویرایشِ پروفایل',
                   onPressed: _editProfile,
                   icon: const Icon(Icons.edit_outlined),
@@ -1095,6 +1128,19 @@ class _MeScreenState extends State<MeScreen> {
                 MaterialPageRoute<void>(
                     builder: (_) => const InsuranceCommissionsScreen()),
               ),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.currency_exchange_outlined),
+              title: const Text('تازه‌سازیِ نرخِ ارز'),
+              subtitle: const Text('گرفتنِ فوریِ نرخِ ریال از فیدِ زنده'),
+              trailing: _fxBusy
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.refresh),
+              onTap: _fxBusy ? null : _refreshFx,
             ),
           ],
           const Divider(height: 1),
