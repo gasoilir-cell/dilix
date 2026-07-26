@@ -1,0 +1,78 @@
+{
+  "common": {
+    "app_name": "دیلیکس",
+    "loading": "در حال بارگذاری...",
+    "error": "خطایی رخ داد",
+    "retry": "تلاش مجدد",
+    "cancel": "انصراف",
+    "save": "ذخیره",
+    "confirm": "تأیید",
+    "back": "بازگشت",
+    "next": "بعدی",
+    "done": "تمام",
+    "search": "جستجو",
+    "filter": "فیلتر",
+    "all": "همه"
+  },
+  "auth": {
+    "title": "ورود به دیلیکس",
+    "subtitle": "شبکه جهانی حمل‌ونقل",
+    "phone_label": "شماره موبایل",
+    "phone_placeholder": "۰۹۱۲۰۰۰۰۰۰۰",
+    "send_otp": "ارسال کد تأیید",
+    "otp_label": "کد تأیید",
+    "otp_subtitle": "کد ۶ رقمی ارسال‌شده به {phone} را وارد کن",
+    "verify": "ورود",
+    "resend": "ارسال مجدد کد",
+    "resend_countdown": "ارسال مجدد تا {seconds} ثانیه دیگر"
+  },
+  "nav": {
+    "home": "خانه",
+    "earth": "ارث",
+    "messages": "پیام‌ها",
+    "services": "خدمات",
+    "profile": "پروفایل"
+  },
+  "dashboard": {
+    "greeting_morning": "صبح بخیر",
+    "greeting_afternoon": "عصر بخیر",
+    "greeting_evening": "شب بخیر",
+    "wallet_title": "کیف پول",
+    "quick_services": "دسترسی سریع",
+    "recent_activity": "فعالیت‌های اخیر"
+  },
+  "freight": {
+    "title": "باربری",
+    "new": "بار جدید",
+    "origin": "مبدا",
+    "destination": "مقصد",
+    "cargo_type": "نوع کالا",
+    "weight": "وزن",
+    "date": "تاریخ ارسال",
+    "status": {
+      "waiting": "در انتظار راننده",
+      "matched": "راننده تعیین شد",
+      "in_transit": "در مسیر",
+      "delivered": "تحویل داده شد",
+      "cancelled": "لغو شده"
+    }
+  },
+  "wallet": {
+    "title": "کیف پول",
+    "balance": "موجودی",
+    "available": "آزاد",
+    "escrow": "اسکرو",
+    "bonus": "جایزه",
+    "deposit": "شارژ",
+    "withdraw": "برداشت",
+    "transfer": "انتقال"
+  },
+  "profile": {
+    "title": "پروفایل",
+    "kyc_level": "سطح تأیید هویت",
+    "trust_score": "امتیاز اعتماد",
+    "trips": "سفر",
+    "rating": "امتیاز",
+    "logout": "خروج"
+  }
+}

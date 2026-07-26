@@ -1,0 +1,78 @@
+{
+  "common": {
+    "app_name": "Dilix",
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "save": "Save",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "done": "Done",
+    "search": "Search",
+    "filter": "Filter",
+    "all": "All"
+  },
+  "auth": {
+    "title": "Sign in to Dilix",
+    "subtitle": "Global Transport Network",
+    "phone_label": "Phone number",
+    "phone_placeholder": "+1 234 567 8900",
+    "send_otp": "Send verification code",
+    "otp_label": "Verification code",
+    "otp_subtitle": "Enter the 6-digit code sent to {phone}",
+    "verify": "Sign in",
+    "resend": "Resend code",
+    "resend_countdown": "Resend in {seconds}s"
+  },
+  "nav": {
+    "home": "Home",
+    "earth": "Earth",
+    "messages": "Messages",
+    "services": "Services",
+    "profile": "Profile"
+  },
+  "dashboard": {
+    "greeting_morning": "Good morning",
+    "greeting_afternoon": "Good afternoon",
+    "greeting_evening": "Good evening",
+    "wallet_title": "Wallet",
+    "quick_services": "Quick access",
+    "recent_activity": "Recent activity"
+  },
+  "freight": {
+    "title": "Freight",
+    "new": "New shipment",
+    "origin": "Origin",
+    "destination": "Destination",
+    "cargo_type": "Cargo type",
+    "weight": "Weight",
+    "date": "Pickup date",
+    "status": {
+      "waiting": "Waiting for driver",
+      "matched": "Driver assigned",
+      "in_transit": "In transit",
+      "delivered": "Delivered",
+      "cancelled": "Cancelled"
+    }
+  },
+  "wallet": {
+    "title": "Wallet",
+    "balance": "Balance",
+    "available": "Available",
+    "escrow": "Escrow",
+    "bonus": "Bonus",
+    "deposit": "Deposit",
+    "withdraw": "Withdraw",
+    "transfer": "Transfer"
+  },
+  "profile": {
+    "title": "Profile",
+    "kyc_level": "Verification level",
+    "trust_score": "Trust score",
+    "trips": "trips",
+    "rating": "rating",
+    "logout": "Sign out"
+  }
+}

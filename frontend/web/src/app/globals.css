@@ -1,0 +1,420 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── فونت وزیرمتن ─────────────────────────────────────── */
+/* فایلِ واقعیِ وزیرمتن (variable) در /me-fonts موجود است؛ یک face کلِ بازهٔ وزن را پوشش می‌دهد. */
+@font-face {
+  font-family: "Vazirmatn";
+  src: url("/me-fonts/Vazirmatn.woff2") format("woff2");
+  font-weight: 100 900; font-style: normal; font-display: swap;
+}
+
+/* ─── CSS Variables — Dark Mode ─────────────────────────── */
+:root {
+  --font-vazir:      "Vazirmatn", Tahoma, Arial, sans-serif;
+  --color-primary:   #6366F1;
+  --color-secondary: #F97316;
+  --color-accent:    #10B981;
+  --color-ai:        #A855F7;
+  --color-bg:        #0A0A0A;
+  --color-bg-card:   #1C1C1E;
+  --color-border:    rgba(255,255,255,0.1);
+  --color-text:      #FFFFFF;
+  --color-muted:     rgba(255,255,255,0.55);
+  --nav-height:      64px;
+
+  /* سطوح و متنِ کارت‌ها — از inline style ها ارجاع می‌شوند */
+  --surface-1:       #1C1C1E;
+  --chat-canvas:     #0A0A0A;
+  --chat-header:     rgba(10,10,10,0.95);
+  --globe-space:     #080F22;
+  --globe-panel:     rgba(5,12,38,0.78);
+  --globe-card:      rgba(8,16,40,0.98);
+  --globe-drawer:    rgba(5,12,35,0.96);
+  --globe-overlay:   rgba(4,8,22,0.72);
+  --surface-2:       rgba(255,255,255,0.03);
+  --surface-hover:   rgba(255,255,255,0.08);
+  --border-1:        rgba(255,255,255,0.07);
+  --border-soft:     rgba(255,255,255,0.06);
+  --t-1:             rgba(255,255,255,0.9);
+  --t-2:             rgba(255,255,255,0.6);
+  --t-3:             rgba(255,255,255,0.45);
+  --t-4:             rgba(255,255,255,0.3);
+  --t-5:             rgba(255,255,255,0.2);
+}
+
+/* ─── Base ──────────────────────────────────────────────── */
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html {
+    font-family: var(--font-vazir);
+    direction: rtl;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: var(--color-bg);
+    color: var(--color-text);
+    height: 100%;
+    width: 100%;
+  }
+
+  body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    background: var(--color-bg);
+    color: var(--color-text);
+    overscroll-behavior: none;
+    width: 100%;
+  }
+
+  ::-webkit-scrollbar { width:5px; height:5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius:3px; }
+}
+
+/* ─── Components ────────────────────────────────────────── */
+@layer components {
+
+  /* ── Card ──────────────────────────────────────────────── */
+  .card {
+    @apply rounded-2xl p-4;
+    background: #1C1C1E;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+
+  /* ── Buttons ───────────────────────────────────────────── */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5
+           font-semibold text-sm transition-all duration-200 cursor-pointer
+           disabled:opacity-50 disabled:cursor-not-allowed select-none active:scale-95;
+  }
+  .btn-primary {
+    @apply btn text-white;
+    background: linear-gradient(135deg, #6366F1, #818CF8);
+    box-shadow: 0 4px 14px rgba(99,102,241,0.4);
+  }
+  .btn-primary:hover { box-shadow: 0 6px 24px rgba(99,102,241,0.5); }
+
+  .btn-secondary {
+    @apply btn text-white;
+    background: linear-gradient(135deg, #F97316, #FB923C);
+    box-shadow: 0 4px 14px rgba(249,115,22,0.4);
+  }
+  .btn-accent {
+    @apply btn text-white;
+    background: linear-gradient(135deg, #10B981, #34D399);
+    box-shadow: 0 4px 14px rgba(16,185,129,0.35);
+  }
+  .btn-ai {
+    @apply btn text-white;
+    background: linear-gradient(135deg, #A855F7, #C084FC);
+    box-shadow: 0 4px 14px rgba(168,85,247,0.35);
+  }
+  .btn-ghost {
+    @apply btn;
+    background: rgba(255,255,255,0.07);
+    color: rgba(255,255,255,0.8);
+    border: 1px solid rgba(255,255,255,0.14);
+  }
+  .btn-ghost:hover { background: rgba(255,255,255,0.11); }
+  .btn-danger {
+    @apply btn text-white bg-red-500 hover:bg-red-600;
+    box-shadow: 0 4px 14px rgba(239,68,68,0.35);
+  }
+  .btn-outline {
+    @apply btn bg-transparent;
+    border: 1.5px solid #6366F1;
+    color: #818CF8;
+  }
+
+  /* ── Input ─────────────────────────────────────────────── */
+  .input {
+    @apply w-full rounded-xl px-4 py-3 text-sm transition-all duration-200;
+    background: #262626;
+    border: 1.5px solid rgba(255,255,255,0.1);
+    color: #FFFFFF;
+    outline: none;
+  }
+  .input::placeholder { color: rgba(255,255,255,0.3); }
+  .input:focus {
+    border-color: #6366F1;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.18);
+    background: #2C2C2E;
+  }
+
+  /* ── App header (نوارِ بالای برنامه) ─────────────────────── */
+  .app-header {
+    background: rgba(10,10,10,0.92);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-bottom: 1px solid rgba(255,255,255,0.09);
+  }
+  .app-header-icon { color: rgba(255,255,255,0.55); }
+  .app-header-icon:hover { color: rgba(255,255,255,0.85); }
+
+  /* ── BottomNav ──────────────────────────────────────────── */
+  .bottom-nav {
+    @apply fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around px-1;
+    background: rgba(10,10,10,0.94);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-top: 1px solid rgba(255,255,255,0.09);
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 6px);
+    padding-top: 8px;
+    height: var(--nav-height);
+  }
+  .bottom-nav-item {
+    @apply flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl cursor-pointer
+           transition-all duration-200 select-none;
+    color: rgba(255,255,255,0.32);
+    min-width: 52px;
+  }
+  .bottom-nav-item.active { color: #6366F1; }
+
+  /* ── Badge ──────────────────────────────────────────────── */
+  .badge { @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold; }
+  .badge-primary { @apply badge; background: rgba(99,102,241,0.2);  color: #818CF8; }
+  .badge-success { @apply badge; background: rgba(16,185,129,0.2);  color: #34D399; }
+  .badge-warning { @apply badge; background: rgba(245,158,11,0.2);  color: #FCD34D; }
+  .badge-error   { @apply badge; background: rgba(244,63,94,0.2);   color: #FB7185; }
+  .badge-ai      { @apply badge; background: rgba(168,85,247,0.2);  color: #C084FC; }
+
+  /* ── Page containers ────────────────────────────────────── */
+  .page       { @apply min-h-screen pb-24 px-4 pt-4; }
+  .page-inner { @apply px-4 pt-4 pb-6; }
+
+  /* ── Section title ──────────────────────────────────────── */
+  .section-title { @apply text-base font-bold mb-3; color: #FFFFFF; }
+
+  /* ── Shimmer ────────────────────────────────────────────── */
+  .shimmer {
+    background: linear-gradient(90deg, #1C1C1E 0%, #2C2C2E 50%, #1C1C1E 100%);
+    background-size: 200% 100%;
+    @apply animate-shimmer;
+  }
+}
+
+/* ─── Utilities ─────────────────────────────────────────── */
+@layer utilities {
+  .text-gradient-primary {
+    background: linear-gradient(135deg, #6366F1, #A855F7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .text-gradient-brand {
+    background: linear-gradient(135deg, #6366F1, #F97316);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .bg-gradient-brand {
+    background: linear-gradient(135deg, #6366F1 0%, #A855F7 50%, #F97316 100%);
+  }
+
+  .pb-safe  { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .pt-safe  { padding-top:    env(safe-area-inset-top,    0px); }
+  .rtl      { direction: rtl; }
+  .ltr      { direction: ltr; }
+  .no-scrollbar { -ms-overflow-style:none; scrollbar-width:none; }
+  .no-scrollbar::-webkit-scrollbar { display:none; }
+}
+
+
+/* Reels — پالسِ قلبِ double-tap */
+@keyframes ping-once {
+  0%   { transform: scale(0.4); opacity: 0.85; }
+  60%  { transform: scale(1.15); opacity: 0.9; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+.animate-ping-once { animation: ping-once 0.7s cubic-bezier(0.2, 0.7, 0.3, 1) forwards; }
+
+/* ─── ME-Editor fonts (فونت‌های ویرایشگرِ رسانه) ───────── */
+@font-face { font-family: "MEVazir";   src: url("/me-fonts/Vazirmatn.woff2")  format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "MEKufi";    src: url("/me-fonts/ReemKufi.woff2")   format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "MEMarkazi"; src: url("/me-fonts/MarkaziText.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "MEGulzar";  src: url("/me-fonts/Gulzar.woff2")      format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "MEAmiri";   src: url("/me-fonts/Amiri.woff2")       format("woff2"); font-weight: 700; font-display: swap; }
+
+/* ═══════════════════════════════════════════════════════════
+   حالتِ روز (Light Mode) — با کلاسِ `light` روی <html> (next-themes)
+   پیش‌فرضِ برنامه «تیره» است؛ استایل‌های زیر فقط وقتی کاربر روشن را
+   انتخاب کند اعمال می‌شوند و پالتِ dark-firstِ ابزارها را بازنگاشت می‌کنند.
+   ═══════════════════════════════════════════════════════════ */
+.light {
+  --color-bg:        #F8FAFC;
+  --color-bg-card:   #FFFFFF;
+  --color-border:    rgba(15,23,42,0.10);
+  --color-text:      #0F172A;
+  --color-muted:     rgba(15,23,42,0.55);
+
+  /* کارت‌ها در حالتِ روز پسته‌ایِ روشن (نه سفیدِ خام) با متنِ تیرهٔ خوانا */
+  --surface-1:       #EAF2E9;
+  --chat-canvas:     #EDEFF3;
+  --chat-header:     rgba(255,255,255,0.92);
+  --globe-space:     #EDEFF3;
+  --globe-panel:     rgba(255,255,255,0.85);
+  --globe-card:      rgba(255,255,255,0.98);
+  --globe-drawer:    rgba(255,255,255,0.96);
+  --globe-overlay:   rgba(15,23,42,0.35);
+  --surface-2:       rgba(15,23,42,0.03);
+  --surface-hover:   rgba(15,23,42,0.06);
+  --border-1:        rgba(15,23,42,0.08);
+  --border-soft:     rgba(15,23,42,0.06);
+  --t-1:             rgba(15,23,42,0.9);
+  --t-2:             rgba(15,23,42,0.65);
+  --t-3:             rgba(15,23,42,0.5);
+  --t-4:             rgba(15,23,42,0.4);
+  --t-5:             rgba(15,23,42,0.3);
+  color-scheme: light;
+}
+
+/* ── متن‌های سفید → تیره ─────────────────────────────────── */
+.light .text-white          { color: #0F172A !important; }
+.light .text-white\/90      { color: rgba(15,23,42,0.90) !important; }
+.light .text-white\/85      { color: rgba(15,23,42,0.85) !important; }
+.light .text-white\/80      { color: rgba(15,23,42,0.80) !important; }
+.light .text-white\/70      { color: rgba(15,23,42,0.68) !important; }
+.light .text-white\/60      { color: rgba(15,23,42,0.58) !important; }
+.light .text-white\/55      { color: rgba(15,23,42,0.53) !important; }
+.light .text-white\/50      { color: rgba(15,23,42,0.50) !important; }
+.light .text-white\/45      { color: rgba(15,23,42,0.48) !important; }
+.light .text-white\/40      { color: rgba(15,23,42,0.42) !important; }
+.light .text-white\/35      { color: rgba(15,23,42,0.40) !important; }
+.light .text-white\/30      { color: rgba(15,23,42,0.36) !important; }
+.light .text-white\/25      { color: rgba(15,23,42,0.32) !important; }
+.light .text-white\/20      { color: rgba(15,23,42,0.28) !important; }
+.light .text-white\/15      { color: rgba(15,23,42,0.24) !important; }
+
+/* ── placeholderهای سفید → تیرهٔ ملایمِ خوانا ────────────── */
+.light .placeholder-white\/20::placeholder { color: rgba(15,23,42,0.35) !important; }
+.light .placeholder-white\/25::placeholder { color: rgba(15,23,42,0.38) !important; }
+.light .placeholder-white\/30::placeholder { color: rgba(15,23,42,0.40) !important; }
+
+/* ── متن‌های surface روشن → تیره ─────────────────────────── */
+.light .text-surface-100    { color: #0F172A !important; }
+.light .text-surface-200    { color: #1E293B !important; }
+.light .text-surface-300    { color: #334155 !important; }
+.light .text-surface-400    { color: #64748B !important; }
+.light .text-surface-500    { color: #475569 !important; }
+
+/* ── پس‌زمینه‌های surface تیره → روشن ────────────────────── */
+.light .bg-surface-900      { background-color: #FFFFFF !important; }
+.light .bg-surface-800      { background-color: #F1F5F9 !important; }
+.light .bg-surface-700      { background-color: #E2E8F0 !important; }
+.light .bg-surface-800\/30  { background-color: rgba(15,23,42,0.04) !important; }
+.light .bg-surface-800\/40  { background-color: rgba(15,23,42,0.045) !important; }
+.light .bg-surface-800\/50  { background-color: rgba(15,23,42,0.05) !important; }
+.light .bg-surface-800\/60  { background-color: rgba(15,23,42,0.06) !important; }
+
+/* ── گرادیانِ کارتِ پروفایل و کارت‌های تیره → روشن ─────────
+   کلاس‌های گرادیانِ Tailwind (from و to) متغیرهای رنگ را ست می‌کنند و
+   با بازنگاشتِ bg پوشش داده نمی‌شوند؛ این‌جا مستقیم بازتعریف می‌شوند. */
+.light .from-primary-900\/60 {
+  --tw-gradient-from: rgba(99,102,241,0.10) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to:   rgba(99,102,241,0)    var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+.light .from-violet-900\/20 {
+  --tw-gradient-from: rgba(168,85,247,0.08) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to:   rgba(168,85,247,0)    var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+.light .to-surface-900 { --tw-gradient-to: #F8FAFC var(--tw-gradient-to-position) !important; }
+
+/* ── مرزهای surface تیره → روشن ──────────────────────────── */
+.light .border-surface-600  { border-color: #CBD5E1 !important; }
+.light .border-surface-700  { border-color: #E2E8F0 !important; }
+.light .border-surface-800  { border-color: #E2E8F0 !important; }
+.light .border-surface-900  { border-color: #E2E8F0 !important; }
+
+/* ── هاله‌های نیمه‌شفافِ سفید (سطوح) → تیرهٔ ملایم ────────── */
+.light .bg-white\/5         { background-color: rgba(15,23,42,0.04) !important; }
+.light .bg-white\/8         { background-color: rgba(15,23,42,0.05) !important; }
+.light .bg-white\/10        { background-color: rgba(15,23,42,0.06) !important; }
+.light .bg-white\/12        { background-color: rgba(15,23,42,0.06) !important; }
+.light .bg-white\/15        { background-color: rgba(15,23,42,0.07) !important; }
+.light .bg-white\/20        { background-color: rgba(15,23,42,0.08) !important; }
+.light .bg-white\/25        { background-color: rgba(15,23,42,0.09) !important; }
+.light .bg-white\/\[0\.03\] { background-color: rgba(15,23,42,0.03) !important; }
+.light .bg-white\/\[0\.04\] { background-color: rgba(15,23,42,0.04) !important; }
+.light .bg-white\/\[0\.06\] { background-color: rgba(15,23,42,0.05) !important; }
+.light .bg-white\/\[0\.07\] { background-color: rgba(15,23,42,0.05) !important; }
+
+/* ── مرزهای نیمه‌شفافِ سفید → تیرهٔ ملایم ────────────────── */
+.light .border-white\/5     { border-color: rgba(15,23,42,0.06) !important; }
+.light .border-white\/8     { border-color: rgba(15,23,42,0.08) !important; }
+.light .border-white\/10    { border-color: rgba(15,23,42,0.10) !important; }
+.light .border-white\/15    { border-color: rgba(15,23,42,0.12) !important; }
+.light .border-white\/20    { border-color: rgba(15,23,42,0.14) !important; }
+.light .border-white\/25    { border-color: rgba(15,23,42,0.15) !important; }
+.light .border-white\/30    { border-color: rgba(15,23,42,0.16) !important; }
+
+/* ── پس‌زمینه‌های هگزِ تیرهٔ ثابت → معادلِ روشن ──────────── */
+.light .bg-\[\#0A0A0A\]     { background-color: #F8FAFC !important; }
+.light .bg-\[\#0c0c0c\]     { background-color: #F8FAFC !important; }
+.light .bg-\[\#111214\]     { background-color: #F8FAFC !important; }
+.light .bg-\[\#141414\]     { background-color: #FFFFFF !important; }
+.light .bg-\[\#1C1C1E\]     { background-color: #FFFFFF !important; }
+.light .bg-\[\#1b1b1b\]     { background-color: #FFFFFF !important; }
+.light .bg-\[\#262626\]     { background-color: #F1F5F9 !important; }
+.light .bg-\[\#2C2C2E\]     { background-color: #E2E8F0 !important; }
+.light .bg-\[\#2A2A2E\]     { background-color: #E2E8F0 !important; }
+.light .bg-\[\#3A3A3C\]     { background-color: #CBD5E1 !important; }
+.light .bg-\[rgba\(10\,10\,10\,0\.95\)\] { background-color: rgba(255,255,255,0.95) !important; }
+.light .bg-\[\#1a2733\]     { background-color: #E2E8F0 !important; }
+
+/* ── کلاس‌های کامپوننتیِ سفارشی ──────────────────────────── */
+.light .card {
+  background: #FFFFFF;
+  border: 1px solid rgba(15,23,42,0.08);
+  box-shadow: 0 1px 3px rgba(15,23,42,0.06);
+}
+.light .input {
+  background: #F1F5F9;
+  border: 1.5px solid rgba(15,23,42,0.12);
+  color: #0F172A;
+}
+.light .input::placeholder { color: rgba(15,23,42,0.38); }
+.light .input:focus { background: #FFFFFF; border-color: #6366F1; }
+.light .btn-ghost {
+  background: rgba(15,23,42,0.05);
+  color: #334155;
+  border: 1px solid rgba(15,23,42,0.12);
+}
+.light .btn-ghost:hover { background: rgba(15,23,42,0.09); }
+.light .bottom-nav {
+  background: rgba(255,255,255,0.92);
+  border-top: 1px solid rgba(15,23,42,0.08);
+}
+.light .bottom-nav-item { color: rgba(15,23,42,0.4); }
+.light .app-header {
+  background: rgba(255,255,255,0.92);
+  border-bottom: 1px solid rgba(15,23,42,0.08);
+}
+.light .app-header-icon { color: rgba(15,23,42,0.55); }
+.light .app-header-icon:hover { color: rgba(15,23,42,0.85); }
+.light .section-title { color: #0F172A; }
+.light .shimmer {
+  background: linear-gradient(90deg, #F1F5F9 0%, #E2E8F0 50%, #F1F5F9 100%);
+  background-size: 200% 100%;
+}
+.light ::-webkit-scrollbar-thumb { background: rgba(15,23,42,0.22); }
+
+/* ── چت در حالتِ روز: متنِ حباب‌های «من» روی رنگِ لهجه سفید بماند ── */
+.light .bubble-mine, .light .bubble-mine .text-white { color:#fff !important; }
+.light .bubble-mine .text-white\/90 { color:rgba(255,255,255,0.90)!important; }
+.light .bubble-mine .text-white\/80 { color:rgba(255,255,255,0.80)!important; }
+.light .bubble-mine .text-white\/70 { color:rgba(255,255,255,0.72)!important; }
+.light .bubble-mine .text-white\/60 { color:rgba(255,255,255,0.65)!important; }
+.light .bubble-mine .text-white\/50 { color:rgba(255,255,255,0.60)!important; }
+.light .bubble-mine .text-white\/45 { color:rgba(255,255,255,0.60)!important; }
+.light .bubble-mine .text-white\/40 { color:rgba(255,255,255,0.58)!important; }
+.light .bubble-mine .text-white\/30 { color:rgba(255,255,255,0.55)!important; }
+.light .bubble-mine .text-white\/20 { color:rgba(255,255,255,0.50)!important; }
+.light .bubble-mine .text-white\/15 { color:rgba(255,255,255,0.45)!important; }
+/* آیکون/متنِ سفید روی دکمه‌های ایندیگوی چت در حالتِ روز حفظ شود */
+.light .chat-scope .bg-indigo-600 .text-white,
+.light .chat-scope .bg-indigo-500 .text-white,
+.light .chat-scope .bg-indigo-600.text-white { color:#fff !important; }
