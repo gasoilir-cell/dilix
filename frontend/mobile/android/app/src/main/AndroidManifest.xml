@@ -45,8 +45,10 @@
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="https"/>
+                <!-- ⚠ فقط dilix.ir. www.dilix.ir عمداً اینجا نیست: رکوردِ DNS ندارد و
+                     اندروید اگر **یکی** از میزبان‌های یک فیلترِ autoVerify تأیید نشود،
+                     کلِ فیلتر را تأییدنشده می‌گذارد و همهٔ لینک‌ها به مرورگر برمی‌گردند. -->
                 <data android:host="dilix.ir"/>
-                <data android:host="www.dilix.ir"/>
                 <data android:pathPrefix="/join"/>
                 <data android:pathPrefix="/pay/"/>
                 <data android:pathPrefix="/earth"/>
