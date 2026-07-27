@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   Truck, Shield, Globe2, Wallet, Bot, FileText,
   ChevronLeft, Zap, Lock, Package, Receipt, BarChart3, Store,
+  Blocks, Megaphone,
 } from "lucide-react";
 import AppShell from "@/components/layout/AppShell";
 import { useAuthStore } from "@/store/auth";
@@ -96,6 +97,28 @@ const SERVICES: Service[] = [
     color: "text-orange-400",
     bg: "bg-orange-500/8",
     border: "border-orange-500/20",
+    badge: "new",
+  },
+  {
+    id: "miniapps",
+    href: "/miniapps",
+    icon: Blocks,
+    label: "svc.miniapps.l",
+    description: "svc.miniapps.d",
+    color: "text-teal-400",
+    bg: "bg-teal-500/8",
+    border: "border-teal-500/20",
+    badge: "new",
+  },
+  {
+    id: "ads",
+    href: "/ads",
+    icon: Megaphone,
+    label: "svc.ads.l",
+    description: "svc.ads.d",
+    color: "text-pink-400",
+    bg: "bg-pink-500/8",
+    border: "border-pink-500/20",
     badge: "new",
   },
   {

@@ -26,13 +26,20 @@ async def get_or_create_wallet(db: AsyncSession, user_id) -> Wallet:
 
 async def move_money(db: AsyncSession, from_id, to_id, amount: int,
                      out_desc: str, in_desc: str,
-                     reference_id: str | None = None) -> None:
+                     reference_id: str | None = None,
+                     fee: int = 0, fee_desc: str | None = None) -> None:
     """جابه‌جاییِ اتمیکِ پول بینِ دو کیف‌پول + دو ردیفِ تراکنش (بدونِ commit).
 
     هر دو ردیف در **یک** کوئری و با ترتیبِ ثابتِ `id` قفل می‌شوند: بدونِ قفل، دو
     درخواستِ هم‌زمان هر دو همان موجودی را می‌خوانند و خرجِ دوباره ممکن می‌شود؛ و
     اگر جداگانه قفل شوند، دو انتقالِ متقابل به بن‌بست (deadlock) می‌خورند.
+
+    `fee` کارمزدِ پلتفرم است: پرداخت‌کننده **کلِ** `amount` را می‌دهد و گیرنده
+    `amount - fee` می‌گیرد. با همان معناشناسیِ `release_escrow` تا جریانِ
+    مستقیم و جریانِ امانی دو تعریفِ متفاوت از کارمزد پیدا نکنند.
     """
+    if fee < 0 or fee > amount:
+        raise HTTPException(status_code=500, detail="کارمزدِ نامعتبر")
     await get_or_create_wallet(db, from_id)
     await get_or_create_wallet(db, to_id)
 
@@ -61,14 +68,23 @@ async def move_money(db: AsyncSession, from_id, to_id, amount: int,
         description=out_desc,
     ))
 
+    net = amount - fee
     before_in = rw.balance_available
-    rw.balance_available += amount
+    rw.balance_available += net
     db.add(WalletTransaction(
         wallet_id=rw.id, type="transfer_in", status="completed",
-        amount=amount, balance_before=before_in, balance_after=rw.balance_available,
+        amount=net, balance_before=before_in, balance_after=rw.balance_available,
         reference_id=reference_id,
         description=in_desc,
     ))
+    if fee > 0:
+        db.add(WalletTransaction(
+            wallet_id=rw.id, type="fee", status="completed",
+            amount=fee, balance_before=rw.balance_available,
+            balance_after=rw.balance_available,
+            reference_id=reference_id,
+            description=fee_desc or "کارمزدِ پلتفرم",
+        ))
     await db.flush()
 
 
@@ -147,6 +163,28 @@ async def release_escrow(db: AsyncSession, from_id, to_id, amount: int,
             reference_id=reference_id,
             description=fee_desc or "کارمزدِ پلتفرم",
         ))
+    await db.flush()
+
+
+async def spend_escrow(db: AsyncSession, user_id, amount: int,
+                       description: str, reference_id: str | None = None) -> None:
+    """مصرفِ بخشی از وجهِ بلوکه به سودِ پلتفرم (بدونِ گیرندهٔ کاربر).
+
+    برای بودجه‌ای است که کاربر از پیش بلوکه کرده و به‌تدریج خرج می‌شود
+    (تبلیغات). چون گیرنده کاربر نیست، تنها ردیفِ `fee` ثبت می‌شود و
+    `balance_available` دست نمی‌خورد — پول هنگامِ بلوک از آن کم شده بود.
+
+    مانندِ `release_escrow`، صداکننده باید سقف را **پیش از** فراخوانی تضمین
+    کند؛ اینجا فقط `balance_escrow` را می‌کاهد و منفی نمی‌کند.
+    """
+    w = await _locked_wallet(db, user_id)
+    w.balance_escrow = max(0, (w.balance_escrow or 0) - amount)
+    db.add(WalletTransaction(
+        wallet_id=w.id, type="fee", status="completed",
+        amount=amount, balance_before=w.balance_available,
+        balance_after=w.balance_available,
+        reference_id=reference_id, description=description,
+    ))
     await db.flush()
 
 

@@ -2766,4 +2766,175 @@ class ApiClient {
   Future<ShopOrder> cancelOrder(String id) async => ShopOrder.fromJson(
       await _post('/api/v1/shop/orders/$id/cancel', null)
           as Map<String, dynamic>);
+
+  // ─── برنامه‌های کوچک (Mini Program SDK) ───────────────────────────────────
+
+  /// ویترین — فقط برنامه‌های تأییدشده.
+  Future<List<MiniApp>> miniApps({String? q, String? category}) async {
+    final qp = <String>[];
+    if (q != null && q.isNotEmpty) qp.add('q=${Uri.encodeQueryComponent(q)}');
+    if (category != null && category.isNotEmpty) {
+      qp.add('category=${Uri.encodeQueryComponent(category)}');
+    }
+    final suffix = qp.isEmpty ? '' : '?${qp.join('&')}';
+    return ((await _get('/api/v1/miniapps$suffix')) as List)
+        .map((e) => MiniApp.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// برنامه‌های ساختهٔ خودم — شاملِ پیش‌نویس و ردشده.
+  Future<List<MiniApp>> myMiniApps() async =>
+      ((await _get('/api/v1/miniapps/mine')) as List)
+          .map((e) => MiniApp.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  Future<List<MiniApp>> installedMiniApps() async =>
+      ((await _get('/api/v1/miniapps/installed')) as List)
+          .map((e) => MiniApp.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  Future<MiniApp> miniApp(String appId) async => MiniApp.fromJson(
+      await _get('/api/v1/miniapps/$appId') as Map<String, dynamic>);
+
+  /// کلیدِ مخفی **فقط** در همین پاسخ برمی‌گردد؛ بعد از آن تنها هشش را داریم.
+  Future<MiniApp> createMiniApp({
+    required String name,
+    required String entryUrl,
+    String? tagline,
+    String? description,
+    String? iconUrl,
+    String category = 'other',
+    List<String> scopes = const ['profile'],
+  }) async =>
+      MiniApp.fromJson(await _post('/api/v1/miniapps', {
+        'name': name,
+        'entry_url': entryUrl,
+        'category': category,
+        'scopes': scopes,
+        if (tagline != null && tagline.isNotEmpty) 'tagline': tagline,
+        if (description != null && description.isNotEmpty)
+          'description': description,
+        if (iconUrl != null && iconUrl.isNotEmpty) 'icon_url': iconUrl,
+      }) as Map<String, dynamic>);
+
+  /// تغییرِ ماهوی (نشانیِ ورود یا دسترسی‌ها) برنامهٔ تأییدشده را به بازبینی
+  /// برمی‌گرداند — وگرنه می‌شد پس از تأیید مقصد را عوض کرد.
+  Future<MiniApp> updateMiniApp(String appId, Map<String, dynamic> body) async =>
+      MiniApp.fromJson(await _patch('/api/v1/miniapps/$appId', body)
+          as Map<String, dynamic>);
+
+  Future<MiniApp> submitMiniApp(String appId) async => MiniApp.fromJson(
+      await _post('/api/v1/miniapps/$appId/submit', null)
+          as Map<String, dynamic>);
+
+  /// چرخشِ کلید: کلیدِ تازه برمی‌گردد و کلیدِ پیشین همان‌جا می‌میرد.
+  Future<String> rotateMiniAppSecret(String appId) async {
+    final r = await _post('/api/v1/miniapps/$appId/secret', null)
+        as Map<String, dynamic>;
+    return (r['app_secret'] ?? '') as String;
+  }
+
+  /// نصب = رضایتِ صریح به دسترسی‌ها. `scopes` خالی یعنی همهٔ خواسته‌شده‌ها.
+  Future<MiniApp> installMiniApp(String appId, {List<String>? scopes}) async =>
+      MiniApp.fromJson(await _post('/api/v1/miniapps/$appId/install', {
+        if (scopes != null) 'scopes': scopes,
+      }) as Map<String, dynamic>);
+
+  Future<void> uninstallMiniApp(String appId) =>
+      _delete('/api/v1/miniapps/$appId/install');
+
+  /// کدِ یک‌بارمصرفِ ورود؛ هر اجرا کدِ پیشین را باطل می‌کند.
+  Future<MiniAppLaunch> launchMiniApp(String appId) async =>
+      MiniAppLaunch.fromJson(await _post('/api/v1/miniapps/$appId/launch', null)
+          as Map<String, dynamic>);
+
+  Future<List<MiniAppPayment>> pendingMiniAppPayments() async =>
+      ((await _get('/api/v1/miniapps/payments/pending')) as List)
+          .map((e) => MiniAppPayment.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  Future<MiniAppPayment> confirmMiniAppPayment(String ref) async =>
+      MiniAppPayment.fromJson(
+          await _post('/api/v1/miniapps/payments/$ref/confirm', null)
+              as Map<String, dynamic>);
+
+  Future<MiniAppPayment> cancelMiniAppPayment(String ref) async =>
+      MiniAppPayment.fromJson(
+          await _post('/api/v1/miniapps/payments/$ref/cancel', null)
+              as Map<String, dynamic>);
+
+  // ─── تبلیغاتِ خودخدمت (Ads) ───────────────────────────────────────────────
+
+  Future<List<AdCampaign>> adCampaigns() async =>
+      ((await _get('/api/v1/ads/campaigns')) as List)
+          .map((e) => AdCampaign.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  Future<AdCampaign> adCampaign(String id) async => AdCampaign.fromJson(
+      await _get('/api/v1/ads/campaigns/$id') as Map<String, dynamic>);
+
+  /// ساخت پولی برنمی‌دارد؛ کمپین پیش‌نویس است تا فعال‌سازی.
+  Future<AdCampaign> createAdCampaign({
+    required String title,
+    required String targetUrl,
+    required int bidCpc,
+    required int budgetTotal,
+    String placement = 'feed',
+    String? body,
+    String? imageUrl,
+    String? cta,
+    List<String>? targetCountries,
+    DateTime? endsAt,
+  }) async =>
+      AdCampaign.fromJson(await _post('/api/v1/ads/campaigns', {
+        'title': title,
+        'target_url': targetUrl,
+        'bid_cpc': bidCpc,
+        'budget_total': budgetTotal,
+        'placement': placement,
+        if (body != null && body.isNotEmpty) 'body': body,
+        if (imageUrl != null && imageUrl.isNotEmpty) 'image_url': imageUrl,
+        if (cta != null && cta.isNotEmpty) 'cta': cta,
+        if (targetCountries != null && targetCountries.isNotEmpty)
+          'target_countries': targetCountries,
+        if (endsAt != null) 'ends_at': endsAt.toUtc().toIso8601String(),
+      }) as Map<String, dynamic>);
+
+  Future<AdCampaign> updateAdCampaign(
+          String id, Map<String, dynamic> body) async =>
+      AdCampaign.fromJson(
+          await _patch('/api/v1/ads/campaigns/$id', body)
+              as Map<String, dynamic>);
+
+  /// فعال‌سازی = بلوکهٔ بودجهٔ باقی‌مانده از کیفِ پول.
+  Future<AdCampaign> activateAdCampaign(String id) async => AdCampaign.fromJson(
+      await _post('/api/v1/ads/campaigns/$id/activate', null)
+          as Map<String, dynamic>);
+
+  /// توقف = بازگشتِ بودجهٔ خرج‌نشده به موجودیِ در دسترس.
+  Future<AdCampaign> pauseAdCampaign(String id) async => AdCampaign.fromJson(
+      await _post('/api/v1/ads/campaigns/$id/pause', null)
+          as Map<String, dynamic>);
+
+  Future<AdCampaign> stopAdCampaign(String id) async => AdCampaign.fromJson(
+      await _post('/api/v1/ads/campaigns/$id/stop', null)
+          as Map<String, dynamic>);
+
+  Future<AdStats> adCampaignStats(String id) async => AdStats.fromJson(
+      await _get('/api/v1/ads/campaigns/$id/stats') as Map<String, dynamic>);
+
+  /// انتخابِ تبلیغ برای یک جایگاه. نمایشِ تکراریِ همان کمپین برای همان کاربر
+  /// در همان روز شمرده نمی‌شود، پس عدد یعنی دسترسیِ یکتای روزانه.
+  Future<List<AdCreative>> serveAds({
+    String placement = 'feed',
+    int limit = 1,
+  }) async =>
+      ((await _get('/api/v1/ads/serve?placement=$placement&limit=$limit'))
+              as List)
+          .map((e) => AdCreative.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  Future<AdClickResult> clickAd(String campaignId) async =>
+      AdClickResult.fromJson(await _post('/api/v1/ads/$campaignId/click', null)
+          as Map<String, dynamic>);
 }

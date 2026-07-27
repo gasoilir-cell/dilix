@@ -3862,3 +3862,367 @@ class ShopOrder {
         canCancel: (j['can_cancel'] ?? false) as bool,
       );
 }
+
+// ─── برنامه‌های کوچک و تبلیغات (فاز ۴) ───────────────────────────────────────
+
+/// یک برنامهٔ کوچکِ شخصِ ثالث. `entryUrl` فقط به سازنده و نصب‌کننده داده
+/// می‌شود؛ کاربرِ عادی در ویترین آن را نمی‌بیند.
+class MiniApp {
+  const MiniApp({
+    required this.appId,
+    required this.name,
+    required this.category,
+    required this.scopes,
+    required this.status,
+    required this.statusLabel,
+    required this.installCount,
+    required this.openCount,
+    required this.ownerEarthId,
+    required this.createdAt,
+    this.tagline,
+    this.description,
+    this.iconUrl,
+    this.entryUrl,
+    this.reviewNote,
+    this.ownerName,
+    this.isMine = false,
+    this.isInstalled = false,
+    this.installedScopes = const [],
+    this.needsReconsent = false,
+    this.appSecret,
+  });
+
+  final String appId;
+  final String name;
+  final String? tagline;
+  final String? description;
+  final String? iconUrl;
+  final String? entryUrl;
+  final String category;
+  final List<String> scopes;
+  final String status;
+  final String statusLabel;
+  final String? reviewNote;
+  final int installCount;
+  final int openCount;
+  final String ownerEarthId;
+  final String? ownerName;
+  final bool isMine;
+  final bool isInstalled;
+  final List<String> installedScopes;
+
+  /// برنامه دسترسیِ تازه‌ای خواسته که کاربر هنوز نداده — باید دوباره رضایت
+  /// گرفته شود، نه اینکه بی‌صدا اجرا شود.
+  final bool needsReconsent;
+  final DateTime createdAt;
+
+  /// فقط در پاسخِ ساخت و چرخشِ کلید پر است؛ سرور جز هشِ آن چیزی نگه نمی‌دارد.
+  final String? appSecret;
+
+  bool get isApproved => status == 'approved';
+  bool get canSubmit => isMine && (status == 'draft' || status == 'rejected');
+
+  static List<String> _strings(Object? v) =>
+      (v as List?)?.map((e) => e as String).toList() ?? const [];
+
+  factory MiniApp.fromJson(Map<String, dynamic> j) => MiniApp(
+        appId: (j['app_id'] ?? '') as String,
+        name: (j['name'] ?? '') as String,
+        tagline: j['tagline'] as String?,
+        description: j['description'] as String?,
+        iconUrl: j['icon_url'] as String?,
+        entryUrl: j['entry_url'] as String?,
+        category: (j['category'] ?? 'other') as String,
+        scopes: _strings(j['scopes']),
+        status: (j['status'] ?? 'draft') as String,
+        statusLabel: (j['status_label'] ?? '') as String,
+        reviewNote: j['review_note'] as String?,
+        installCount: (j['install_count'] ?? 0) as int,
+        openCount: (j['open_count'] ?? 0) as int,
+        ownerEarthId: (j['owner_earth_id'] ?? '') as String,
+        ownerName: j['owner_name'] as String?,
+        isMine: (j['is_mine'] ?? false) as bool,
+        isInstalled: (j['is_installed'] ?? false) as bool,
+        installedScopes: _strings(j['installed_scopes']),
+        needsReconsent: (j['needs_reconsent'] ?? false) as bool,
+        createdAt: DateTime.parse(j['created_at'] as String).toLocal(),
+        appSecret: j['app_secret'] as String?,
+      );
+}
+
+/// نتیجهٔ اجرا: نشانیِ ورود همراهِ کدِ یک‌بارمصرف. کد کوتاه‌عمر است و هر اجرا
+/// کدِ پیشین را باطل می‌کند.
+class MiniAppLaunch {
+  const MiniAppLaunch({
+    required this.appId,
+    required this.url,
+    required this.code,
+    required this.expiresIn,
+  });
+
+  final String appId;
+  final String url;
+  final String code;
+  final int expiresIn;
+
+  factory MiniAppLaunch.fromJson(Map<String, dynamic> j) => MiniAppLaunch(
+        appId: (j['app_id'] ?? '') as String,
+        url: (j['url'] ?? '') as String,
+        code: (j['code'] ?? '') as String,
+        expiresIn: (j['expires_in'] ?? 0) as int,
+      );
+}
+
+/// درخواستِ پرداختِ یک برنامه. برنامه فقط می‌تواند درخواست بدهد؛ برداشت
+/// همیشه با تأییدِ صریحِ کاربر انجام می‌شود.
+class MiniAppPayment {
+  const MiniAppPayment({
+    required this.ref,
+    required this.appId,
+    required this.appName,
+    required this.outTradeNo,
+    required this.subject,
+    required this.amount,
+    required this.commission,
+    required this.status,
+    required this.createdAt,
+    required this.expiresAt,
+    this.appIcon,
+    this.paidAt,
+  });
+
+  final String ref;
+  final String appId;
+  final String appName;
+  final String? appIcon;
+  final String outTradeNo;
+  final String subject;
+  final int amount; // ریال
+  final int commission;
+  final String status;
+  final DateTime createdAt;
+  final DateTime expiresAt;
+  final DateTime? paidAt;
+
+  bool get isPending => status == 'pending';
+
+  factory MiniAppPayment.fromJson(Map<String, dynamic> j) => MiniAppPayment(
+        ref: (j['ref'] ?? '') as String,
+        appId: (j['app_id'] ?? '') as String,
+        appName: (j['app_name'] ?? '') as String,
+        appIcon: j['app_icon'] as String?,
+        outTradeNo: (j['out_trade_no'] ?? '') as String,
+        subject: (j['subject'] ?? '') as String,
+        amount: (j['amount'] ?? 0) as int,
+        commission: (j['commission'] ?? 0) as int,
+        status: (j['status'] ?? 'pending') as String,
+        createdAt: DateTime.parse(j['created_at'] as String).toLocal(),
+        expiresAt: DateTime.parse(j['expires_at'] as String).toLocal(),
+        paidAt: j['paid_at'] == null
+            ? null
+            : DateTime.parse(j['paid_at'] as String).toLocal(),
+      );
+}
+
+/// کمپینِ تبلیغاتی. پرچم‌های `can*` را سرور می‌دهد تا کلاینت ماشینِ وضعیت را
+/// دوباره پیاده نکند.
+class AdCampaign {
+  const AdCampaign({
+    required this.id,
+    required this.title,
+    required this.targetUrl,
+    required this.placement,
+    required this.bidCpc,
+    required this.budgetTotal,
+    required this.spent,
+    required this.escrowLocked,
+    required this.remaining,
+    required this.impressions,
+    required this.clicks,
+    required this.ctr,
+    required this.status,
+    required this.statusLabel,
+    required this.createdAt,
+    this.body,
+    this.imageUrl,
+    this.cta,
+    this.reviewNote,
+    this.targetCountries = const [],
+    this.targetLocales = const [],
+    this.endsAt,
+    this.canActivate = false,
+    this.canPause = false,
+    this.canEdit = false,
+  });
+
+  final String id;
+  final String title;
+  final String? body;
+  final String? imageUrl;
+  final String targetUrl;
+  final String? cta;
+  final String placement;
+  final int bidCpc; // ریال برای هر کلیک
+  final int budgetTotal;
+  final int spent;
+  final int escrowLocked;
+  final int remaining;
+  final int impressions;
+  final int clicks;
+  final double ctr;
+  final String status;
+  final String statusLabel;
+  final String? reviewNote;
+  final List<String> targetCountries;
+  final List<String> targetLocales;
+  final DateTime? endsAt;
+  final DateTime createdAt;
+  final bool canActivate;
+  final bool canPause;
+  final bool canEdit;
+
+  bool get isRunning => status == 'active';
+  bool get canStop => status == 'active' || status == 'paused';
+
+  static List<String> _strings(Object? v) =>
+      (v as List?)?.map((e) => e as String).toList() ?? const [];
+
+  factory AdCampaign.fromJson(Map<String, dynamic> j) => AdCampaign(
+        id: (j['id'] ?? '') as String,
+        title: (j['title'] ?? '') as String,
+        body: j['body'] as String?,
+        imageUrl: j['image_url'] as String?,
+        targetUrl: (j['target_url'] ?? '') as String,
+        cta: j['cta'] as String?,
+        placement: (j['placement'] ?? 'feed') as String,
+        bidCpc: (j['bid_cpc'] ?? 0) as int,
+        budgetTotal: (j['budget_total'] ?? 0) as int,
+        spent: (j['spent'] ?? 0) as int,
+        escrowLocked: (j['escrow_locked'] ?? 0) as int,
+        remaining: (j['remaining'] ?? 0) as int,
+        impressions: (j['impressions'] ?? 0) as int,
+        clicks: (j['clicks'] ?? 0) as int,
+        ctr: ((j['ctr'] ?? 0) as num).toDouble(),
+        status: (j['status'] ?? 'draft') as String,
+        statusLabel: (j['status_label'] ?? '') as String,
+        reviewNote: j['review_note'] as String?,
+        targetCountries: _strings(j['target_countries']),
+        targetLocales: _strings(j['target_locales']),
+        endsAt: j['ends_at'] == null
+            ? null
+            : DateTime.parse(j['ends_at'] as String).toLocal(),
+        createdAt: DateTime.parse(j['created_at'] as String).toLocal(),
+        canActivate: (j['can_activate'] ?? false) as bool,
+        canPause: (j['can_pause'] ?? false) as bool,
+        canEdit: (j['can_edit'] ?? false) as bool,
+      );
+}
+
+/// یک نقطهٔ روزانه در سریِ آماری. سرور روزهای خالی را با صفر پر می‌کند تا
+/// نمودار حفره نداشته باشد.
+class AdStatPoint {
+  const AdStatPoint({
+    required this.day,
+    required this.impressions,
+    required this.clicks,
+    required this.spent,
+  });
+
+  final String day;
+  final int impressions;
+  final int clicks;
+  final int spent;
+
+  factory AdStatPoint.fromJson(Map<String, dynamic> j) => AdStatPoint(
+        day: (j['day'] ?? '') as String,
+        impressions: (j['impressions'] ?? 0) as int,
+        clicks: (j['clicks'] ?? 0) as int,
+        spent: (j['spent'] ?? 0) as int,
+      );
+}
+
+class AdStats {
+  const AdStats({
+    required this.impressions,
+    required this.clicks,
+    required this.ctr,
+    required this.spent,
+    required this.remaining,
+    required this.avgCpc,
+    required this.series,
+  });
+
+  final int impressions;
+  final int clicks;
+  final double ctr;
+  final int spent;
+  final int remaining;
+  final int avgCpc;
+  final List<AdStatPoint> series;
+
+  factory AdStats.fromJson(Map<String, dynamic> j) => AdStats(
+        impressions: (j['impressions'] ?? 0) as int,
+        clicks: (j['clicks'] ?? 0) as int,
+        ctr: ((j['ctr'] ?? 0) as num).toDouble(),
+        spent: (j['spent'] ?? 0) as int,
+        remaining: (j['remaining'] ?? 0) as int,
+        avgCpc: (j['avg_cpc'] ?? 0) as int,
+        series: ((j['series'] as List?) ?? const [])
+            .map((e) => AdStatPoint.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+/// تبلیغی که به بیننده نشان داده می‌شود — بی‌بودجه و بی‌پیشنهادِ قیمت.
+class AdCreative {
+  const AdCreative({
+    required this.id,
+    required this.title,
+    required this.placement,
+    required this.advertiserEarthId,
+    this.body,
+    this.imageUrl,
+    this.cta,
+    this.advertiserName,
+  });
+
+  final String id;
+  final String title;
+  final String? body;
+  final String? imageUrl;
+  final String? cta;
+  final String placement;
+  final String advertiserEarthId;
+  final String? advertiserName;
+
+  factory AdCreative.fromJson(Map<String, dynamic> j) => AdCreative(
+        id: (j['id'] ?? '') as String,
+        title: (j['title'] ?? '') as String,
+        body: j['body'] as String?,
+        imageUrl: j['image_url'] as String?,
+        cta: j['cta'] as String?,
+        placement: (j['placement'] ?? 'feed') as String,
+        advertiserEarthId: (j['advertiser_earth_id'] ?? '') as String,
+        advertiserName: j['advertiser_name'] as String?,
+      );
+}
+
+/// نتیجهٔ کلیک: `charged` می‌گوید آیا این کلیک هزینه‌دار بوده — کلیکِ تکراریِ
+/// همان کاربر در همان روز رایگان است.
+class AdClickResult {
+  const AdClickResult({
+    required this.charged,
+    required this.cost,
+    required this.targetUrl,
+  });
+
+  final bool charged;
+  final int cost;
+  final String targetUrl;
+
+  factory AdClickResult.fromJson(Map<String, dynamic> j) => AdClickResult(
+        charged: (j['charged'] ?? false) as bool,
+        cost: (j['cost'] ?? 0) as int,
+        targetUrl: (j['target_url'] ?? '') as String,
+      );
+}

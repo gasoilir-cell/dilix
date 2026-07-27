@@ -712,6 +712,73 @@ export const shopApi = {
   cancel: (id: string) => api.post(`/shop/orders/${id}/cancel`),
 };
 
+// ─── Mini Apps API (برنامه‌های کوچکِ درون‌پلتفرم) ─────────────────────────────
+// `app_secret` فقط در پاسخِ ساخت و چرخشِ کلید برمی‌گردد؛ سرور جز هشِ آن چیزی
+// نگه نمی‌دارد، پس UI باید همان‌جا به سازنده نشانش دهد.
+export type MiniAppPayload = {
+  name: string;
+  entry_url: string;
+  tagline?: string | null;
+  description?: string | null;
+  icon_url?: string | null;
+  category?: string;
+  scopes?: string[];
+};
+
+export const miniappsApi = {
+  list: (params?: { q?: string; category?: string; limit?: number; offset?: number }) =>
+    api.get("/miniapps", { params }),
+  mine: () => api.get("/miniapps/mine"),
+  installed: () => api.get("/miniapps/installed"),
+  get: (app_id: string) => api.get(`/miniapps/${app_id}`),
+  create: (body: MiniAppPayload) => api.post("/miniapps", body),
+  update: (app_id: string, body: Partial<MiniAppPayload>) =>
+    api.patch(`/miniapps/${app_id}`, body),
+  submit: (app_id: string) => api.post(`/miniapps/${app_id}/submit`),
+  rotateSecret: (app_id: string) => api.post(`/miniapps/${app_id}/secret`),
+  install: (app_id: string, scopes?: string[]) =>
+    api.post(`/miniapps/${app_id}/install`, { scopes: scopes ?? null }),
+  uninstall: (app_id: string) => api.delete(`/miniapps/${app_id}/install`),
+  // کدِ یک‌بارمصرفِ ورود؛ هر بار اجرا کدِ قبلی را باطل می‌کند.
+  launch: (app_id: string) => api.post(`/miniapps/${app_id}/launch`),
+  pendingPayments: () => api.get("/miniapps/payments/pending"),
+  confirmPayment: (ref: string) => api.post(`/miniapps/payments/${ref}/confirm`),
+  cancelPayment: (ref: string) => api.post(`/miniapps/payments/${ref}/cancel`),
+};
+
+// ─── Ads API (تبلیغاتِ خودخدمت) ───────────────────────────────────────────────
+// مبالغ ریال‌اند. بودجه هنگامِ فعال‌سازی از موجودی بلوکه می‌شود و با
+// توقف/پایان، بخشِ خرج‌نشده برمی‌گردد.
+export type CampaignPayload = {
+  title: string;
+  target_url: string;
+  body?: string | null;
+  image_url?: string | null;
+  cta?: string | null;
+  placement?: string;
+  bid_cpc: number;
+  budget_total: number;
+  target_countries?: string[] | null;
+  target_locales?: string[] | null;
+  ends_at?: string | null;
+};
+
+export const adsApi = {
+  campaigns: () => api.get("/ads/campaigns"),
+  campaign: (id: string) => api.get(`/ads/campaigns/${id}`),
+  create: (body: CampaignPayload) => api.post("/ads/campaigns", body),
+  update: (id: string, body: Partial<CampaignPayload>) =>
+    api.patch(`/ads/campaigns/${id}`, body),
+  activate: (id: string) => api.post(`/ads/campaigns/${id}/activate`),
+  pause: (id: string) => api.post(`/ads/campaigns/${id}/pause`),
+  stop: (id: string) => api.post(`/ads/campaigns/${id}/stop`),
+  stats: (id: string) => api.get(`/ads/campaigns/${id}/stats`),
+  // نمایش: تکرارِ همان کمپین برای همان کاربر در همان روز شمرده نمی‌شود.
+  serve: (placement = "feed", limit = 1) =>
+    api.get("/ads/serve", { params: { placement, limit } }),
+  click: (id: string) => api.post(`/ads/${id}/click`),
+};
+
 // ─── Holdings API (کیف‌پولِ چندارزی + تبدیلِ درون‌کیفی) ───────────────────────
 export const holdingsApi = {
   list: () => api.get("/holdings"),

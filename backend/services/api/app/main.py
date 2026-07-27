@@ -47,11 +47,16 @@ async def lifespan(app: FastAPI):
     from app.services.shop_autorelease import periodic_shop_autorelease
     app.state.shop_task = asyncio.create_task(periodic_shop_autorelease())
 
+    # نگهداریِ اکوسیستم: انقضای پرداختِ برنامه‌ها و بستنِ کمپین‌های تمام‌شده؛
+    # بدونِ دومی بودجهٔ کمپینِ سررسیدشده تا ابد بلوکه می‌ماند.
+    from app.services.ecosystem_jobs import periodic_ecosystem_jobs
+    app.state.eco_task = asyncio.create_task(periodic_ecosystem_jobs())
+
     log.info("dilix_api_ready")
     yield
 
     # Shutdown
-    for name in ("fx_task", "subs_task", "shop_task"):
+    for name in ("fx_task", "subs_task", "shop_task", "eco_task"):
         task = getattr(app.state, name, None)
         if task is not None:
             task.cancel()
@@ -272,3 +277,11 @@ app.include_router(subscriptions_router, prefix="/api/v1")
 # ─── Shop / Escrow checkout درون‌چت (فاز ۴) ──────────────────────────────────
 from app.api.v1.shop.router import router as shop_router
 app.include_router(shop_router, prefix="/api/v1")
+
+# ─── Mini Program SDK (فاز ۴) ────────────────────────────────────────────────
+from app.api.v1.miniapps.router import router as miniapps_router
+app.include_router(miniapps_router, prefix="/api/v1")
+
+# ─── Ads — تبلیغاتِ خودخدمت (فاز ۴) ───────────────────────────────────────────
+from app.api.v1.ads.router import router as ads_router
+app.include_router(ads_router, prefix="/api/v1")

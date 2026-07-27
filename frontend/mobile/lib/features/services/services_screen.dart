@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app.dart';
 import '../../models/models.dart';
+import '../ads/ads_screen.dart';
 import '../bills/bills_screen.dart';
 import '../business/business_screen.dart';
 import '../discovery/discovery_screen.dart';
@@ -12,6 +13,7 @@ import '../investment/investment_screen.dart';
 import '../live/live_screen.dart';
 import '../marketplace/marketplace_screen.dart';
 import '../membership/membership_screen.dart';
+import '../miniapps/miniapps_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../provider/provider_screen.dart';
 import '../reputation/reputation_screen.dart';
@@ -45,6 +47,8 @@ class ServicesScreen extends StatelessWidget {
       _Service(Icons.receipt_long_outlined, tr('قبوض'), tr('آب، برق، گاز و عوارض'), const BillsScreen()),
       _Service(Icons.insights_outlined, tr('حسابِ کسب‌وکار'), tr('آمارِ نمایه و اشتراک'), const BusinessScreen()),
       _Service(Icons.shopping_bag_outlined, tr('فروشگاه'), tr('خرید و فروش با وجهِ امانی'), const ShopScreen()),
+      _Service(Icons.widgets_outlined, tr('برنامه‌های کوچک'), tr('برنامه‌های شخصِ ثالث، بدونِ نصب'), const MiniAppsScreen()),
+      _Service(Icons.campaign_outlined, tr('تبلیغات'), tr('کمپینِ کلیکی با بودجهٔ بلوکه'), const AdsScreen()),
       _Service(Icons.account_balance_wallet_outlined, tr('کیف پول'), tr('پاداش و پرداختِ امن'), const WalletScreen()),
       _Service(Icons.notifications_outlined, tr('اعلان‌ها'), tr('رویدادها و پیام‌ها'), const NotificationsScreen()),
     ];
