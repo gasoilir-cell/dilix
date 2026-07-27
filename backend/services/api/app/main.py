@@ -248,3 +248,7 @@ app.include_router(holdings_router, prefix="/api/v1")
 
 # ─── MLM commission ledger (بازاریابیِ شبکه‌ایِ چندسطحی) ───────────────────────────
 from app.models.mlm import MlmCommission  # noqa: F401  (تا create_all جدولِ mlm_commissions را بسازد)
+
+# ─── Bills (قبوض و خدماتِ شهری) ──────────────────────────────────────────────
+from app.api.v1.bills.router import router as bills_router
+app.include_router(bills_router, prefix="/api/v1")
