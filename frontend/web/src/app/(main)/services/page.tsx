@@ -3,7 +3,7 @@
 import Link from "next/link";
 import {
   Truck, Shield, Globe2, Wallet, Bot, FileText,
-  ChevronLeft, Zap, Lock, Package,
+  ChevronLeft, Zap, Lock, Package, Receipt,
 } from "lucide-react";
 import AppShell from "@/components/layout/AppShell";
 import { useAuthStore } from "@/store/auth";
@@ -64,6 +64,17 @@ const SERVICES: Service[] = [
     color: "text-purple-400",
     bg: "bg-purple-500/8",
     border: "border-purple-500/20",
+  },
+  {
+    id: "bills",
+    href: "/bills",
+    icon: Receipt,
+    label: "svc.bills.l",
+    description: "svc.bills.d",
+    color: "text-cyan-400",
+    bg: "bg-cyan-500/8",
+    border: "border-cyan-500/20",
+    badge: "new",
   },
   {
     id: "messages",

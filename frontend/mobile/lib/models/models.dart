@@ -3275,3 +3275,159 @@ class CommissionLedger {
             .map((k, v) => MapEntry(k as String, (v as num).toInt())),
       );
 }
+
+// ── قبوض و خدماتِ شهری ───────────────────────────────────────────────────────
+// مبلغ‌ها همیشه به **ریال** (واحدِ خردِ کیف) می‌آیند؛ تبدیل به تومان کارِ UI است.
+
+/// یک ردهٔ قبض در کاتالوگِ سرور (آب، برق، گاز، …).
+class BillType {
+  BillType({
+    required this.key,
+    required this.label,
+    required this.emoji,
+    required this.orgDigit,
+  });
+
+  final String key;
+  final String label;
+  final String emoji;
+
+  /// رقمِ یکی‌مانده‌به‌آخرِ «شناسهٔ قبض» که این رده را مشخص می‌کند.
+  final String orgDigit;
+
+  factory BillType.fromJson(Map<String, dynamic> j) => BillType(
+        key: j['key'] as String,
+        label: j['label'] as String,
+        emoji: (j['emoji'] ?? '📄') as String,
+        orgDigit: (j['org_digit'] ?? '') as String,
+      );
+}
+
+/// نتیجهٔ استعلامِ قبض. مبلغ و نوعِ سازمان از خودِ شناسه‌ها **رمزگشایی** می‌شود،
+/// پس نیازی به سرویسِ بیرونی نیست.
+class BillInquiry {
+  BillInquiry({
+    required this.billId,
+    required this.paymentId,
+    required this.typeKey,
+    required this.typeLabel,
+    required this.typeEmoji,
+    required this.amount,
+    this.year,
+    this.period,
+    this.alreadyPaid = false,
+    this.paidRef,
+    this.balanceEnough = true,
+  });
+
+  final String billId;
+  final String paymentId;
+  final String typeKey;
+  final String typeLabel;
+  final String typeEmoji;
+
+  /// ریال.
+  final int amount;
+
+  /// یکانِ سالِ شمسیِ صدور و شمارهٔ دوره (هر دو از شناسهٔ پرداخت).
+  final int? year;
+  final int? period;
+
+  /// این قبض قبلاً — در کلِ پلتفرم، نه فقط توسطِ همین کاربر — پرداخت شده است.
+  final bool alreadyPaid;
+  final String? paidRef;
+
+  /// موجودیِ کیف برای این مبلغ کافی است.
+  final bool balanceEnough;
+
+  factory BillInquiry.fromJson(Map<String, dynamic> j) => BillInquiry(
+        billId: j['bill_id'] as String,
+        paymentId: j['payment_id'] as String,
+        typeKey: (j['type_key'] ?? 'other') as String,
+        typeLabel: (j['type_label'] ?? '') as String,
+        typeEmoji: (j['type_emoji'] ?? '📄') as String,
+        amount: (j['amount'] as num).toInt(),
+        year: (j['year'] as num?)?.toInt(),
+        period: (j['period'] as num?)?.toInt(),
+        alreadyPaid: (j['already_paid'] ?? false) as bool,
+        paidRef: j['paid_ref'] as String?,
+        balanceEnough: (j['balance_enough'] ?? true) as bool,
+      );
+}
+
+/// رسیدِ پرداختِ یک قبض.
+class BillReceipt {
+  BillReceipt({
+    required this.id,
+    required this.ref,
+    required this.billId,
+    required this.paymentId,
+    required this.typeKey,
+    required this.typeLabel,
+    required this.typeEmoji,
+    required this.amount,
+    required this.paidAt,
+    this.title,
+  });
+
+  final String id;
+
+  /// کدِ رهگیریِ یکتا که به کاربر نشان داده می‌شود.
+  final String ref;
+  final String billId;
+  final String paymentId;
+  final String typeKey;
+  final String typeLabel;
+  final String typeEmoji;
+
+  /// ریال.
+  final int amount;
+  final String? title;
+  final DateTime paidAt;
+
+  factory BillReceipt.fromJson(Map<String, dynamic> j) => BillReceipt(
+        id: j['id'] as String,
+        ref: j['ref'] as String,
+        billId: j['bill_id'] as String,
+        paymentId: j['payment_id'] as String,
+        typeKey: (j['type_key'] ?? 'other') as String,
+        typeLabel: (j['type_label'] ?? '') as String,
+        typeEmoji: (j['type_emoji'] ?? '📄') as String,
+        amount: (j['amount'] as num).toInt(),
+        title: j['title'] as String?,
+        paidAt: DateTime.parse(j['paid_at'] as String).toLocal(),
+      );
+}
+
+/// شناسهٔ قبضِ ذخیره‌شده (مثلِ «برقِ خانه»). فقط `billId` ذخیره می‌شود، چون در
+/// قبوضِ ایرانی شناسهٔ قبضِ هر اشتراک ثابت است و هر دوره فقط شناسهٔ پرداخت
+/// عوض می‌شود.
+class SavedBill {
+  SavedBill({
+    required this.id,
+    required this.title,
+    required this.billId,
+    required this.typeKey,
+    required this.typeLabel,
+    required this.typeEmoji,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String title;
+  final String billId;
+  final String typeKey;
+  final String typeLabel;
+  final String typeEmoji;
+  final DateTime createdAt;
+
+  factory SavedBill.fromJson(Map<String, dynamic> j) => SavedBill(
+        id: j['id'] as String,
+        title: j['title'] as String,
+        billId: j['bill_id'] as String,
+        typeKey: (j['type_key'] ?? 'other') as String,
+        typeLabel: (j['type_label'] ?? '') as String,
+        typeEmoji: (j['type_emoji'] ?? '📄') as String,
+        createdAt: DateTime.parse(j['created_at'] as String).toLocal(),
+      );
+}

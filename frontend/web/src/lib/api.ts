@@ -611,6 +611,24 @@ export const fxApi = {
     api.post("/fx/quote", { amount, from_currency, to_currency }),
 };
 
+// ─── Bills API (قبوض و خدماتِ شهری) ───────────────────────────
+// مبلغ همیشه **ریال** برمی‌گردد (واحدِ خردِ کیف)؛ تبدیل به تومان کارِ UI است.
+export const billsApi = {
+  types: () => api.get("/bills/types"),
+  // یا زوجِ شناسه بده، یا بارکدِ ۲۶رقمیِ چاپ‌شده روی قبض.
+  inquiry: (body: { bill_id?: string; payment_id?: string; barcode?: string }) =>
+    api.post("/bills/inquiry", body),
+  pay: (body: { bill_id?: string; payment_id?: string; barcode?: string; title?: string }) =>
+    api.post("/bills/pay", body),
+  history: (limit = 30, offset = 0) =>
+    api.get("/bills", { params: { limit, offset } }),
+  receipt: (ref: string) => api.get(`/bills/${ref}`),
+  saved: () => api.get("/bills/saved"),
+  save: (title: string, bill_id: string) =>
+    api.post("/bills/saved", { title, bill_id }),
+  unsave: (id: string) => api.delete(`/bills/saved/${id}`),
+};
+
 // ─── Holdings API (کیف‌پولِ چندارزی + تبدیلِ درون‌کیفی) ───────────────────────
 export const holdingsApi = {
   list: () => api.get("/holdings"),

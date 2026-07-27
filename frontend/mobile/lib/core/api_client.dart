@@ -2477,4 +2477,70 @@ class ApiClient {
   /// پایانِ پخش — فقط میزبان.
   Future<void> liveStop(String sessionId) =>
       _post('/api/v1/live/$sessionId/stop', null);
+
+  // ── قبوض و خدماتِ شهری ──
+  // مبلغ‌ها به **ریال** رد و بدل می‌شوند (واحدِ خردِ کیف).
+
+  /// کاتالوگِ ردهٔ قبض‌ها (عمومی — بدونِ نیاز به ورود).
+  Future<List<BillType>> billTypes() async =>
+      ((await _get('/api/v1/bills/types')) as List)
+          .map((e) => BillType.fromJson((e as Map).cast<String, dynamic>()))
+          .toList();
+
+  /// استعلامِ قبض: یا زوجِ شناسه بده، یا [barcode]ِ ۲۶رقمیِ چاپ‌شده روی قبض.
+  Future<BillInquiry> billInquiry({
+    String? billId,
+    String? paymentId,
+    String? barcode,
+  }) async =>
+      BillInquiry.fromJson(await _post('/api/v1/bills/inquiry', {
+        if (barcode != null && barcode.isNotEmpty) 'barcode': barcode,
+        if (billId != null && billId.isNotEmpty) 'bill_id': billId,
+        if (paymentId != null && paymentId.isNotEmpty) 'payment_id': paymentId,
+      }) as Map<String, dynamic>);
+
+  /// پرداختِ قبض از کیفِ پول؛ خروجی رسیدِ نهایی است.
+  Future<BillReceipt> payBill({
+    String? billId,
+    String? paymentId,
+    String? barcode,
+    String? title,
+  }) async =>
+      BillReceipt.fromJson(await _post('/api/v1/bills/pay', {
+        if (barcode != null && barcode.isNotEmpty) 'barcode': barcode,
+        if (billId != null && billId.isNotEmpty) 'bill_id': billId,
+        if (paymentId != null && paymentId.isNotEmpty) 'payment_id': paymentId,
+        if (title != null && title.isNotEmpty) 'title': title,
+      }) as Map<String, dynamic>);
+
+  /// تاریخچهٔ قبض‌های پرداخت‌شدهٔ خودم (جدید→قدیم).
+  Future<List<BillReceipt>> billHistory({int limit = 30, int offset = 0}) async =>
+      ((await _get('/api/v1/bills?limit=$limit&offset=$offset')) as List)
+          .map((e) => BillReceipt.fromJson((e as Map).cast<String, dynamic>()))
+          .toList();
+
+  /// رسیدِ یک پرداخت با کدِ رهگیری.
+  Future<BillReceipt> billReceipt(String ref) async => BillReceipt.fromJson(
+      await _get('/api/v1/bills/$ref') as Map<String, dynamic>);
+
+  /// شناسه‌های قبضِ ذخیره‌شده.
+  Future<List<SavedBill>> savedBills() async =>
+      ((await _get('/api/v1/bills/saved')) as List)
+          .map((e) => SavedBill.fromJson((e as Map).cast<String, dynamic>()))
+          .toList();
+
+  /// ذخیرهٔ یک شناسهٔ قبض با نامِ دلخواه (مثلِ «برقِ خانه»).
+  Future<SavedBill> saveBill({
+    required String title,
+    required String billId,
+  }) async =>
+      SavedBill.fromJson(await _post('/api/v1/bills/saved', {
+        'title': title,
+        'bill_id': billId,
+      }) as Map<String, dynamic>);
+
+  /// حذفِ یک شناسهٔ ذخیره‌شده.
+  Future<void> deleteSavedBill(String id) =>
+      _delete('/api/v1/bills/saved/$id');
+
 }
