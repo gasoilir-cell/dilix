@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/api_client.dart';
+import 'core/app_lock.dart';
 import 'core/config.dart';
 import 'core/deep_links.dart';
 import 'core/preferences.dart';
 import 'core/theme.dart';
+import 'features/auth/lock_screen.dart';
 import 'features/auth/login_screen.dart';
 import 'features/call/call_screen.dart';
 import 'features/call/call_service.dart';
@@ -53,7 +55,7 @@ class DilixApp extends StatefulWidget {
   State<DilixApp> createState() => _DilixAppState();
 }
 
-class _DilixAppState extends State<DilixApp> {
+class _DilixAppState extends State<DilixApp> with WidgetsBindingObserver {
   final ApiClient _api = ApiClient();
   late final CallService _call = CallService(_api);
   final PreferencesController _prefs = PreferencesController();
@@ -65,10 +67,31 @@ class _DilixAppState extends State<DilixApp> {
     // باید پیش از نخستین فریم باشد: لینکی که اپ را از حالتِ سرد بالا آورده،
     // فقط یک‌بار و در همان ابتدا از پلاگین بیرون می‌آید.
     DeepLinks.start();
+    // قفلِ زیستی باید پیش از نخستین فریمِ محتوا مشخص باشد، وگرنه اپ یک لحظه
+    // باز دیده می‌شود و بعد قفل می‌افتد.
+    AppLock.instance.load();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  /// رفتنِ اپ به پس‌زمینه و بازگشتش تنها جایی است که قفل دوباره اعمال می‌شود؛
+  /// خودِ [AppLock] تصمیم می‌گیرد که غیبت به‌اندازهٔ کافی طولانی بوده یا نه.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+        AppLock.instance.onPaused();
+      case AppLifecycleState.resumed:
+        AppLock.instance.onResumed();
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.detached:
+        break;
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     DeepLinks.stop();
     _call.dispose();
     _prefs.dispose();
@@ -145,6 +168,24 @@ class _RootGateState extends State<RootGate> {
   bool _sessionLoaded = false;
 
   @override
+  void initState() {
+    super.initState();
+    // قفل‌شدن/بازشدن هم از چرخهٔ عمرِ اپ می‌آید و هم از صفحهٔ امنیت، پس دروازه
+    // باید به تغییرِ وضعیتِ قفل گوش بدهد نه اینکه یک‌بار بخوانَدش.
+    AppLock.instance.addListener(_onLockChanged);
+  }
+
+  void _onLockChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    AppLock.instance.removeListener(_onLockChanged);
+    super.dispose();
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_sessionLoaded) {
@@ -181,6 +222,17 @@ class _RootGateState extends State<RootGate> {
         return OnboardingFlow(onFinished: () => setState(() {}));
       }
       return LoginScreen(onAuthenticated: () => setState(() {}));
+    }
+    // قفلِ زیستی *بعد* از بررسیِ نشست می‌آید: کاربرِ خارج‌شده چیزی برای محافظت
+    // ندارد و نباید پشتِ اثرِ انگشت گیر کند.
+    if (AppLock.instance.locked) {
+      return LockScreen(
+        onLogout: () async {
+          await AppLock.instance.clearForLogout();
+          await api.logout();
+          if (mounted) setState(() {});
+        },
+      );
     }
     // پس از احرازِ هویت، سرویسِ تماس را راه‌اندازی می‌کنیم. حلقهٔ pollِ آن هم
     // تماسِ ورودی را می‌گیرد و هم حضورِ کاربر را زنده نگه می‌دارد (بدونِ آن

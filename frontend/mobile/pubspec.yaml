@@ -67,6 +67,12 @@ dependencies:
   # ⚠ عمداً روی خطِ ۶.x قفل است، نه ۷.x: از ۷.۰ کفِ minSdkِ خودِ پلاگین ۲۴ شده و
   # با minSdk=21ِ تنظیم‌شده در همان ورک‌فلو نمی‌خوانَد (همان تلهٔ mobile_scanner).
   app_links: ^6.4.1
+  # ورود با اثرِ انگشت/چهره — قفلِ *محلیِ* اپ (نه روشِ ورود به سرور). مجوزِ
+  # USE_BIOMETRIC از مانیفستِ خودِ پلاگین merge می‌شود، ولی `MainActivity` باید
+  # `FlutterFragmentActivity` باشد (BiometricPrompt به FragmentActivity نیاز
+  # دارد)؛ چون CI اسکفولدِ اندروید را از نو می‌سازد، همان تغییر در
+  # `.github/workflows/mobile.yml` هم اعمال شده است.
+  local_auth: ^2.3.0
 
 # `pubspec.lock` در ریپو نیست، پس هر بیلدِ CI از نو resolve می‌کند و نسخه‌ی تازه‌ی
 # یک وابستگیِ غیرمستقیم می‌تواند بیلد را بشکند بدونِ اینکه کدی عوض شده باشد.
@@ -76,6 +82,11 @@ dependency_overrides:
   # gradleِ ما وجود ندارد → «Could not find method kotlin()» و شکستِ
   # assembleRelease. 2.2.23 آخرین نسخه‌ی بدونِ jni است.
   path_provider_android: 2.2.23
+  # `local_auth` فقط `local_auth_android: ^1.0.0` را اعلام می‌کند، پس pub تازه‌ترین
+  # را برمی‌دارد؛ ولی از 1.0.53 کفِ minSdkِ خودِ پلاگین ۲۴ شده و با minSdk=21ِ
+  # تنظیم‌شده در `.github/workflows/mobile.yml` نمی‌خوانَد (همان تلهٔ
+  # mobile_scanner/app_links). 1.0.52 آخرین نسخه با minSdkVersion 21 است.
+  local_auth_android: 1.0.52
 
 dev_dependencies:
   flutter_test:

@@ -160,6 +160,28 @@ jobs:
               m = m.replace("</activity>", deep_links, 1)
           manifest.write_text(m)
 
+          # ── MainActivity باید FragmentActivity باشد ────────────────────────
+          # پلاگینِ local_auth (قفلِ اثرِ انگشت) روی androidx BiometricPrompt سوار
+          # است و آن فقط با FragmentActivity کار می‌کند؛ با FlutterActivityِ
+          # پیش‌فرض، پرسشِ احراز در زمانِ اجرا با «no_fragment_activity» شکست
+          # می‌خورد. `flutter create` همیشه نسخهٔ FlutterActivity را می‌سازد، پس
+          # مثلِ minSdk اینجا بازنویسی می‌شود. با glob می‌گردیم تا به مسیرِ
+          # دقیقِ پکیج (یا زبانِ Kotlin/Java) گره نخورد.
+          acts = list(pathlib.Path("android/app/src/main").rglob("MainActivity.kt"))
+          assert acts, "MainActivity.kt پیدا نشد"
+          for act in acts:
+              a = act.read_text()
+              a = a.replace(
+                  "import io.flutter.embedding.android.FlutterActivity",
+                  "import io.flutter.embedding.android.FlutterFragmentActivity",
+              ).replace(
+                  "class MainActivity : FlutterActivity()",
+                  "class MainActivity : FlutterFragmentActivity()",
+              )
+              act.write_text(a)
+              print("--- MainActivity ---")
+              print(a.strip())
+
           # پکیج‌هایی مثلِ flutter_appauth ماژولِ Androidِ خودشان را (داخلِ pub cache) با
           # compileSdk قدیمی (۳۱) منتشر کرده‌اند؛ عوض‌کردنِ compileSdk فقط در android/app کافی
           # نیست چون :flutter_appauth/:flutter_facebook_auth/:flutter_secure_storage هرکدام
