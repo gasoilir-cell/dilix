@@ -28,6 +28,29 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- طرحِ اختصاصی: همیشه کار می‌کند و به تأییدِ دامنه نیاز ندارد. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="dilix"/>
+            </intent-filter>
+            <!-- App Linksِ dilix.ir — فقط سه مسیری که اپ معادلِ بومی دارد؛ بقیهٔ
+                 سایت باید در مرورگر بماند. اندروید scheme×host×pathPrefix را
+                 ترکیبی اعمال می‌کند. `autoVerify` به فایلِ
+                 `/.well-known/assetlinks.json` روی همان دامنه وابسته است (route
+                 آن در وب اضافه شده و با ANDROID_CERT_SHA256 فعال می‌شود). -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https"/>
+                <data android:host="dilix.ir"/>
+                <data android:host="www.dilix.ir"/>
+                <data android:pathPrefix="/join"/>
+                <data android:pathPrefix="/pay/"/>
+                <data android:pathPrefix="/earth"/>
+            </intent-filter>
         </activity>
         <meta-data
             android:name="flutterEmbedding"

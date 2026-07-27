@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/api_client.dart';
 import 'core/config.dart';
+import 'core/deep_links.dart';
 import 'core/preferences.dart';
 import 'core/theme.dart';
 import 'features/auth/login_screen.dart';
@@ -61,10 +62,14 @@ class _DilixAppState extends State<DilixApp> {
   void initState() {
     super.initState();
     _prefs.load();
+    // باید پیش از نخستین فریم باشد: لینکی که اپ را از حالتِ سرد بالا آورده،
+    // فقط یک‌بار و در همان ابتدا از پلاگین بیرون می‌آید.
+    DeepLinks.start();
   }
 
   @override
   void dispose() {
+    DeepLinks.stop();
     _call.dispose();
     _prefs.dispose();
     super.dispose();

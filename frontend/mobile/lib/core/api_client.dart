@@ -1308,6 +1308,12 @@ class ApiClient {
     return list.map((e) => NotificationItem.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  /// فقط شمارِ نخوانده‌ها — برای نشانِ زنگوله/نوارِ پایین که هر دقیقه پول می‌شود.
+  Future<int> unreadNotificationCount() async {
+    final j = await _get('/api/v1/notifications') as Map<String, dynamic>;
+    return (j['unread'] ?? 0) as int;
+  }
+
   Future<void> markNotificationRead(String id) =>
       _post('/api/v1/notifications/$id/read', null);
 

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../app.dart';
 import '../../core/api_client.dart';
 import '../../models/models.dart';
+import '../stories/story_bar.dart';
 import 'chat_screen.dart';
 import 'group_create_screen.dart';
 
@@ -98,7 +99,16 @@ class _MessagesScreenState extends State<MessagesScreen> {
     }
     return Scaffold(
       appBar: AppBar(title: Text(tr('پیام‌ها'))),
-      body: RefreshIndicator(onRefresh: _load, child: _body()),
+      // نوارِ داستان‌ها بالای فهرستِ گفتگوها (سبکِ «وضعیت») — همان جایی که وب
+      // آن را می‌گذارد. عمداً بیرونِ RefreshIndicator است تا کشیدن برای تازه‌سازی
+      // فهرستِ گفتگوها را تازه کند، نه نوار را.
+      body: Column(
+        children: [
+          const StoryBar(),
+          const Divider(height: 1),
+          Expanded(child: RefreshIndicator(onRefresh: _load, child: _body())),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _newGroup,
         tooltip: tr('گروهِ جدید'),

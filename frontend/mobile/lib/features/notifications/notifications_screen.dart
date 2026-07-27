@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app.dart';
+import '../../core/notification_center.dart';
 import '../../models/models.dart';
 
 import '../../core/l10n.dart';
@@ -36,6 +37,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         _items = items;
         _loading = false;
       });
+      _syncBadge();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -44,6 +46,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       });
     }
   }
+
+  /// نشانِ نوارِ پایین/زنگوله بدونِ رفت‌وبرگشتِ شبکه با همین فهرست هم‌گام می‌شود.
+  void _syncBadge() =>
+      NotificationCenter.instance.setUnread(_items.where((n) => !n.read).length);
 
   NotificationItem _asRead(NotificationItem n) => NotificationItem(
         id: n.id,
@@ -62,6 +68,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       setState(() {
         _items = [for (final x in _items) if (x.id == n.id) _asRead(x) else x];
       });
+      _syncBadge();
     } catch (_) {
       // خطای علامت‌گذاری بحرانی نیست.
     }
@@ -82,6 +89,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     setState(() {
       _items = [for (final x in _items) x.read ? x : _asRead(x)];
     });
+    _syncBadge();
   }
 
   String _formatDate(DateTime dt) {

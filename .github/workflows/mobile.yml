@@ -88,6 +88,32 @@ jobs:
           # login/register با خطای cleartext-not-permitted شکست می‌خورد.
           if "usesCleartextTraffic" not in m:
               m = m.replace("<application", "<application\n        android:usesCleartextTraffic=\"true\"", 1)
+
+          # لینکِ عمیق: بدونِ این intent-filterها `dilix.ir/join?ref=…` (دعوت) و
+          # `dilix.ir/pay/DLX-…` (پرداخت با لینک/QR) روی گوشی مرورگر را باز می‌کنند و
+          # کاربر از اپ بیرون می‌افتد، با اینکه هر دو داخلِ اپ پیاده شده‌اند.
+          # `flutter create` این‌ها را نمی‌سازد، پس مثلِ minSdk اینجا بازاعمال می‌شود.
+          if 'android:scheme="dilix"' not in m:
+              deep_links = """
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="dilix"/>
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https"/>
+                <data android:host="dilix.ir"/>
+                <data android:host="www.dilix.ir"/>
+                <data android:pathPrefix="/join"/>
+                <data android:pathPrefix="/pay/"/>
+                <data android:pathPrefix="/earth"/>
+            </intent-filter>
+        </activity>"""
+              m = m.replace("</activity>", deep_links, 1)
           manifest.write_text(m)
 
           # پکیج‌هایی مثلِ flutter_appauth ماژولِ Androidِ خودشان را (داخلِ pub cache) با
@@ -114,6 +140,8 @@ jobs:
           print("\n".join(l for l in gradle.read_text().splitlines() if "applicationId" in l or "minSdk" in l or "compileSdk" in l or "manifestPlaceholders" in l))
           print("--- manifest permission ---")
           print("\n".join(l for l in manifest.read_text().splitlines() if "uses-permission" in l))
+          print("--- deep-link filters ---")
+          print("\n".join(l.strip() for l in manifest.read_text().splitlines() if "android:scheme" in l or "pathPrefix" in l))
           PY
 
       - name: Analyze (non-blocking)

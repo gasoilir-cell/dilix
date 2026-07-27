@@ -1763,6 +1763,8 @@ class StoryRing {
     required this.hasUnseen,
     required this.isMe,
     required this.latestAt,
+    this.name = '',
+    this.avatarUrl,
   });
 
   final String authorEarthId;
@@ -1771,6 +1773,11 @@ class StoryRing {
   final bool isMe;
   final DateTime latestAt;
 
+  /// نامِ نمایشی و آواتارِ نویسنده؛ نوارِ رینگِ صفحهٔ پیام‌ها به‌جای Earth ID
+  /// این‌ها را نشان می‌دهد.
+  final String name;
+  final String? avatarUrl;
+
   factory StoryRing.fromJson(Map<String, dynamic> j) => StoryRing(
         authorEarthId: (j['earth_id'] ?? j['author_earth_id']) as String,
         storyCount: (j['story_count'] ?? 0) as int,
@@ -1778,6 +1785,8 @@ class StoryRing {
         isMe: (j['is_me'] ?? false) as bool,
         latestAt: DateTime.tryParse((j['latest_at'] ?? '') as String) ??
             DateTime.fromMillisecondsSinceEpoch(0),
+        name: (j['name'] ?? '') as String,
+        avatarUrl: j['avatar_url'] as String?,
       );
 }
 

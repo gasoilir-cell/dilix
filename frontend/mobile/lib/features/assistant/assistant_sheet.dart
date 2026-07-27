@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app.dart';
 import '../../models/models.dart';
+import 'mini_markdown.dart';
 
 import '../../core/l10n.dart';
 /// دستیارِ هوشمندِ سراسری (سند ۸). به dilix-api `/api/v1/ai/chat` وصل می‌شود؛
@@ -17,6 +18,15 @@ class AssistantSheet extends StatefulWidget {
 /// agentهای در دسترس — مطابقِ pattern بک‌اند (ai/schemas.py: ConversationCreate).
 Map<String, String> get _agents =>
     _agentsSrc.map((k, v) => MapEntry(k, tr(v)));
+
+/// چهار پرسشِ آمادهٔ شروع — همان‌هایی که وب زیرِ دستیار می‌گذارد. صفحهٔ خالیِ
+/// چت بزرگ‌ترین مانعِ استفاده از دستیار است.
+const List<String> _suggestionsSrc = [
+  'قیمت باربری تهران به مشهد؟',
+  'نرخ بیمه بار الکترونیک',
+  'چطور بار ثبت کنم؟',
+  'دیلیکس چیه؟',
+];
 
 const Map<String, String> _agentsSrc = {
   'personal': 'دستیارِ شخصی',
@@ -80,8 +90,9 @@ class _AssistantSheetState extends State<AssistantSheet> {
     });
   }
 
-  Future<void> _send() async {
-    final text = _ctrl.text.trim();
+  Future<void> _send() => _sendText(_ctrl.text.trim());
+
+  Future<void> _sendText(String text) async {
     if (text.isEmpty || _busy) return;
 
     // تخصصِ انتخاب‌شده به‌صورتِ سرنخ به پیام افزوده می‌شود (dilix-api routing ندارد).
@@ -168,6 +179,26 @@ class _AssistantSheetState extends State<AssistantSheet> {
                   style: TextStyle(color: scheme.error, fontSize: 13),
                 ),
               ),
+            // وقتی گفتگو شروع شده، پیشنهادها به یک نوارِ باریکِ افقی جمع می‌شوند
+            // (مثلِ وب) تا جای پیام‌ها را نگیرند.
+            if (!_loadingHistory && _messages.isNotEmpty)
+              SizedBox(
+                height: 44,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  children: [
+                    for (final s in _suggestionsSrc)
+                      Padding(
+                        padding: const EdgeInsetsDirectional.only(end: 8),
+                        child: ActionChip(
+                          label: Text(tr(s), style: const TextStyle(fontSize: 12)),
+                          onPressed: _busy ? null : () => _sendText(tr(s)),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             const Divider(height: 1),
             Padding(
               padding: const EdgeInsets.all(8),
@@ -206,14 +237,23 @@ class _AssistantSheetState extends State<AssistantSheet> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_messages.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(
+      return ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          Text(
             tr('سوالت را بپرس؛ بر اساسِ تخصصِ انتخاب‌شده به متخصصِ مناسب هدایت می‌شوی.'),
             textAlign: TextAlign.center,
           ),
-        ),
+          const SizedBox(height: 20),
+          for (final s in _suggestionsSrc)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: OutlinedButton(
+                onPressed: _busy ? null : () => _sendText(tr(s)),
+                child: Text(tr(s), textAlign: TextAlign.center),
+              ),
+            ),
+        ],
       );
     }
     return ListView.builder(
@@ -235,7 +275,9 @@ class _AssistantSheetState extends State<AssistantSheet> {
               color: isUser ? scheme.surfaceContainerHighest : scheme.primary,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Text(
+            // پاسخِ دستیار `**…**` دارد؛ بدونِ رندرِ پررنگ، ستاره‌ها وسطِ جمله
+            // دیده می‌شدند.
+            child: MiniMarkdownText(
               m.content,
               style: TextStyle(
                 color: isUser ? scheme.onSurface : scheme.onPrimary,

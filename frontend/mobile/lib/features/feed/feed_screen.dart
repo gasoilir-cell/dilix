@@ -5,7 +5,11 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../app.dart';
 import '../../core/location_service.dart';
+import '../../core/notification_center.dart';
 import '../../models/models.dart';
+import '../notifications/notifications_screen.dart';
+import '../notifications/unread_badge.dart';
+import '../services/services_screen.dart';
 import 'explore_screen.dart';
 import 'post_card.dart';
 
@@ -165,12 +169,30 @@ class _FeedScreenState extends State<FeedScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(tr('خانه')),
+        // هابِ خدمات از نوارِ بالای صفحهٔ خانه باز می‌شود؛ در وب هم تبِ اصلی
+        // نیست و از داشبورد به آن می‌رسند.
+        leading: IconButton(
+          tooltip: tr('خدمات'),
+          icon: const Icon(Icons.grid_view_outlined),
+          onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const ServicesScreen())),
+        ),
         actions: [
           IconButton(
             tooltip: tr('کشف و جستجو'),
             icon: const Icon(Icons.explore_outlined),
             onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(builder: (_) => const ExploreScreen())),
+          ),
+          // زنگولهٔ اعلان — معادلِ هدرِ همیشه‌حاضرِ وب.
+          IconButton(
+            tooltip: tr('اعلان‌ها'),
+            icon: const UnreadBadge(child: Icon(Icons.notifications_outlined)),
+            onPressed: () async {
+              await Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => const NotificationsScreen()));
+              await NotificationCenter.instance.refresh();
+            },
           ),
         ],
       ),

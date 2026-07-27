@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:dilix_mobile/app.dart';
 import 'package:dilix_mobile/core/api_client.dart';
+import 'package:dilix_mobile/core/notification_center.dart';
 import 'package:dilix_mobile/core/preferences.dart';
 import 'package:dilix_mobile/features/shell/home_shell.dart';
 
@@ -44,17 +45,37 @@ Future<Widget> _wrap(Widget child, ApiClient api) async {
 }
 
 void main() {
-  testWidgets('پوسته‌ی اصلی ۵ مقصدِ ناوبری را نشان می‌دهد', (tester) async {
+  // شمارندهٔ سراسری نباید بینِ تست‌ها نشت کند.
+  tearDown(() {
+    NotificationCenter.instance.stop();
+    NotificationCenter.instance.setUnread(0);
+  });
+
+  testWidgets('نوارِ پایین همان ۵ مقصدِ وب را دارد', (tester) async {
     await tester.pumpWidget(await _wrap(const HomeShell(), _fakeApi()));
     await tester.pump();
 
     expect(find.text('خانه'), findsWidgets);
-    expect(find.text('کره'), findsOneWidget);
+    expect(find.text('ریلز'), findsOneWidget);
     expect(find.text('پیام‌ها'), findsOneWidget);
-    expect(find.text('خدمات'), findsOneWidget);
+    expect(find.text('کره'), findsOneWidget);
     expect(find.text('من'), findsOneWidget);
     expect(find.byType(NavigationBar), findsOneWidget);
     expect(find.byType(FloatingActionButton), findsOneWidget);
+  });
+
+  testWidgets('نشانِ اعلانِ نخوانده از هر تبی روی «من» دیده می‌شود',
+      (tester) async {
+    await tester.pumpWidget(await _wrap(const HomeShell(), _fakeApi()));
+    await tester.pump();
+
+    // بدونِ نخوانده، نوار تمیز می‌مانَد.
+    expect(find.byType(Badge), findsNothing);
+
+    NotificationCenter.instance.setUnread(3);
+    await tester.pump();
+    expect(find.byType(Badge), findsWidgets);
+    expect(find.text('3'), findsWidgets);
   });
 
   testWidgets('فیدِ خالی پیامِ مناسب نشان می‌دهد', (tester) async {

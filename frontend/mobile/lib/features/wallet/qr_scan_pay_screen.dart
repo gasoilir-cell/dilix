@@ -15,6 +15,10 @@ import '../../models/models.dart';
 /// کاربر پیش از کسرِ پول ببیند پول به چه کسی می‌رود.
 ///
 /// خروجی: `true` اگر انتقالی انجام شده باشد (تا کیفِ پول خودش را تازه کند).
+///
+/// گامِ «تأیید» ([showConfirmPaySheet]) عمداً از اسکنر جدا و عمومی است، چون
+/// لینکِ عمیقِ `dilix.ir/pay/…` بدونِ دوربین به همان گام می‌رسد و نباید نسخهٔ
+/// دومی از منطقِ پرداخت داشته باشد.
 class QrScanPayScreen extends StatefulWidget {
   const QrScanPayScreen({super.key});
 
@@ -81,13 +85,7 @@ class _QrScanPayScreenState extends State<QrScanPayScreen> {
       return;
     }
 
-    final paid = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      showDragHandle: true,
-      builder: (_) => _ConfirmPaySheet(target: target),
-    );
+    final paid = await showConfirmPaySheet(context, target);
     if (!mounted) return;
     if (paid == true) {
       Navigator.of(context).pop(true);
@@ -238,17 +236,29 @@ class _CameraError extends StatelessWidget {
   }
 }
 
+/// نمایشِ برگهٔ تأییدِ پرداخت برای گیرندهٔ از‌پیش‌بازگشایی‌شده.
+///
+/// خروجی `true` یعنی انتقال انجام شد.
+Future<bool?> showConfirmPaySheet(BuildContext context, QrPayTarget target) =>
+    showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (_) => ConfirmPaySheet(target: target),
+    );
+
 /// تأییدِ پرداخت پس از بازگشاییِ کد.
-class _ConfirmPaySheet extends StatefulWidget {
-  const _ConfirmPaySheet({required this.target});
+class ConfirmPaySheet extends StatefulWidget {
+  const ConfirmPaySheet({super.key, required this.target});
 
   final QrPayTarget target;
 
   @override
-  State<_ConfirmPaySheet> createState() => _ConfirmPaySheetState();
+  State<ConfirmPaySheet> createState() => _ConfirmPaySheetState();
 }
 
-class _ConfirmPaySheetState extends State<_ConfirmPaySheet> {
+class _ConfirmPaySheetState extends State<ConfirmPaySheet> {
   late final TextEditingController _amountCtrl;
   late final TextEditingController _noteCtrl;
   bool _sending = false;
