@@ -58,6 +58,15 @@ dependencies:
   # پیاده‌سازیِ اندرویدِ WebView برای مجوزهایِ دوربین/میکروفن/موقعیت و انتخابِ فایل
   webview_flutter_android: ^4.1.0
 
+# `pubspec.lock` در ریپو نیست، پس هر بیلدِ CI از نو resolve می‌کند و نسخه‌ی تازه‌ی
+# یک وابستگیِ غیرمستقیم می‌تواند بیلد را بشکند بدونِ اینکه کدی عوض شده باشد.
+dependency_overrides:
+  # path_provider_android از 2.3.0 به `jni` وابسته شد و
+  # `jni/android/build.gradle` متدِ `kotlin()` را صدا می‌زند که در پیکربندیِ
+  # gradleِ ما وجود ندارد → «Could not find method kotlin()» و شکستِ
+  # assembleRelease. 2.2.23 آخرین نسخه‌ی بدونِ jni است.
+  path_provider_android: 2.2.23
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
