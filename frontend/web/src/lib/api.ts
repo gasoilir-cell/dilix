@@ -291,6 +291,23 @@ export const messagesApi = {
     api.post(`/messages/red-packets/${packetId}/open`),
   getRedPacket: (packetId: string) =>
     api.get(`/messages/red-packets/${packetId}`),
+  // 💸 پولِ درون‌چت — مبلغ در واحدِ خرد (ریال) فرستاده می‌شود، نه تومان.
+  sendMoney: (roomId: string, amount: number, note?: string, replyToId?: string | null) =>
+    api.post(`/messages/rooms/${roomId}/money`, {
+      amount,
+      ...(note ? { note } : {}),
+      ...(replyToId ? { reply_to_id: replyToId } : {}),
+    }),
+  requestMoney: (roomId: string, amount: number, note?: string, replyToId?: string | null) =>
+    api.post(`/messages/rooms/${roomId}/money-request`, {
+      amount,
+      ...(note ? { note } : {}),
+      ...(replyToId ? { reply_to_id: replyToId } : {}),
+    }),
+  payMoneyRequest: (moneyId: string) =>
+    api.post(`/messages/money-requests/${moneyId}/pay`),
+  declineMoneyRequest: (moneyId: string) =>
+    api.post(`/messages/money-requests/${moneyId}/decline`),
   createGroup: (name: string, memberEarthIds: string[]) =>
     api.post("/messages/groups", { name, member_earth_ids: memberEarthIds }),
   members: (roomId: string) => api.get(`/messages/rooms/${roomId}/members`),

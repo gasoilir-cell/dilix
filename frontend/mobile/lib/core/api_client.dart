@@ -1913,6 +1913,44 @@ class ApiClient {
           await _get('/api/v1/messages/red-packets/$packetId')
               as Map<String, dynamic>);
 
+  // ── پولِ درون‌چت (انتقال/درخواستِ P2P) ──
+  /// ارسالِ پول به طرفِ مقابلِ گفتگو؛ [amount] به **ریال**. پول همان لحظه
+  /// جابه‌جا می‌شود و پیامِ بازگشتی رسیدِ آن است.
+  Future<ChatMessage> sendMoney(
+    String roomId, {
+    required int amount,
+    String? note,
+  }) async =>
+      ChatMessage.fromJson(await _post('/api/v1/messages/rooms/$roomId/money', {
+        'amount': amount,
+        if (note != null && note.isNotEmpty) 'note': note,
+      }) as Map<String, dynamic>);
+
+  /// درخواستِ پول از طرفِ مقابل؛ [amount] به **ریال**. تا پرداختِ او هیچ پولی
+  /// حرکت نمی‌کند.
+  Future<ChatMessage> requestMoney(
+    String roomId, {
+    required int amount,
+    String? note,
+  }) async =>
+      ChatMessage.fromJson(
+          await _post('/api/v1/messages/rooms/$roomId/money-request', {
+        'amount': amount,
+        if (note != null && note.isNotEmpty) 'note': note,
+      }) as Map<String, dynamic>);
+
+  /// پرداختِ یک درخواستِ پول (idempotent).
+  Future<MoneyInfo> payMoneyRequest(String moneyId) async =>
+      MoneyInfo.fromJson(
+          await _post('/api/v1/messages/money-requests/$moneyId/pay', const {})
+              as Map<String, dynamic>);
+
+  /// ردِ درخواست (گیرنده) یا لغوِ آن (درخواست‌کننده).
+  Future<MoneyInfo> declineMoneyRequest(String moneyId) async =>
+      MoneyInfo.fromJson(await _post(
+              '/api/v1/messages/money-requests/$moneyId/decline', const {})
+          as Map<String, dynamic>);
+
   // ── موقعیتِ مکانی ──
   /// ارسالِ موقعیتِ ثابت.
   Future<ChatMessage> sendLocation(

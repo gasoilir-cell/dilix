@@ -17,6 +17,7 @@ class MessageBubble extends StatelessWidget {
     required this.onLongPress,
     required this.onVote,
     required this.onOpenRedPacket,
+    required this.onSettleMoney,
     required this.onTapContact,
     required this.onTapMedia,
     required this.onTapReply,
@@ -29,6 +30,9 @@ class MessageBubble extends StatelessWidget {
   final VoidCallback onLongPress;
   final void Function(PollInfo poll, int optionIndex) onVote;
   final void Function(RedPacketInfo packet) onOpenRedPacket;
+
+  /// پرداخت (`pay`) یا رد/لغوِ (`decline`) یک درخواستِ پول.
+  final void Function(ChatMessage message, String action) onSettleMoney;
   final void Function(ContactInfo contact) onTapContact;
   final void Function(ChatMessage message) onTapMedia;
   final void Function(ReplyPreview reply) onTapReply;
@@ -216,6 +220,11 @@ class MessageBubble extends StatelessWidget {
       case 'red_packet':
         return [
           if (message.redPacket != null) _redPacketCard(context),
+        ];
+      case 'money':
+      case 'money_request':
+        return [
+          if (message.money != null) _moneyCard(context),
         ];
       default:
         if (message.stickerId != null) return [_stickerBox()];
@@ -579,6 +588,126 @@ class MessageBubble extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// کارتِ پولِ درون‌چت. سبز = پولی که واقعاً جابه‌جا شده، کهربایی = درخواستِ
+  /// بازِ پرداخت‌نشده، خاکستری = درخواستی که رد یا لغو شده.
+  Widget _moneyCard(BuildContext context) {
+    final m = message.money!;
+    final toman = (m.amount / 10).round();
+    final gradient = m.isDead
+        ? const [Color(0xFF3F3F46), Color(0xFF52525B)]
+        : m.isRequest
+            ? const [Color(0xFFF59E0B), Color(0xFFEA580C)]
+            : const [Color(0xFF10B981), Color(0xFF0D9488)];
+    return Container(
+      width: 230,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: gradient,
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(m.isRequest ? Icons.request_quote : Icons.payments,
+                  color: Colors.white, size: 20),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  _moneyHeadline(m),
+                  style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontSize: 11),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(tr('{0} تومان', [toman]),
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold)),
+          if (m.note?.isNotEmpty == true) ...[
+            const SizedBox(height: 4),
+            Text(m.note!,
+                style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.9), fontSize: 12)),
+          ],
+          const SizedBox(height: 8),
+          if (m.canPay)
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => onSettleMoney(message, 'pay'),
+                    style: FilledButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: const Color(0xFF0D9488),
+                        visualDensity: VisualDensity.compact),
+                    child: Text(tr('پرداخت')),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                TextButton(
+                  onPressed: () => onSettleMoney(message, 'decline'),
+                  style: TextButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      visualDensity: VisualDensity.compact),
+                  child: Text(tr('رد')),
+                ),
+              ],
+            )
+          else if (m.canCancel)
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: () => onSettleMoney(message, 'decline'),
+                style: TextButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: Colors.white.withValues(alpha: 0.18),
+                    visualDensity: VisualDensity.compact),
+                child: Text(tr('لغوِ درخواست')),
+              ),
+            )
+          else
+            Text(_moneyStatusLabel(m),
+                style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  String _moneyHeadline(MoneyInfo m) {
+    if (m.isRequest) {
+      return m.isMine ? tr('درخواست کردی') : tr('از تو درخواست کرد');
+    }
+    return m.isMine ? tr('فرستادی') : tr('برایت فرستاد');
+  }
+
+  String _moneyStatusLabel(MoneyInfo m) {
+    switch (m.status) {
+      case 'completed':
+        return tr('انجام شد');
+      case 'paid':
+        return tr('پرداخت شد');
+      case 'declined':
+        return tr('رد شد');
+      case 'cancelled':
+        return tr('لغو شد');
+      default:
+        return tr('در انتظارِ پرداخت');
+    }
   }
 
   String _redPacketLabel(RedPacketInfo p) {

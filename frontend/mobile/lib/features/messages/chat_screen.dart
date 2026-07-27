@@ -688,6 +688,42 @@ class _ChatScreenState extends State<ChatScreen> {
     }, failure: tr('بازکردنِ هدیه ناموفق بود'));
   }
 
+  /// ارسالِ مستقیمِ پول یا ثبتِ درخواستِ پول در گفتگویِ دونفره.
+  Future<void> _composeMoney({required bool request}) async {
+    final draft = await showMoneyComposer(context, request: request);
+    if (draft == null || !mounted) return;
+    await _run(() async {
+      if (request) {
+        await _api.requestMoney(_room.id, amount: draft.amount, note: draft.note);
+      } else {
+        await _api.sendMoney(_room.id, amount: draft.amount, note: draft.note);
+      }
+      await _load();
+      _scrollToBottom();
+    },
+        failure: request
+            ? tr('ثبتِ درخواست ناموفق بود')
+            : tr('ارسالِ پول ناموفق بود'));
+  }
+
+  /// پرداخت (`pay`) یا رد/لغوِ (`decline`) یک درخواستِ پول.
+  Future<void> _settleMoney(ChatMessage m, String action) async {
+    final money = m.money;
+    if (money == null) return;
+    await _run(() async {
+      final info = action == 'pay'
+          ? await _api.payMoneyRequest(money.id)
+          : await _api.declineMoneyRequest(money.id);
+      if (info.status == 'paid') {
+        _toast(tr('💸 {0} تومان پرداخت شد.', [(info.amount / 10).round()]));
+      }
+      await _load();
+    },
+        failure: action == 'pay'
+            ? tr('پرداخت ناموفق بود')
+            : tr('بستنِ درخواست ناموفق بود'));
+  }
+
   Future<void> _sendLocation() async {
     final loc = await showLocationComposer(context, fix: _currentFix);
     if (loc == null || !mounted) return;
@@ -1335,6 +1371,7 @@ class _ChatScreenState extends State<ChatScreen> {
           onLongPress: () => _messageActions(m),
           onVote: _vote,
           onOpenRedPacket: _onRedPacket,
+          onSettleMoney: _settleMoney,
           onTapContact: _openContact,
           onTapMedia: _openMedia,
           onTapReply: _jumpToReply,
@@ -1538,6 +1575,19 @@ class _ChatScreenState extends State<ChatScreen> {
               title: Text(tr('هدیهٔ نقدی')),
               onTap: () => Navigator.pop(ctx, 'redpacket'),
             ),
+            // پولِ مستقیم فقط در گفتگویِ دونفره؛ پولِ گروهی مسیرِ 🧧 را دارد.
+            if (_room.roomType != 'group') ...[
+              ListTile(
+                leading: const Icon(Icons.payments),
+                title: Text(tr('ارسالِ پول')),
+                onTap: () => Navigator.pop(ctx, 'money_send'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.request_quote),
+                title: Text(tr('درخواستِ پول')),
+                onTap: () => Navigator.pop(ctx, 'money_request'),
+              ),
+            ],
             ListTile(
               leading: const Icon(Icons.event),
               title: Text(tr('رویداد')),
@@ -1574,6 +1624,10 @@ class _ChatScreenState extends State<ChatScreen> {
         await _createPoll();
       case 'redpacket':
         await _createRedPacket();
+      case 'money_send':
+        await _composeMoney(request: false);
+      case 'money_request':
+        await _composeMoney(request: true);
       case 'event':
         await _createEvent();
       case 'contact':

@@ -1135,6 +1135,61 @@ class RedPacketInfo {
       );
 }
 
+/// پولِ درون‌چت — انتقالِ مستقیمِ P2P یا درخواستِ پول (`MoneyInfo`).
+///
+/// `kind == 'send'` یعنی پول همان لحظه جابه‌جا شده و پیام فقط رسیدِ آن است؛
+/// `kind == 'request'` یعنی تا وقتی گیرنده پرداخت نکند هیچ پولی حرکت نکرده.
+/// `amount` مثل بقیهٔ کیف‌پول در **ریال** است.
+class MoneyInfo {
+  MoneyInfo({
+    required this.id,
+    required this.kind,
+    required this.amount,
+    required this.status,
+    this.note,
+    this.isMine = false,
+    this.counterpartEarthId = '',
+    this.counterpartName = '',
+    this.canPay = false,
+    this.canCancel = false,
+    this.settledAt,
+  });
+
+  final String id;
+
+  /// `send` یا `request`.
+  final String kind;
+  final int amount;
+
+  /// `completed` | `pending` | `paid` | `declined` | `cancelled`.
+  final String status;
+  final String? note;
+  final bool isMine;
+  final String counterpartEarthId;
+  final String counterpartName;
+  final bool canPay;
+  final bool canCancel;
+  final DateTime? settledAt;
+
+  bool get isRequest => kind == 'request';
+  bool get isSettled => status == 'completed' || status == 'paid';
+  bool get isDead => status == 'declined' || status == 'cancelled';
+
+  factory MoneyInfo.fromJson(Map<String, dynamic> j) => MoneyInfo(
+        id: (j['id'] ?? '') as String,
+        kind: (j['kind'] ?? 'send') as String,
+        amount: (j['amount'] ?? 0) as int,
+        status: (j['status'] ?? 'completed') as String,
+        note: j['note'] as String?,
+        isMine: (j['is_mine'] ?? false) as bool,
+        counterpartEarthId: (j['counterpart_earth_id'] ?? '') as String,
+        counterpartName: (j['counterpart_name'] ?? '') as String,
+        canPay: (j['can_pay'] ?? false) as bool,
+        canCancel: (j['can_cancel'] ?? false) as bool,
+        settledAt: _parseDate(j['settled_at']),
+      );
+}
+
 /// عضوِ یک اتاق/گروه (`MemberOut`).
 class RoomMember {
   RoomMember({
@@ -1457,6 +1512,7 @@ class ChatMessage {
     this.contact,
     this.event,
     this.redPacket,
+    this.money,
     this.isForwarded = false,
     this.forwardedFrom,
     this.isPinned = false,
@@ -1491,6 +1547,7 @@ class ChatMessage {
   final ContactInfo? contact;
   final EventInfo? event;
   final RedPacketInfo? redPacket;
+  final MoneyInfo? money;
   final bool isForwarded;
   final String? forwardedFrom;
   final bool isPinned;
@@ -1543,6 +1600,9 @@ class ChatMessage {
             ? null
             : RedPacketInfo.fromJson(
                 (j['red_packet'] as Map).cast<String, dynamic>()),
+        money: j['money'] == null
+            ? null
+            : MoneyInfo.fromJson((j['money'] as Map).cast<String, dynamic>()),
         isForwarded: (j['is_forwarded'] ?? false) as bool,
         forwardedFrom: j['forwarded_from'] as String?,
         isPinned: (j['is_pinned'] ?? false) as bool,

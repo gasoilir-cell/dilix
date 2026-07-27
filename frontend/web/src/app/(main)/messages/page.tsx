@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, Suspense, Fragment } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, MessageCircle, Send, ArrowRight, Loader2, Users, Reply, Pencil, Trash2, Check, CheckCheck, X, UserPlus, LogOut, Crown, Paperclip, Mic, FileText, Download, Play, Pause, MapPin, Radio, Image as ImageIcon, Languages, Phone, Video, PhoneMissed, Smile, Camera, Copy, Palette, Sticker, Star, Compass, Forward, MoreHorizontal, MoreVertical, ChevronDown, Pin, PinOff, BarChart3, PlusCircle, CheckCircle2, BellOff, Bell, Ban, Share2, ListChecks, Plus, UserRound, CalendarClock, Timer, Flag, CalendarPlus, Gift } from "lucide-react";
+import { Search, MessageCircle, Send, ArrowRight, Loader2, Users, Reply, Pencil, Trash2, Check, CheckCheck, X, UserPlus, LogOut, Crown, Paperclip, Mic, FileText, Download, Play, Pause, MapPin, Radio, Image as ImageIcon, Languages, Phone, Video, PhoneMissed, Smile, Camera, Copy, Palette, Sticker, Star, Compass, Forward, MoreHorizontal, MoreVertical, ChevronDown, Pin, PinOff, BarChart3, PlusCircle, CheckCircle2, BellOff, Bell, Ban, Share2, ListChecks, Plus, UserRound, CalendarClock, Timer, Flag, CalendarPlus, Gift, Banknote, HandCoins } from "lucide-react";
 import AppShell from "@/components/layout/AppShell";
 import { messagesApi, stickersApi, socialApi, getApiErrorMessage} from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
@@ -92,6 +92,13 @@ interface RedPacketData {
   is_mine: boolean; my_amount?: number | null; claimed: boolean; is_exhausted: boolean;
   claims?: RedPacketClaimData[] | null;
 }
+// 💸 پولِ درون‌چت — `amount` مثل بقیهٔ کیف‌پول در ریال می‌آید.
+interface MoneyData {
+  id: string; kind: "send" | "request"; amount: number;
+  note?: string | null; status: string;
+  is_mine: boolean; counterpart_earth_id: string; counterpart_name: string;
+  can_pay: boolean; can_cancel: boolean; settled_at?: string | null;
+}
 interface Message {
   id: string; sender_id: string; sender_name: string | null;
   sender_earth_id: string | null; content: string;
@@ -111,6 +118,7 @@ interface Message {
   contact?: ContactData | null;
   event?: EventData | null;
   red_packet?: RedPacketData | null;
+  money?: MoneyData | null;
   is_forwarded?: boolean;
   forwarded_from?: string | null;
   is_pinned?: boolean;
@@ -425,6 +433,12 @@ function ChatView({ room, onBack, onLeave, initialDraft }: { room: Room; onBack:
   const [rpSending, setRpSending] = useState(false);
   const [rpDetail, setRpDetail] = useState<RedPacketData | null>(null);
   const [rpOpening, setRpOpening] = useState(false);
+  // 💸 پولِ درون‌چت (ارسال / درخواست)
+  const [moneyMode, setMoneyMode] = useState<"send" | "request" | null>(null);
+  const [moneyAmount, setMoneyAmount] = useState("");
+  const [moneyNote, setMoneyNote] = useState("");
+  const [moneySending, setMoneySending] = useState(false);
+  const [moneyBusyId, setMoneyBusyId] = useState<string | null>(null);
   // گزارشِ کاربر
   const [reportTarget, setReportTarget] = useState<Message | null>(null);
   const [reportReason, setReportReason] = useState("");
@@ -654,6 +668,55 @@ function ChatView({ room, onBack, onLeave, initialDraft }: { room: Room; onBack:
       } catch { /* noop */ }
     } finally {
       setRpOpening(false);
+    }
+  };
+
+  // ── 💸 پولِ درون‌چت ──────────────────────────────────────
+  const openMoney = (mode: "send" | "request") => {
+    setMoneyAmount("");
+    setMoneyNote("");
+    setMoneyMode(mode);
+  };
+
+  const submitMoney = async () => {
+    if (!moneyMode) return;
+    const toman = parseInt(moneyAmount.replace(/\D/g, ""), 10);
+    if (!toman || toman < 100) { toast.error(t("chat.money.min")); return; }
+    // سرور مبلغ را در واحدِ خرد (ریال) می‌گیرد و ورودیِ کاربر تومان است.
+    const rial = toman * 10;
+    setMoneySending(true);
+    try {
+      const r = moneyMode === "send"
+        ? await messagesApi.sendMoney(room.id, rial, moneyNote.trim() || undefined)
+        : await messagesApi.requestMoney(room.id, rial, moneyNote.trim() || undefined);
+      setMessages((prev) => [...prev, r.data]);
+      setMoneyMode(null);
+      toast.success(moneyMode === "send" ? t("chat.money.sentOk") : t("chat.money.requestedOk"));
+      requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, t("chat.money.failed")));
+    } finally {
+      setMoneySending(false);
+    }
+  };
+
+  // پرداخت/ردِ یک درخواست — پاسخ همان `MoneyInfo`ِ به‌روز است، پس فقط همان
+  // حباب را جایگزین می‌کنیم و کلِ تاریخچه دوباره بارگیری نمی‌شود.
+  const settleRequest = async (msg: Message, action: "pay" | "decline") => {
+    const mn = msg.money;
+    if (!mn || moneyBusyId) return;
+    setMoneyBusyId(mn.id);
+    try {
+      const r = action === "pay"
+        ? await messagesApi.payMoneyRequest(mn.id)
+        : await messagesApi.declineMoneyRequest(mn.id);
+      const updated: MoneyData = r.data;
+      setMessages((prev) => prev.map((m) => (m.id === msg.id ? { ...m, money: updated } : m)));
+      if (action === "pay") toast.success(`${fmtToman(mn.amount)}${t("chat.money.paidToast")}`);
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, t("chat.money.failed")));
+    } finally {
+      setMoneyBusyId(null);
     }
   };
 
@@ -1981,7 +2044,76 @@ function ChatView({ room, onBack, onLeave, initialDraft }: { room: Room; onBack:
                     </button>
                   );
                 })()}
-                {(msg.is_deleted || (msg.content && msg.media_type !== "call" && msg.media_type !== "poll" && msg.media_type !== "contact" && msg.media_type !== "event" && msg.media_type !== "red_packet") || (!msg.media_url && !msg.location && msg.media_type !== "call" && msg.media_type !== "poll" && msg.media_type !== "contact" && msg.media_type !== "event" && msg.media_type !== "red_packet")) && (
+                {!msg.is_deleted && (msg.media_type === "money" || msg.media_type === "money_request") && msg.money && (() => {
+                  const mn = msg.money!;
+                  const isReq = mn.kind === "request";
+                  // «فرستنده/گیرنده» از دیدِ من: در `send` سازنده پول داده، در
+                  // `request` سازنده پول خواسته — پس رنگ و متن نباید یکی باشد.
+                  const head = isReq
+                    ? (mn.is_mine ? t("chat.money.iRequested") : t("chat.money.theyRequested"))
+                    : (mn.is_mine ? t("chat.money.iSent") : t("chat.money.theySent"));
+                  const done = mn.status === "paid" || mn.status === "completed";
+                  const dead = mn.status === "declined" || mn.status === "cancelled";
+                  return (
+                    <div className="min-w-[13rem] rounded-2xl overflow-hidden">
+                      <div className={`px-3.5 pt-3 pb-2.5 ${
+                        dead ? "bg-white/5"
+                          : isReq ? "bg-gradient-to-br from-amber-500 to-orange-500"
+                            : "bg-gradient-to-br from-emerald-500 to-teal-600"
+                      }`}>
+                        <div className="flex items-center gap-2">
+                          <span className="shrink-0 w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
+                            {isReq ? <HandCoins size={18} className="text-white" /> : <Banknote size={18} className="text-white" />}
+                          </span>
+                          <span className="flex-1 min-w-0">
+                            <span className="block text-white/80 text-[11px]">{head}</span>
+                            <span className="block text-white font-black text-lg leading-tight">
+                              {fmtToman(mn.amount)} <span className="text-[11px] font-bold">{t("chat.toman")}</span>
+                            </span>
+                          </span>
+                        </div>
+                        {mn.note && <p className="text-white/85 text-[12px] mt-1.5 break-words">{mn.note}</p>}
+                      </div>
+                      <div className="px-3.5 py-2 bg-black/25 text-[12px]">
+                        {mn.can_pay ? (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); settleRequest(msg, "pay"); }}
+                              disabled={moneyBusyId === mn.id}
+                              className="flex-1 py-1.5 rounded-lg bg-emerald-500 text-white font-bold disabled:opacity-50 active:scale-[0.98] transition"
+                            >
+                              {moneyBusyId === mn.id ? t("chat.sending") : t("chat.money.payBtn")}
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); settleRequest(msg, "decline"); }}
+                              disabled={moneyBusyId === mn.id}
+                              className="px-3 py-1.5 rounded-lg bg-white/10 text-white/70 font-semibold disabled:opacity-50"
+                            >
+                              {t("chat.money.declineBtn")}
+                            </button>
+                          </div>
+                        ) : mn.can_cancel ? (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); settleRequest(msg, "decline"); }}
+                            disabled={moneyBusyId === mn.id}
+                            className="w-full py-1.5 rounded-lg bg-white/10 text-white/70 font-semibold disabled:opacity-50"
+                          >
+                            {moneyBusyId === mn.id ? t("chat.sending") : t("chat.money.cancelBtn")}
+                          </button>
+                        ) : (
+                          <span className={done ? "text-emerald-300 font-semibold" : "text-white/50"}>
+                            {mn.status === "completed" ? t("chat.money.stCompleted")
+                              : mn.status === "paid" ? t("chat.money.stPaid")
+                                : mn.status === "declined" ? t("chat.money.stDeclined")
+                                  : mn.status === "cancelled" ? t("chat.money.stCancelled")
+                                    : t("chat.money.stPending")}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+                {(msg.is_deleted || (msg.content && msg.media_type !== "call" && msg.media_type !== "poll" && msg.media_type !== "contact" && msg.media_type !== "event" && msg.media_type !== "red_packet" && msg.media_type !== "money" && msg.media_type !== "money_request") || (!msg.media_url && !msg.location && msg.media_type !== "call" && msg.media_type !== "poll" && msg.media_type !== "contact" && msg.media_type !== "event" && msg.media_type !== "red_packet" && msg.media_type !== "money" && msg.media_type !== "money_request")) && (
                   <p>{msg.is_deleted ? t("chat.thisMsgDeleted") : msg.content}</p>
                 )}
                 {/* inline translation */}
@@ -2624,6 +2756,25 @@ function ChatView({ room, onBack, onLeave, initialDraft }: { room: Room; onBack:
               >
                 <Gift size={24} className="text-rose-400" />
               </button>
+              {/* پولِ مستقیم فقط در گفتگوی دونفره — پولِ گروهی مسیرِ 🧧 را دارد */}
+              {room.type !== "group" && (
+                <>
+                  <button
+                    onClick={() => { setShowAttach(false); openMoney("send"); }}
+                    title={t("chat.money.send")}
+                    className="w-14 h-14 rounded-full bg-emerald-500/15 flex items-center justify-center active:scale-95 transition"
+                  >
+                    <Banknote size={24} className="text-emerald-400" />
+                  </button>
+                  <button
+                    onClick={() => { setShowAttach(false); openMoney("request"); }}
+                    title={t("chat.money.request")}
+                    className="w-14 h-14 rounded-full bg-amber-500/15 flex items-center justify-center active:scale-95 transition"
+                  >
+                    <HandCoins size={24} className="text-amber-400" />
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -2763,6 +2914,74 @@ function ChatView({ room, onBack, onLeave, initialDraft }: { room: Room; onBack:
             </button>
             <p className="text-white/35 text-[10px] text-center mt-2">
               {t("chat.rpNote")}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* 💸 ارسال / درخواستِ پول */}
+      {moneyMode && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => setMoneyMode(null)}>
+          <div className="w-full max-w-md bg-[#1C1C1E] rounded-t-3xl p-4 pb-safe animate-[slideUp_0.2s_ease] max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-4">
+              <span className={`w-9 h-9 rounded-full flex items-center justify-center ${moneyMode === "send" ? "bg-emerald-500/15" : "bg-amber-500/15"}`}>
+                {moneyMode === "send"
+                  ? <Banknote size={18} className="text-emerald-400" />
+                  : <HandCoins size={18} className="text-amber-400" />}
+              </span>
+              <p className="text-white font-bold">
+                {moneyMode === "send" ? t("chat.money.send") : t("chat.money.request")}
+              </p>
+            </div>
+
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setMoneyMode("send")}
+                className={`flex-1 py-2 rounded-xl text-sm font-semibold transition ${moneyMode === "send" ? "bg-emerald-500 text-white" : "bg-[#0A0A0A] text-white/60"}`}
+              >{t("chat.money.send")}</button>
+              <button
+                onClick={() => setMoneyMode("request")}
+                className={`flex-1 py-2 rounded-xl text-sm font-semibold transition ${moneyMode === "request" ? "bg-amber-500 text-white" : "bg-[#0A0A0A] text-white/60"}`}
+              >{t("chat.money.request")}</button>
+            </div>
+
+            <label className="block text-white/40 text-xs mb-1">{t("chat.money.amount")}</label>
+            <input
+              value={moneyAmount}
+              onChange={(e) => setMoneyAmount(e.target.value.replace(/[^0-9]/g, ""))}
+              inputMode="numeric"
+              placeholder={t("chat.money.amountPh")}
+              className="w-full bg-[#0A0A0A] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-500/50 mb-1 text-left"
+              dir="ltr"
+            />
+            <p className="text-white/50 text-[11px] mb-3 h-4">
+              {moneyAmount ? `${toPersianNum(parseInt(moneyAmount, 10).toLocaleString("en-US"))}${t("chat.tomanSuffix")}` : ""}
+            </p>
+
+            <label className="block text-white/40 text-xs mb-1">{t("chat.money.note")}</label>
+            <input
+              value={moneyNote}
+              onChange={(e) => setMoneyNote(e.target.value)}
+              maxLength={200}
+              placeholder={t("chat.money.notePh")}
+              className="w-full bg-[#0A0A0A] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-500/50 mb-4"
+            />
+
+            <button
+              onClick={submitMoney}
+              disabled={moneySending || !moneyAmount}
+              className={`w-full py-3 rounded-xl text-white font-bold text-sm disabled:opacity-40 active:scale-[0.99] transition ${
+                moneyMode === "send"
+                  ? "bg-gradient-to-r from-emerald-500 to-teal-600"
+                  : "bg-gradient-to-r from-amber-500 to-orange-500"
+              }`}
+            >
+              {moneySending
+                ? t("chat.sending")
+                : moneyMode === "send" ? t("chat.money.sendBtn") : t("chat.money.requestBtn")}
+            </button>
+            <p className="text-white/35 text-[10px] text-center mt-2">
+              {moneyMode === "send" ? t("chat.money.sendNote") : t("chat.money.requestNote")}
             </p>
           </div>
         </div>

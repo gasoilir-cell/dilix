@@ -222,3 +222,34 @@ class RedPacketClaim(Base):
     __table_args__ = (
         Index("uq_red_packet_claim", "packet_id", "user_id", unique=True),
     )
+
+
+class MessageMoney(Base):
+    """پولِ درون‌چت: انتقالِ مستقیمِ P2P یا درخواستِ پول، پیوست به یک پیام.
+
+    دو `kind`:
+      - `send`    — پول همان لحظه از فرستنده کسر و به گیرنده واریز می‌شود
+                    (وضعیتِ `completed`؛ پیام رسیدِ آن است).
+      - `request` — درخواستِ پول؛ تا وقتی گیرنده `pay` نکند هیچ پولی جابه‌جا
+                    نمی‌شود (`pending` → `paid` | `declined` | `cancelled`).
+
+    مبالغ مثل بقیهٔ کیف‌پول در **ریال** (واحدِ خرد) نگهداری می‌شوند.
+    """
+    __tablename__ = "message_money"
+
+    id           = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    message_id   = Column(UUID(as_uuid=True), ForeignKey("messages.id", ondelete="CASCADE"), nullable=False, index=True)
+    room_id      = Column(UUID(as_uuid=True), ForeignKey("message_rooms.id", ondelete="CASCADE"), nullable=False, index=True)
+    from_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    to_user_id   = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    kind         = Column(String(8), nullable=False, default="send")        # send | request
+    amount       = Column(Integer, nullable=False)                          # ریال
+    note         = Column(String(200), nullable=True)
+    status       = Column(String(12), nullable=False, default="completed")  # completed | pending | paid | declined | cancelled
+    settled_at   = Column(DateTime(timezone=True), nullable=True)           # زمانِ پرداختِ درخواست
+    created_at   = Column(DateTime(timezone=True), nullable=False, default=_now)
+
+    __table_args__ = (
+        Index("uq_message_money", "message_id", unique=True),
+        Index("ix_message_money_status", "status", "to_user_id"),
+    )

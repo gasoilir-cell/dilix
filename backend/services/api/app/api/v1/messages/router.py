@@ -40,7 +40,7 @@ from app.models.user import User
 from app.models.messages import (
     MessageRoom, RoomMember, Message, MessageReaction, MessageTranslation,
     MessagePoll, PollVote, UserBlock, MessageEvent, UserReport,
-    MessageRedPacket, RedPacketClaim,
+    MessageRedPacket, RedPacketClaim, MessageMoney,
 )
 from app.models.wallet import Wallet, WalletTransaction
 
@@ -51,6 +51,10 @@ RP_MIN_SHARE = 1000          # کف هر سهم: ۱۰۰۰ ریال
 RP_MAX_COUNT = 100           # حداکثر تعدادِ سهم
 RP_MAX_AMOUNT = 500_000_000  # سقفِ مبلغِ کل: ۵۰٬۰۰۰٬۰۰۰ تومان
 RP_TTL_HOURS = 24            # انقضای هدیه
+
+# 💸 پولِ درون‌چت (انتقال/درخواستِ P2P): کف و سقفِ مبلغ به ریال
+MONEY_MIN_AMOUNT = 1000            # کف: ۱۰۰ تومان
+MONEY_MAX_AMOUNT = 500_000_000     # سقف: ۵۰٬۰۰۰٬۰۰۰ تومان
 
 _ALLOWED_EMOJI = {"❤️", "👍", "😂", "😮", "😢", "🙏", "🔥", "👏"}
 
@@ -91,6 +95,7 @@ _MEDIA_LABEL = {
     "video": "🎬 ویدیو", "location": "📍 موقعیت مکانی", "live_location": "📡 موقعیت زنده",
     "call": "📞 تماس", "poll": "📊 نظرسنجی", "contact": "👤 مخاطب", "event": "📅 رویداد",
     "red_packet": "🧧 هدیهٔ نقدی",
+    "money": "💸 انتقالِ پول", "money_request": "🧾 درخواستِ پول",
 }
 
 # مقادیرِ مجازِ TTLِ پیامِ ناپدیدشونده (ثانیه): خاموش، ۱ ساعت، ۲۴ ساعت، ۷ روز
@@ -310,6 +315,114 @@ async def _build_red_packets(db: AsyncSession, msg_ids, me_id) -> Dict[str, "Red
             sender=senders.get(p.sender_id),
         )
     return out
+
+
+# ── 💸 پولِ درون‌چت (انتقال/درخواستِ P2P) helpers ─────────────────
+async def _move_money(db: AsyncSession, from_id, to_id, amount: int,
+                      out_desc: str, in_desc: str) -> None:
+    """جابه‌جاییِ اتمیکِ پول بینِ دو کیف‌پول + دو ردیفِ تراکنش (بدونِ commit).
+
+    هر دو ردیف در **یک** کوئری و با ترتیبِ ثابتِ `id` قفل می‌شوند: بدونِ قفل، دو
+    درخواستِ هم‌زمان هر دو همان موجودی را می‌خوانند و خرجِ دوباره ممکن می‌شود؛ و
+    اگر جداگانه قفل شوند، دو انتقالِ متقابل به بن‌بست (deadlock) می‌خورند.
+    """
+    await _get_or_create_wallet(db, from_id)
+    await _get_or_create_wallet(db, to_id)
+
+    locked = await db.execute(
+        select(Wallet)
+        .where(Wallet.user_id.in_([from_id, to_id]))
+        .order_by(Wallet.id)
+        .with_for_update()
+    )
+    wallets = {w.user_id: w for w in locked.scalars().all()}
+    sw, rw = wallets[from_id], wallets[to_id]
+
+    if sw.is_frozen:
+        raise HTTPException(status_code=403, detail="کیف‌پول مسدود است")
+    if rw.is_frozen:
+        raise HTTPException(status_code=403, detail="کیف‌پولِ مقصد مسدود است")
+    if sw.balance_available < amount:
+        raise HTTPException(status_code=400, detail="موجودی کافی نیست")
+
+    before_out = sw.balance_available
+    sw.balance_available -= amount
+    db.add(WalletTransaction(
+        wallet_id=sw.id, type="transfer_out", status="completed",
+        amount=amount, balance_before=before_out, balance_after=sw.balance_available,
+        description=out_desc,
+    ))
+
+    before_in = rw.balance_available
+    rw.balance_available += amount
+    db.add(WalletTransaction(
+        wallet_id=rw.id, type="transfer_in", status="completed",
+        amount=amount, balance_before=before_in, balance_after=rw.balance_available,
+        description=in_desc,
+    ))
+    await db.flush()
+
+
+async def _direct_partner(db: AsyncSession, rid, me_id) -> User:
+    """طرفِ مقابلِ یک اتاقِ دونفره. پول درون‌چت فقط در اتاقِ `direct` معنی دارد
+    (پولِ گروهی مسیرِ 🧧 هدیهٔ نقدی را دارد)."""
+    room = await db.get(MessageRoom, rid)
+    if not room or room.type != "direct":
+        raise HTTPException(status_code=400, detail="انتقالِ پول فقط در گفتگوی دونفره ممکن است")
+    other = (await db.execute(
+        select(User)
+        .join(RoomMember, RoomMember.user_id == User.id)
+        .where(and_(RoomMember.room_id == rid, RoomMember.user_id != me_id))
+    )).scalars().first()
+    if not other:
+        raise HTTPException(status_code=400, detail="طرفِ مقابل پیدا نشد")
+    return other
+
+
+def _money_info(mm: MessageMoney, me_id, counterpart=None) -> "MoneyInfo":
+    """گیرنده (`to_user_id`) در `send` دریافت‌کنندهٔ پول و در `request` کسی است
+    که باید بپردازد؛ پس «دکمهٔ پرداخت» فقط برای اوست."""
+    return MoneyInfo(
+        id=str(mm.id),
+        kind=mm.kind,
+        amount=mm.amount,
+        note=mm.note,
+        status=mm.status,
+        is_mine=(mm.from_user_id == me_id),
+        counterpart_earth_id=(counterpart.earth_id if counterpart else ""),
+        counterpart_name=(
+            (counterpart.full_name or counterpart.username or counterpart.earth_id)
+            if counterpart else ""
+        ),
+        can_pay=bool(mm.kind == "request" and mm.status == "pending" and mm.to_user_id == me_id),
+        can_cancel=bool(mm.kind == "request" and mm.status == "pending" and mm.from_user_id == me_id),
+        settled_at=mm.settled_at,
+    )
+
+
+async def _build_money(db: AsyncSession, msg_ids, me_id) -> Dict[str, "MoneyInfo"]:
+    """MoneyInfo برای پیام‌های پول (batch): مبلغ + وضعیت + نقشِ من."""
+    if not msg_ids:
+        return {}
+    rows = (await db.execute(
+        select(MessageMoney).where(MessageMoney.message_id.in_(msg_ids))
+    )).scalars().all()
+    if not rows:
+        return {}
+    # طرفِ مقابلِ *من* — نه همیشه فرستنده: در پیامی که خودم ساخته‌ام گیرنده است.
+    other_ids = {(m.to_user_id if m.from_user_id == me_id else m.from_user_id) for m in rows}
+    users = {
+        u.id: u for u in (await db.execute(
+            select(User).where(User.id.in_(other_ids))
+        )).scalars().all()
+    }
+    return {
+        str(m.message_id): _money_info(
+            m, me_id,
+            counterpart=users.get(m.to_user_id if m.from_user_id == me_id else m.from_user_id),
+        )
+        for m in rows
+    }
 
 
 async def _room_expiry(db: AsyncSession, rid) -> Optional[datetime]:
@@ -551,6 +664,20 @@ class RedPacketInfo(BaseModel):
     claims: Optional[List[RedPacketClaimOut]] = None   # فقط در جزئیات
 
 
+class MoneyInfo(BaseModel):
+    id: str
+    kind: str                          # send | request
+    amount: int                        # ریال
+    note: Optional[str] = None
+    status: str                        # completed | pending | paid | declined | cancelled
+    is_mine: bool = False              # آیا سازندهٔ این پیام منم
+    counterpart_earth_id: str = ""     # طرفِ مقابلِ من در این تراکنش
+    counterpart_name: str = ""
+    can_pay: bool = False              # درخواستِ بازِ رو به من → دکمهٔ «پرداخت»
+    can_cancel: bool = False           # درخواستِ بازِ خودم → دکمهٔ «لغو»
+    settled_at: Optional[datetime] = None
+
+
 class MessageOut(BaseModel):
     id: str
     sender_id: str
@@ -574,6 +701,7 @@ class MessageOut(BaseModel):
     contact: Optional[ContactInfo] = None
     event: Optional[EventInfo] = None
     red_packet: Optional[RedPacketInfo] = None
+    money: Optional[MoneyInfo] = None
     is_forwarded: bool = False
     forwarded_from: Optional[str] = None
     is_pinned: bool = False
@@ -618,6 +746,13 @@ class CreateRedPacketRequest(BaseModel):
     count: int = Field(1, ge=1, le=100, description="تعدادِ سهم‌ها")
     mode: str = Field("equal", description="equal | random")
     greeting: Optional[str] = Field(None, max_length=200)
+    reply_to_id: Optional[str] = None
+
+
+class MoneyRequest(BaseModel):
+    """بدنهٔ مشترکِ «ارسالِ پول» و «درخواستِ پول» (مبلغ به ریال)."""
+    amount: int = Field(..., gt=0, description="مبلغ به ریال")
+    note: Optional[str] = Field(None, max_length=200)
     reply_to_id: Optional[str] = None
 
 
@@ -1129,6 +1264,7 @@ async def get_messages(
     poll_map = await _build_polls(db, msg_ids, me.id)
     event_map = await _build_events(db, msg_ids)
     rp_map = await _build_red_packets(db, msg_ids, me.id)
+    money_map = await _build_money(db, msg_ids, me.id)
 
     msgs = []
     for msg, full_name, username, earth_id in rows:
@@ -1160,6 +1296,7 @@ async def get_messages(
             contact=None if msg.is_deleted else _build_contact(msg),
             event=None if msg.is_deleted else event_map.get(mid),
             red_packet=None if msg.is_deleted else rp_map.get(mid),
+            money=None if msg.is_deleted else money_map.get(mid),
             is_forwarded=bool(getattr(msg, "is_forwarded", False)) and not msg.is_deleted,
             forwarded_from=None if msg.is_deleted else getattr(msg, "forwarded_from", None),
             is_pinned=bool(getattr(msg, "pinned_at", None)) and not msg.is_deleted,
@@ -1717,6 +1854,205 @@ async def get_red_packet(
     return _red_packet_info(rp, me.id, my_claim_amount=my_amount, sender=sender, claims=claims)
 
 
+# ── 💸 پولِ درون‌چت: انتقال و درخواستِ P2P ───────────────────────
+def _check_money_amount(amount: int) -> int:
+    amt = int(amount)
+    if amt < MONEY_MIN_AMOUNT:
+        raise HTTPException(status_code=400, detail=f"حداقل مبلغ {MONEY_MIN_AMOUNT} ریال است")
+    if amt > MONEY_MAX_AMOUNT:
+        raise HTTPException(status_code=400, detail="مبلغ بیش از حدِ مجاز است")
+    return amt
+
+
+def _money_message_out(msg: Message, mm: MessageMoney, me: User,
+                       counterpart: User) -> MessageOut:
+    return MessageOut(
+        id=str(msg.id),
+        sender_id=str(msg.sender_id),
+        sender_name=me.full_name or me.username or me.earth_id,
+        sender_earth_id=me.earth_id,
+        content=msg.content,
+        is_mine=True, is_deleted=False, edited=False,
+        reply_to=None, reactions={}, my_reaction=None, is_read=False,
+        media_type=msg.media_type,
+        money=_money_info(mm, me.id, counterpart=counterpart),
+        created_at=msg.created_at,
+    )
+
+
+async def _resolve_reply(db: AsyncSession, rid, reply_to_id: Optional[str]):
+    if not reply_to_id:
+        return None
+    try:
+        ruid = _uuid.UUID(reply_to_id)
+    except ValueError:
+        return None
+    parent = await db.get(Message, ruid)
+    return ruid if parent and parent.room_id == rid else None
+
+
+@router.post("/rooms/{room_id}/money", response_model=MessageOut, status_code=status.HTTP_201_CREATED)
+async def send_money(
+    room_id: str,
+    body: MoneyRequest,
+    db: AsyncSession = Depends(get_db),
+    me: User = Depends(get_current_user),
+):
+    """💸 ارسالِ پول به طرفِ مقابلِ گفتگو — کسر/واریزِ فوری + رسیدِ درون‌چت."""
+    rid = _uuid.UUID(room_id)
+    await _require_member(db, rid, me.id)
+    await _ensure_not_blocked(db, rid, me.id)
+
+    amount = _check_money_amount(body.amount)
+    other = await _direct_partner(db, rid, me.id)
+    note = (body.note or "").strip()[:200] or None
+
+    await _move_money(
+        db, me.id, other.id, amount,
+        out_desc=f"ارسالِ پول در گفتگو به {other.earth_id}",
+        in_desc=f"دریافتِ پول در گفتگو از {me.earth_id}",
+    )
+
+    msg = Message(
+        room_id=rid, sender_id=me.id,
+        content=note or "💸 انتقالِ پول",
+        media_type="money",
+        reply_to_id=await _resolve_reply(db, rid, body.reply_to_id),
+        expires_at=await _room_expiry(db, rid),
+    )
+    db.add(msg)
+    await db.flush()
+
+    mm = MessageMoney(
+        message_id=msg.id, room_id=rid,
+        from_user_id=me.id, to_user_id=other.id,
+        kind="send", amount=amount, note=note,
+        status="completed", settled_at=datetime.now(timezone.utc),
+    )
+    db.add(mm)
+    await db.commit()
+    await db.refresh(msg)
+    await db.refresh(mm)
+    return _money_message_out(msg, mm, me, other)
+
+
+@router.post("/rooms/{room_id}/money-request", response_model=MessageOut, status_code=status.HTTP_201_CREATED)
+async def request_money(
+    room_id: str,
+    body: MoneyRequest,
+    db: AsyncSession = Depends(get_db),
+    me: User = Depends(get_current_user),
+):
+    """🧾 درخواستِ پول از طرفِ مقابل — هیچ پولی تا زمانِ پرداختِ او جابه‌جا نمی‌شود."""
+    rid = _uuid.UUID(room_id)
+    await _require_member(db, rid, me.id)
+    await _ensure_not_blocked(db, rid, me.id)
+
+    amount = _check_money_amount(body.amount)
+    other = await _direct_partner(db, rid, me.id)
+    note = (body.note or "").strip()[:200] or None
+
+    msg = Message(
+        room_id=rid, sender_id=me.id,
+        content=note or "🧾 درخواستِ پول",
+        media_type="money_request",
+        reply_to_id=await _resolve_reply(db, rid, body.reply_to_id),
+        expires_at=await _room_expiry(db, rid),
+    )
+    db.add(msg)
+    await db.flush()
+
+    mm = MessageMoney(
+        message_id=msg.id, room_id=rid,
+        from_user_id=me.id, to_user_id=other.id,
+        kind="request", amount=amount, note=note, status="pending",
+    )
+    db.add(mm)
+    await db.commit()
+    await db.refresh(msg)
+    await db.refresh(mm)
+    return _money_message_out(msg, mm, me, other)
+
+
+async def _load_money(db: AsyncSession, money_id: str, me_id) -> MessageMoney:
+    try:
+        mid = _uuid.UUID(money_id)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="شناسهٔ نامعتبر")
+    mm = await db.get(MessageMoney, mid)
+    if not mm:
+        raise HTTPException(status_code=404, detail="تراکنش پیدا نشد")
+    await _require_member(db, mm.room_id, me_id)
+    return mm
+
+
+@router.post("/money-requests/{money_id}/pay", response_model=MoneyInfo)
+async def pay_money_request(
+    money_id: str,
+    db: AsyncSession = Depends(get_db),
+    me: User = Depends(get_current_user),
+):
+    """پرداختِ یک درخواستِ پول (فقط گیرندهٔ درخواست؛ idempotent)."""
+    mm = await _load_money(db, money_id, me.id)
+    requester = await db.get(User, mm.from_user_id)
+
+    if mm.kind != "request":
+        raise HTTPException(status_code=400, detail="این تراکنش قابلِ پرداخت نیست")
+    if mm.to_user_id != me.id:
+        raise HTTPException(status_code=403, detail="این درخواست برای شما نیست")
+    if mm.status == "paid":
+        # دو تپِ پشتِ هم نباید دو بار پول بفرستد
+        return _money_info(mm, me.id, counterpart=requester)
+    if mm.status != "pending":
+        raise HTTPException(status_code=410, detail="این درخواست دیگر باز نیست")
+
+    await _move_money(
+        db, me.id, mm.from_user_id, mm.amount,
+        out_desc=f"پرداختِ درخواستِ {requester.earth_id if requester else ''}",
+        in_desc=f"دریافتِ درخواستِ پول از {me.earth_id}",
+    )
+    mm.status = "paid"
+    mm.settled_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(mm)
+    return _money_info(mm, me.id, counterpart=requester)
+
+
+@router.post("/money-requests/{money_id}/decline", response_model=MoneyInfo)
+async def decline_money_request(
+    money_id: str,
+    db: AsyncSession = Depends(get_db),
+    me: User = Depends(get_current_user),
+):
+    """ردِ درخواست (گیرنده) یا لغوِ آن (درخواست‌کننده)."""
+    mm = await _load_money(db, money_id, me.id)
+    if mm.kind != "request":
+        raise HTTPException(status_code=400, detail="این تراکنش قابلِ لغو نیست")
+    if me.id not in (mm.to_user_id, mm.from_user_id):
+        raise HTTPException(status_code=403, detail="دسترسی ندارید")
+    if mm.status != "pending":
+        raise HTTPException(status_code=410, detail="این درخواست دیگر باز نیست")
+
+    mm.status = "cancelled" if mm.from_user_id == me.id else "declined"
+    mm.settled_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(mm)
+    other = await db.get(User, mm.to_user_id if mm.from_user_id == me.id else mm.from_user_id)
+    return _money_info(mm, me.id, counterpart=other)
+
+
+@router.get("/money/{money_id}", response_model=MoneyInfo)
+async def get_money(
+    money_id: str,
+    db: AsyncSession = Depends(get_db),
+    me: User = Depends(get_current_user),
+):
+    """جزئیاتِ یک تراکنشِ پولِ درون‌چت."""
+    mm = await _load_money(db, money_id, me.id)
+    other = await db.get(User, mm.to_user_id if mm.from_user_id == me.id else mm.from_user_id)
+    return _money_info(mm, me.id, counterpart=other)
+
+
 @router.post("/rooms/{room_id}/media", response_model=MessageOut, status_code=status.HTTP_201_CREATED)
 async def send_media_message(
     room_id: str,
@@ -1973,6 +2309,15 @@ async def delete_message(
     if msg.sender_id != me.id:
         raise HTTPException(status_code=403, detail="فقط می‌توانید پیام خودتان را حذف کنید")
     msg.is_deleted = True
+    # حذفِ حبابِ درخواستِ پول باید خودِ درخواست را هم ببندد، وگرنه درخواستی که
+    # از گفتگو ناپدید شده هنوز از راهِ API قابلِ پرداخت می‌ماند.
+    if msg.media_type == "money_request":
+        mm = (await db.execute(
+            select(MessageMoney).where(MessageMoney.message_id == msg.id)
+        )).scalar_one_or_none()
+        if mm and mm.status == "pending":
+            mm.status = "cancelled"
+            mm.settled_at = datetime.now(timezone.utc)
     await db.commit()
     return {"ok": True, "id": message_id}
 

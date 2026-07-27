@@ -313,6 +313,140 @@ class _RedPacketComposerState extends State<_RedPacketComposer> {
   }
 }
 
+/// خروجیِ سازندهٔ پولِ درون‌چت. [amount] به **ریال** (سرور واحدِ خرد می‌گیرد).
+class MoneyDraft {
+  MoneyDraft(this.amount, this.note);
+  final int amount;
+  final String? note;
+}
+
+/// [request] = درخواستِ پول، در غیرِ این‌صورت ارسالِ مستقیم.
+Future<MoneyDraft?> showMoneyComposer(
+  BuildContext context, {
+  required bool request,
+}) {
+  return showModalBottomSheet<MoneyDraft>(
+    context: context,
+    isScrollControlled: true,
+    builder: (ctx) => _MoneyComposer(request: request),
+  );
+}
+
+class _MoneyComposer extends StatefulWidget {
+  const _MoneyComposer({required this.request});
+  final bool request;
+
+  @override
+  State<_MoneyComposer> createState() => _MoneyComposerState();
+}
+
+class _MoneyComposerState extends State<_MoneyComposer> {
+  final _toman = TextEditingController();
+  final _note = TextEditingController();
+
+  @override
+  void dispose() {
+    _toman.dispose();
+    _note.dispose();
+    super.dispose();
+  }
+
+  int get _tomanValue => int.tryParse(_toman.text.trim()) ?? 0;
+
+  /// کفِ مبلغ در بک‌اند ۱۰۰۰ ریال (۱۰۰ تومان) است.
+  bool get _valid => _tomanValue >= 100;
+
+  @override
+  Widget build(BuildContext context) {
+    final req = widget.request;
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 16,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(req ? '🧾' : '💸', style: const TextStyle(fontSize: 20)),
+                const SizedBox(width: 8),
+                Text(req ? tr('درخواستِ پول') : tr('ارسالِ پول'),
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold)),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _toman,
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                labelText: tr('مبلغ (تومان)'),
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _note,
+              maxLength: 200,
+              decoration: InputDecoration(
+                labelText: tr('توضیح (اختیاری)'),
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            if (!_valid && _toman.text.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  tr('مبلغ باید حداقل ۱۰۰ تومان باشد.'),
+                  style: const TextStyle(color: Colors.orange, fontSize: 12),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                req
+                    ? tr('تا وقتی طرفِ مقابل پرداخت نکند پولی جابه‌جا نمی‌شود.')
+                    : tr('مبلغ همین حالا از کیفِ پولِ شما کسر می‌شود.'),
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                icon: Icon(req ? Icons.request_quote : Icons.payments),
+                label: Text(req ? tr('ثبتِ درخواست') : tr('ارسال')),
+                onPressed: _valid
+                    ? () => Navigator.pop(
+                          context,
+                          MoneyDraft(
+                            _tomanValue * 10,
+                            _note.text.trim().isEmpty
+                                ? null
+                                : _note.text.trim(),
+                          ),
+                        )
+                    : null,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// خروجیِ سازندهٔ رویداد.
 class EventDraft {
   EventDraft(this.title, this.startsAt, this.location, this.description);
