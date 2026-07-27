@@ -1302,6 +1302,33 @@ class ApiClient {
     return list.map((e) => Badge.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  // ── گیمیفیکیشنِ زنده (`/api/v1/gamification`) — فاز ۵ ──
+  // جدا از دو متدِ بالا که به سرویسِ `core` می‌خورند و شکلِ پاسخِ دیگری دارند.
+
+  /// نمایهٔ بازی: امتیاز، سطح، زنجیره، نشان‌ها و رتبه.
+  Future<GameProfile> gameProfile() async => GameProfile.fromJson(
+      await _get('/api/v1/gamification/me') as Map<String, dynamic>);
+
+  /// ورودِ روزانه. تکرار در همان روز خطا نیست؛ `already` برمی‌گردد.
+  Future<CheckInResult> gameCheckIn() async => CheckInResult.fromJson(
+      await _post('/api/v1/gamification/check-in', const {}) as Map<String, dynamic>);
+
+  /// اعطای نشان‌هایی که شرطشان در دادهٔ واقعی محقق شده (idempotent).
+  Future<BadgeSyncResult> gameSyncBadges() async => BadgeSyncResult.fromJson(
+      await _post('/api/v1/gamification/sync', const {}) as Map<String, dynamic>);
+
+  /// دفترِ امتیازِ من.
+  Future<List<PointEvent>> gameHistory({int limit = 50}) async {
+    final list = await _get('/api/v1/gamification/history?limit=$limit') as List;
+    return list.map((e) => PointEvent.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// تابلوی رتبه؛ [period] یکی از `all` / `week`.
+  Future<Leaderboard> gameLeaderboard({String period = 'all', int limit = 20}) async =>
+      Leaderboard.fromJson(
+          await _get('/api/v1/gamification/leaderboard?period=$period&limit=$limit')
+              as Map<String, dynamic>);
+
   // ─────────────── Investment ───────────────
   /// آخرین NAVِ یک صندوق (به کوچک‌ترین واحدِ پول).
   Future<NavQuote> investmentNav(String fundCode) async {
@@ -1725,11 +1752,13 @@ class ApiClient {
     required String title,
     String? description,
     bool isPublic = false,
+    int price = 0,
   }) async =>
       StickerPack.fromJson(await _post('/api/v1/stickers/packs', {
         'title': title,
         if (description != null && description.isNotEmpty) 'description': description,
         'is_public': isPublic,
+        'price': price,
       }) as Map<String, dynamic>);
 
   /// ویرایشِ بستهٔ خودم. فیلدهای `null` دست‌نخورده می‌مانند (سرور فقط مقادیرِ
@@ -1739,12 +1768,48 @@ class ApiClient {
     String? title,
     String? description,
     bool? isPublic,
+    int? price,
   }) async =>
       StickerPack.fromJson(await _patch('/api/v1/stickers/packs/$packId', {
         if (title != null) 'title': title,
         if (description != null) 'description': description,
         if (isPublic != null) 'is_public': isPublic,
+        if (price != null) 'price': price,
       }) as Map<String, dynamic>);
+
+  // ── بازارِ استیکر (فاز ۵) ──
+  /// ویترینِ بازار؛ [kind] یکی از `all` / `paid` / `free`.
+  Future<List<StickerPack>> stickerMarket({
+    String? q,
+    String kind = 'all',
+    int limit = 40,
+  }) async {
+    final params = <String, String>{'kind': kind, 'limit': '$limit'};
+    if (q != null && q.isNotEmpty) params['q'] = q;
+    final list =
+        await _get('/api/v1/stickers/market?${Uri(queryParameters: params).query}') as List;
+    return list
+        .map((e) => StickerPack.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// خریدِ بستهٔ پولی از کیفِ پول؛ سرور خودش نصبش هم می‌کند.
+  Future<StickerPack> purchaseStickerPack(String packId) async =>
+      StickerPack.fromJson(
+          await _post('/api/v1/stickers/packs/$packId/purchase', const {})
+              as Map<String, dynamic>);
+
+  /// بسته‌های پولی‌ای که خریده‌ام.
+  Future<List<StickerPurchase>> stickerPurchases() async {
+    final list = await _get('/api/v1/stickers/purchases') as List;
+    return list
+        .map((e) => StickerPurchase.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// فروش و درآمدِ خالصِ من به‌عنوانِ سازنده.
+  Future<StickerSales> stickerSales() async => StickerSales.fromJson(
+      await _get('/api/v1/stickers/sales') as Map<String, dynamic>);
 
   /// حذفِ بستهٔ خودم به‌همراهِ استیکرهایش. سرور مالکیت را چک می‌کند (وگرنه ۴۰۴).
   Future<void> deleteStickerPack(String packId) =>

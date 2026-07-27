@@ -285,3 +285,7 @@ app.include_router(miniapps_router, prefix="/api/v1")
 # ─── Ads — تبلیغاتِ خودخدمت (فاز ۴) ───────────────────────────────────────────
 from app.api.v1.ads.router import router as ads_router
 app.include_router(ads_router, prefix="/api/v1")
+
+# ─── Gamification — امتیاز/نشان/streak/تابلوی رتبه (فاز ۵) ────────────────────
+from app.api.v1.gamification.router import router as gamification_router
+app.include_router(gamification_router, prefix="/api/v1")

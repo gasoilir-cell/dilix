@@ -5,6 +5,7 @@ import AppShell from "@/components/layout/AppShell";
 import {
   Users, Share2, Copy, Check, Loader2, AlertCircle,
   Network, Coins, Gift, UserPlus, TrendingUp, Layers,
+  QrCode, Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { toPersianNum } from "@/lib/utils";
@@ -57,6 +58,9 @@ export default function ReferralPage() {
   const [copied, setCopied] = useState(false);
   const [refCode, setRefCode] = useState("");
   const [applying, setApplying] = useState(false);
+  const [qrUrl, setQrUrl] = useState<string | null>(null);
+  const [qrOpen, setQrOpen] = useState(false);
+  const [qrLoading, setQrLoading] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -78,6 +82,40 @@ export default function ReferralPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // آدرسِ blob تا زمانِ باز بودنِ صفحه زنده می‌ماند؛ هنگامِ ترک، آزادش می‌کنیم.
+  useEffect(() => {
+    return () => {
+      if (qrUrl) URL.revokeObjectURL(qrUrl);
+    };
+  }, [qrUrl]);
+
+  const toggleQr = async () => {
+    if (qrOpen) {
+      setQrOpen(false);
+      return;
+    }
+    setQrOpen(true);
+    if (qrUrl || qrLoading) return;
+    setQrLoading(true);
+    try {
+      const res = await referralApi.qr();
+      setQrUrl(URL.createObjectURL(res.data as Blob));
+    } catch {
+      toast.error(t("ref.qrFail"));
+      setQrOpen(false);
+    } finally {
+      setQrLoading(false);
+    }
+  };
+
+  const downloadQr = () => {
+    if (!qrUrl) return;
+    const a = document.createElement("a");
+    a.href = qrUrl;
+    a.download = `dilix-invite-${stats?.code || "qr"}.svg`;
+    a.click();
+  };
 
   const copyLink = async () => {
     if (!stats?.link) return;
@@ -175,7 +213,37 @@ export default function ReferralPage() {
               <Share2 size={16} />
               {t("ref.share")}
             </Button>
+            <Button
+              onClick={toggleQr}
+              aria-label={t("ref.qr")}
+              className="bg-white/15 hover:bg-white/25 border-0 px-3"
+            >
+              <QrCode size={16} />
+            </Button>
           </div>
+
+          {qrOpen && (
+            <div className="mt-4 flex flex-col items-center gap-3">
+              {qrLoading || !qrUrl ? (
+                <Loader2 size={28} className="animate-spin opacity-80" />
+              ) : (
+                <>
+                  <div className="rounded-2xl bg-white p-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={qrUrl} alt={t("ref.qr")} className="w-40 h-40" />
+                  </div>
+                  <p className="text-[11px] opacity-80 text-center">{t("ref.qrHint")}</p>
+                  <Button
+                    onClick={downloadQr}
+                    className="bg-white/15 hover:bg-white/25 border-0 gap-2 text-xs"
+                  >
+                    <Download size={14} />
+                    {t("ref.qrDownload")}
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* آمار سریع */}

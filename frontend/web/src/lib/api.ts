@@ -363,9 +363,9 @@ export const messagesApi = {
 
 // ─── Sticker / Emoji Library API ──────────────────────────────
 export const stickersApi = {
-  createPack: (title: string, description?: string, isPublic = false) =>
-    api.post("/stickers/packs", { title, description, is_public: isPublic }),
-  updatePack: (packId: string, body: { title?: string; description?: string; is_public?: boolean }) =>
+  createPack: (title: string, description?: string, isPublic = false, price = 0) =>
+    api.post("/stickers/packs", { title, description, is_public: isPublic, price }),
+  updatePack: (packId: string, body: { title?: string; description?: string; is_public?: boolean; price?: number }) =>
     api.patch(`/stickers/packs/${packId}`, body),
   deletePack: (packId: string) => api.delete(`/stickers/packs/${packId}`),
   myPacks: () => api.get("/stickers/packs/mine"),
@@ -390,6 +390,23 @@ export const stickersApi = {
   starred: () => api.get("/stickers/starred"),
   star: (stickerId: string) => api.post(`/stickers/${stickerId}/star`),
   unstar: (stickerId: string) => api.delete(`/stickers/${stickerId}/star`),
+  // بازارِ استیکر (فاز ۵)
+  market: (params?: { q?: string; kind?: "all" | "paid" | "free"; limit?: number; offset?: number }) =>
+    api.get("/stickers/market", { params }),
+  purchase: (packId: string) => api.post(`/stickers/packs/${packId}/purchase`),
+  purchases: () => api.get("/stickers/purchases"),
+  sales: () => api.get("/stickers/sales"),
+};
+
+// ─── Gamification API (امتیاز، نشان، streak، تابلوی رتبه — فاز ۵) ──
+export const gamificationApi = {
+  me: () => api.get("/gamification/me"),
+  checkIn: () => api.post("/gamification/check-in"),
+  badges: () => api.get("/gamification/badges"),
+  sync: () => api.post("/gamification/sync"),
+  history: (limit = 50) => api.get("/gamification/history", { params: { limit } }),
+  leaderboard: (period: "all" | "week" = "all", limit = 20) =>
+    api.get("/gamification/leaderboard", { params: { period, limit } }),
 };
 
 // ─── Calls API (WebRTC signaling — HTTP/Redis poll) ───────────
@@ -441,6 +458,8 @@ export const referralApi = {
   apply: (ref_code: string) => api.post("/referral/apply", { ref_code }),
   network: () => api.get("/referral/network"),
   commissions: () => api.get("/referral/commissions"),
+  // QRِ دعوت — SVG است، پس باید به‌شکلِ blob گرفته شود نه JSON.
+  qr: () => api.get("/referral/qr", { responseType: "blob" }),
 };
 
 // ─── Social Graph API (Follow) ────────────────────────────────

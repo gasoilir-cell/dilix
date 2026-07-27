@@ -4,7 +4,7 @@ import Link from "next/link";
 import {
   Truck, Shield, Globe2, Wallet, Bot, FileText,
   ChevronLeft, Zap, Lock, Package, Receipt, BarChart3, Store,
-  Blocks, Megaphone,
+  Blocks, Megaphone, Trophy, Sticker,
 } from "lucide-react";
 import AppShell from "@/components/layout/AppShell";
 import { useAuthStore } from "@/store/auth";
@@ -119,6 +119,28 @@ const SERVICES: Service[] = [
     color: "text-pink-400",
     bg: "bg-pink-500/8",
     border: "border-pink-500/20",
+    badge: "new",
+  },
+  {
+    id: "rewards",
+    href: "/rewards",
+    icon: Trophy,
+    label: "svc.rewards.l",
+    description: "svc.rewards.d",
+    color: "text-amber-400",
+    bg: "bg-amber-500/8",
+    border: "border-amber-500/20",
+    badge: "new",
+  },
+  {
+    id: "stickers",
+    href: "/stickers",
+    icon: Sticker,
+    label: "svc.stickers.l",
+    description: "svc.stickers.d",
+    color: "text-fuchsia-400",
+    bg: "bg-fuchsia-500/8",
+    border: "border-fuchsia-500/20",
     badge: "new",
   },
   {

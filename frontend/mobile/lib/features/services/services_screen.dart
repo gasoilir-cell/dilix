@@ -19,6 +19,7 @@ import '../provider/provider_screen.dart';
 import '../reputation/reputation_screen.dart';
 import '../reels/reels_screen.dart';
 import '../shop/shop_screen.dart';
+import '../stickers/sticker_market_screen.dart';
 import '../stories/stories_screen.dart';
 import '../telecom/telecom_screen.dart';
 import '../wallet/wallet_screen.dart';
@@ -49,6 +50,7 @@ class ServicesScreen extends StatelessWidget {
       _Service(Icons.shopping_bag_outlined, tr('فروشگاه'), tr('خرید و فروش با وجهِ امانی'), const ShopScreen()),
       _Service(Icons.widgets_outlined, tr('برنامه‌های کوچک'), tr('برنامه‌های شخصِ ثالث، بدونِ نصب'), const MiniAppsScreen()),
       _Service(Icons.campaign_outlined, tr('تبلیغات'), tr('کمپینِ کلیکی با بودجهٔ بلوکه'), const AdsScreen()),
+      _Service(Icons.emoji_emotions_outlined, tr('بازارِ استیکر'), tr('بستهٔ رایگان و پولی؛ بساز و بفروش'), const StickerMarketScreen()),
       _Service(Icons.account_balance_wallet_outlined, tr('کیف پول'), tr('پاداش و پرداختِ امن'), const WalletScreen()),
       _Service(Icons.notifications_outlined, tr('اعلان‌ها'), tr('رویدادها و پیام‌ها'), const NotificationsScreen()),
     ];

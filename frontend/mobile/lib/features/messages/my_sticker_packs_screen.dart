@@ -43,7 +43,7 @@ class _MyStickerPacksScreenState extends State<MyStickerPacksScreen> {
   }
 
   Future<void> _create() async {
-    final result = await showDialog<(String, String, bool)>(
+    final result = await showDialog<(String, String, bool, int)>(
       context: context,
       builder: (_) => const _NewPackDialog(),
     );
@@ -55,6 +55,7 @@ class _MyStickerPacksScreenState extends State<MyStickerPacksScreen> {
         title: result.$1,
         description: result.$2,
         isPublic: result.$3,
+        price: result.$4,
       );
       await _load();
       if (!mounted) return;
@@ -68,7 +69,7 @@ class _MyStickerPacksScreenState extends State<MyStickerPacksScreen> {
   }
 
   Future<void> _edit(StickerPack p) async {
-    final result = await showDialog<(String, String, bool)>(
+    final result = await showDialog<(String, String, bool, int)>(
       context: context,
       builder: (_) => _NewPackDialog(pack: p),
     );
@@ -81,6 +82,7 @@ class _MyStickerPacksScreenState extends State<MyStickerPacksScreen> {
         title: result.$1,
         description: result.$2,
         isPublic: result.$3,
+        price: result.$4,
       );
       await _load();
       if (!mounted) return;
@@ -178,7 +180,17 @@ class _MyStickerPacksScreenState extends State<MyStickerPacksScreen> {
                                 width: 40, height: 40, child: _cover(p)),
                             title: Text(p.title),
                             subtitle: Text(
-                              tr('{0} استیکر • {1}', [p.stickerCount, p.isPublic ? tr('عمومی') : tr('خصوصی')]),
+                              p.isPaid
+                                  ? tr('{0} استیکر • {1} • {2} تومان • {3} فروش', [
+                                      p.stickerCount,
+                                      p.isPublic ? tr('عمومی') : tr('خصوصی'),
+                                      (p.price / 10).round(),
+                                      p.salesCount,
+                                    ])
+                                  : tr('{0} استیکر • {1}', [
+                                      p.stickerCount,
+                                      p.isPublic ? tr('عمومی') : tr('خصوصی'),
+                                    ]),
                             ),
                             trailing: PopupMenuButton<String>(
                               enabled: !_busy,
@@ -387,12 +399,18 @@ class _NewPackDialogState extends State<_NewPackDialog> {
   late final _title = TextEditingController(text: widget.pack?.title ?? '');
   late final _desc =
       TextEditingController(text: widget.pack?.description ?? '');
+  // قیمت به تومان نمایش داده و گرفته می‌شود؛ سرور ریال می‌خواهد.
+  late final _price = TextEditingController(
+      text: (widget.pack?.price ?? 0) > 0
+          ? '${(widget.pack!.price / 10).round()}'
+          : '');
   late bool _public = widget.pack?.isPublic ?? false;
 
   @override
   void dispose() {
     _title.dispose();
     _desc.dispose();
+    _price.dispose();
     super.dispose();
   }
 
@@ -421,6 +439,16 @@ class _NewPackDialogState extends State<_NewPackDialog> {
             value: _public,
             onChanged: (v) => setState(() => _public = v),
           ),
+          // بستهٔ خصوصی خریدار ندارد، پس سرور قیمتش را رد می‌کند.
+          TextField(
+            controller: _price,
+            enabled: _public,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: tr('قیمت (تومان)'),
+              helperText: tr('خالی یا ۰ = رایگان؛ کارمزدِ بازار ۲٪'),
+            ),
+          ),
         ],
       ),
       actions: [
@@ -431,7 +459,11 @@ class _NewPackDialogState extends State<_NewPackDialog> {
           onPressed: () {
             final t = _title.text.trim();
             if (t.isEmpty) return;
-            Navigator.pop(context, (t, _desc.text.trim(), _public));
+            final toman = int.tryParse(_price.text.trim()) ?? 0;
+            Navigator.pop(
+              context,
+              (t, _desc.text.trim(), _public, _public ? toman * 10 : 0),
+            );
           },
           child: Text(editing ? tr('ذخیره') : tr('ساخت')),
         ),

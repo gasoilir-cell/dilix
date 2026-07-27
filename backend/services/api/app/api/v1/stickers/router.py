@@ -15,6 +15,25 @@ DELETE /api/v1/stickers/{id}                       حذف استیکرِ من
 GET    /api/v1/stickers/starred                    استیکرهای ستاره‌دارِ من
 POST   /api/v1/stickers/{id}/star                  ستاره‌دار کردن (toggle-safe)
 DELETE /api/v1/stickers/{id}/star                  حذف ستاره
+
+بازارِ استیکر (فاز ۵ — رشد):
+GET    /api/v1/stickers/market                     ویترینِ بازار (رایگان + پولی)
+POST   /api/v1/stickers/packs/{id}/purchase        خریدِ بستهٔ پولی از کیفِ پول
+GET    /api/v1/stickers/purchases                  خریدهای من
+GET    /api/v1/stickers/sales                      فروش و درآمدِ من (سازنده)
+
+سه تصمیمی که بازار را شکل داد:
+
+۱) **ردیفِ خرید پیش از جابه‌جاییِ پول ساخته می‌شود.** یکتاییِ
+   `(pack_id, buyer_id)` تنها محافظ در برابرِ پرداختِ دوباره است؛ اگر اول پول
+   منتقل می‌شد و بعد ردیف، دو درخواستِ هم‌زمان دو بار پول می‌گرفتند و یکی از
+   آن‌ها با خطای یکتایی برمی‌گشت — بدونِ بازگشتِ وجه.
+
+۲) **نصبِ بستهٔ پولی بدونِ خرید ممکن نیست.** وگرنه مسیرِ قدیمیِ `install`
+   کلِ بازار را دور می‌زد. رایگان‌ها دقیقاً مثلِ قبل کار می‌کنند.
+
+۳) **قیمت فقط روی بستهٔ عمومی معنا دارد** و قیمتِ رسید snapshot می‌شود؛
+   تغییرِ بعدیِ قیمت نباید رسیدِ گذشته را بازنویسی کند.
 """
 import os
 import uuid as _uuid
@@ -23,17 +42,25 @@ from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Form
 from pydantic import BaseModel, Field
-from sqlalchemy import select, delete as sa_delete, or_
+from sqlalchemy import select, delete as sa_delete, or_, func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.api.deps import get_current_user
 from app.models.user import User
 from app.models.stickers import (
-    StickerPack, Sticker, StarredSticker, InstalledPack,
+    StickerPack, Sticker, StarredSticker, InstalledPack, StickerPurchase,
 )
+from app.services.wallet_ops import move_money
 
 router = APIRouter(prefix="/stickers", tags=["Stickers"])
+
+# کارمزدِ پلتفرم روی فروشِ بسته — همان ۲٪ِ فروشگاه و برنامه‌های کوچک، تا
+# سازنده لازم نباشد برای هر مسیرِ درآمدی عددِ متفاوتی یاد بگیرد.
+COMMISSION_PCT = 2
+PRICE_MIN = 10_000          # ۱٬۰۰۰ تومان
+PRICE_MAX = 50_000_000      # ۵٬۰۰۰٬۰۰۰ تومان
 
 # ── Media storage ────────────────────────────────────────────
 STICKER_DIR = "/var/www/dilix-api/uploads/stickers"
@@ -67,12 +94,14 @@ class PackCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=120)
     description: Optional[str] = Field(None, max_length=300)
     is_public: bool = False
+    price: int = Field(0, ge=0, le=PRICE_MAX)
 
 
 class PackUpdate(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=120)
     description: Optional[str] = Field(None, max_length=300)
     is_public: Optional[bool] = None
+    price: Optional[int] = Field(None, ge=0, le=PRICE_MAX)
 
 
 class StickerOut(BaseModel):
@@ -98,6 +127,11 @@ class PackOut(BaseModel):
     install_count: int
     sticker_count: int
     owner_name: Optional[str] = None
+    price: int = 0
+    is_paid: bool = False
+    is_purchased: bool = False
+    can_install: bool = True
+    sales_count: int = 0
     created_at: datetime
 
 
@@ -130,7 +164,11 @@ async def _installed_ids(db: AsyncSession, user_id, pack_ids: List) -> set:
     return set(rows)
 
 
-def _pack_out(p: StickerPack, me_id, installed: set, owner_name: Optional[str]) -> PackOut:
+def _pack_out(p: StickerPack, me_id, installed: set, owner_name: Optional[str],
+              purchased: Optional[set] = None) -> PackOut:
+    price = int(p.price or 0)
+    mine = (p.owner_id == me_id)
+    bought = bool(purchased and p.id in purchased)
     return PackOut(
         id=str(p.id),
         title=p.title,
@@ -138,13 +176,48 @@ def _pack_out(p: StickerPack, me_id, installed: set, owner_name: Optional[str]) 
         cover_url=p.cover_url,
         is_public=bool(p.is_public),
         is_animated=bool(p.is_animated),
-        is_mine=(p.owner_id == me_id),
+        is_mine=mine,
         is_installed=(p.id in installed),
         install_count=p.install_count or 0,
         sticker_count=p.sticker_count or 0,
         owner_name=owner_name,
+        price=price,
+        is_paid=(price > 0),
+        is_purchased=bought,
+        # بستهٔ پولی تا خریده نشده نصب‌شدنی نیست — مالک استثناست.
+        can_install=(price == 0 or mine or bought),
+        sales_count=int(p.sales_count or 0),
         created_at=p.created_at,
     )
+
+
+def _validated_price(price: Optional[int], is_public: bool) -> int:
+    """قیمت را می‌سنجد. بستهٔ خصوصی خریدار ندارد، پس قیمتش بی‌معناست."""
+    if price is None:
+        return 0
+    price = int(price)
+    if price == 0:
+        return 0
+    if not is_public:
+        raise HTTPException(status_code=400, detail="بستهٔ خصوصی قابلِ فروش نیست")
+    if price < PRICE_MIN or price > PRICE_MAX:
+        raise HTTPException(
+            status_code=400,
+            detail=f"قیمت باید بینِ {PRICE_MIN // 10:,} تا {PRICE_MAX // 10:,} تومان باشد",
+        )
+    return price
+
+
+async def _purchased_ids(db: AsyncSession, user_id, pack_ids: List) -> set:
+    if not pack_ids:
+        return set()
+    rows = (await db.execute(
+        select(StickerPurchase.pack_id).where(
+            StickerPurchase.buyer_id == user_id,
+            StickerPurchase.pack_id.in_(pack_ids),
+        )
+    )).scalars().all()
+    return set(rows)
 
 
 async def _owner_names(db: AsyncSession, owner_ids: List) -> dict:
@@ -164,11 +237,13 @@ async def create_pack(
     db: AsyncSession = Depends(get_db),
     me: User = Depends(get_current_user),
 ):
+    price = _validated_price(body.price, bool(body.is_public))
     p = StickerPack(
         owner_id=me.id,
         title=body.title.strip(),
         description=(body.description or "").strip() or None,
         is_public=bool(body.is_public),
+        price=price,
     )
     db.add(p)
     await db.commit()
@@ -231,8 +306,9 @@ async def public_packs(
     packs = (await db.execute(stmt)).scalars().all()
     pack_ids = [p.id for p in packs]
     installed = await _installed_ids(db, me.id, pack_ids)
+    purchased = await _purchased_ids(db, me.id, pack_ids)
     names = await _owner_names(db, [p.owner_id for p in packs])
-    return [_pack_out(p, me.id, installed, names.get(p.owner_id)) for p in packs]
+    return [_pack_out(p, me.id, installed, names.get(p.owner_id), purchased) for p in packs]
 
 
 @router.get("/packs/{pack_id}", response_model=PackDetailOut)
@@ -259,9 +335,10 @@ async def pack_detail(
     )).scalars().all()
     starred = await _starred_ids(db, me.id, [s.id for s in stickers])
     installed = await _installed_ids(db, me.id, [pid])
+    purchased = await _purchased_ids(db, me.id, [pid])
     names = await _owner_names(db, [p.owner_id])
 
-    base = _pack_out(p, me.id, installed, names.get(p.owner_id))
+    base = _pack_out(p, me.id, installed, names.get(p.owner_id), purchased)
     return PackDetailOut(
         **base.model_dump(),
         stickers=[
@@ -290,6 +367,11 @@ async def update_pack(
         p.description = body.description.strip() or None
     if body.is_public is not None:
         p.is_public = bool(body.is_public)
+    if body.price is not None:
+        p.price = _validated_price(body.price, bool(p.is_public))
+    elif not p.is_public:
+        # خصوصی‌کردنِ بستهٔ پولی، آن را از فروش خارج می‌کند.
+        p.price = 0
     await db.commit()
     await db.refresh(p)
     return _pack_out(p, me.id, set(), me.full_name or me.username or me.earth_id)
@@ -320,6 +402,10 @@ async def install_pack(
     p = await db.get(StickerPack, pid)
     if not p or not p.is_public:
         raise HTTPException(status_code=404, detail="بسته‌ی عمومی یافت نشد")
+    if int(p.price or 0) > 0 and p.owner_id != me.id:
+        # بدونِ این گارد، مسیرِ قدیمیِ نصب کلِ بازار را دور می‌زد.
+        if not await _purchased_ids(db, me.id, [pid]):
+            raise HTTPException(status_code=402, detail="این بسته پولی است؛ نخست آن را بخر")
     exists = await _installed_ids(db, me.id, [pid])
     if not exists:
         db.add(InstalledPack(user_id=me.id, pack_id=pid))
@@ -414,6 +500,161 @@ async def delete_sticker(
         p.sticker_count -= 1
     await db.commit()
     return {"ok": True}
+
+
+# ── بازارِ استیکر (فاز ۵) ─────────────────────────────────────
+class PurchaseOut(BaseModel):
+    id: str
+    pack_id: str
+    pack_title: str
+    cover_url: Optional[str] = None
+    price: int
+    fee: int
+    created_at: datetime
+
+
+class SalesOut(BaseModel):
+    sales_count: int
+    revenue_total: int
+    packs: List[PackOut]
+
+
+@router.get("/market", response_model=List[PackOut])
+async def market(
+    q: Optional[str] = Query(None, max_length=120),
+    kind: str = Query("all", pattern="^(all|paid|free)$"),
+    limit: int = Query(40, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db),
+    me: User = Depends(get_current_user),
+):
+    """ویترینِ بازار. بستهٔ بدونِ استیکر نمایش داده نمی‌شود تا کسی قفسهٔ خالی نخرد."""
+    stmt = select(StickerPack).where(
+        StickerPack.is_public.is_(True),
+        StickerPack.sticker_count > 0,
+    )
+    if kind == "paid":
+        stmt = stmt.where(StickerPack.price > 0)
+    elif kind == "free":
+        stmt = stmt.where(StickerPack.price == 0)
+    if q and q.strip():
+        like = f"%{q.strip()}%"
+        stmt = stmt.where(or_(
+            StickerPack.title.ilike(like),
+            StickerPack.description.ilike(like),
+        ))
+    stmt = stmt.order_by(
+        StickerPack.sales_count.desc(),
+        StickerPack.install_count.desc(),
+        StickerPack.updated_at.desc(),
+    ).limit(limit).offset(offset)
+
+    packs = (await db.execute(stmt)).scalars().all()
+    pack_ids = [p.id for p in packs]
+    installed = await _installed_ids(db, me.id, pack_ids)
+    purchased = await _purchased_ids(db, me.id, pack_ids)
+    names = await _owner_names(db, [p.owner_id for p in packs])
+    return [_pack_out(p, me.id, installed, names.get(p.owner_id), purchased) for p in packs]
+
+
+@router.post("/packs/{pack_id}/purchase", response_model=PackOut)
+async def purchase_pack(
+    pack_id: str,
+    db: AsyncSession = Depends(get_db),
+    me: User = Depends(get_current_user),
+):
+    """خریدِ بستهٔ پولی از کیفِ پول + نصبِ خودکار.
+
+    ترتیب عمدی است: **اول** ردیفِ خرید (که ایندکسِ یکتا دارد)، بعد پول. با
+    ترتیبِ معکوس، دو درخواستِ هم‌زمان هر دو پول را کم می‌کردند و فقط یکی ردیف
+    می‌ساخت.
+    """
+    try:
+        pid = _uuid.UUID(pack_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="بسته یافت نشد")
+    p = await db.get(StickerPack, pid)
+    if not p or not p.is_public:
+        raise HTTPException(status_code=404, detail="بسته‌ی عمومی یافت نشد")
+    price = int(p.price or 0)
+    if price <= 0:
+        raise HTTPException(status_code=400, detail="این بسته رایگان است؛ مستقیم نصبش کن")
+    if p.owner_id == me.id:
+        raise HTTPException(status_code=400, detail="بستهٔ خودت را نمی‌توانی بخری")
+
+    fee = (price * COMMISSION_PCT) // 100
+    sp = await db.begin_nested()
+    try:
+        db.add(StickerPurchase(pack_id=pid, buyer_id=me.id, seller_id=p.owner_id,
+                               price=price, fee=fee))
+        await db.flush()
+    except IntegrityError:
+        await sp.rollback()
+        raise HTTPException(status_code=409, detail="این بسته را قبلاً خریده‌ای")
+
+    await move_money(
+        db, me.id, p.owner_id, price,
+        out_desc=f"خریدِ بستهٔ استیکر «{p.title}»",
+        in_desc=f"فروشِ بستهٔ استیکر «{p.title}»",
+        reference_id=str(pid),
+        fee=fee, fee_desc="کارمزدِ بازارِ استیکر",
+    )
+
+    p.sales_count = int(p.sales_count or 0) + 1
+    p.revenue_total = int(p.revenue_total or 0) + (price - fee)
+
+    # نصبِ خودکار: خریدار نباید برای استفاده مرحلهٔ دومی داشته باشد.
+    if not await _installed_ids(db, me.id, [pid]):
+        db.add(InstalledPack(user_id=me.id, pack_id=pid))
+        p.install_count = int(p.install_count or 0) + 1
+
+    await db.commit()
+    await db.refresh(p)
+    names = await _owner_names(db, [p.owner_id])
+    return _pack_out(p, me.id, {pid}, names.get(p.owner_id), {pid})
+
+
+@router.get("/purchases", response_model=List[PurchaseOut])
+async def my_purchases(
+    db: AsyncSession = Depends(get_db),
+    me: User = Depends(get_current_user),
+):
+    rows = (await db.execute(
+        select(StickerPurchase, StickerPack)
+        .join(StickerPack, StickerPack.id == StickerPurchase.pack_id)
+        .where(StickerPurchase.buyer_id == me.id)
+        .order_by(StickerPurchase.created_at.desc())
+    )).all()
+    return [
+        PurchaseOut(
+            id=str(pu.id), pack_id=str(pu.pack_id), pack_title=pk.title,
+            cover_url=pk.cover_url, price=int(pu.price), fee=int(pu.fee or 0),
+            created_at=pu.created_at,
+        )
+        for pu, pk in rows
+    ]
+
+
+@router.get("/sales", response_model=SalesOut)
+async def my_sales(
+    db: AsyncSession = Depends(get_db),
+    me: User = Depends(get_current_user),
+):
+    """فروش و درآمدِ خالصِ من به‌عنوانِ سازنده."""
+    packs = (await db.execute(
+        select(StickerPack).where(StickerPack.owner_id == me.id, StickerPack.price > 0)
+        .order_by(StickerPack.sales_count.desc())
+    )).scalars().all()
+    agg = (await db.execute(
+        select(func.count(), func.coalesce(func.sum(StickerPurchase.price - StickerPurchase.fee), 0))
+        .where(StickerPurchase.seller_id == me.id)
+    )).one()
+    name = me.full_name or me.username or me.earth_id
+    return SalesOut(
+        sales_count=int(agg[0] or 0),
+        revenue_total=int(agg[1] or 0),
+        packs=[_pack_out(p, me.id, set(), name) for p in packs],
+    )
 
 
 # ── Starred (quick access) ───────────────────────────────────

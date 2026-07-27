@@ -4,14 +4,16 @@ GET  /api/v1/referral/stats        → آمار: کد/لینک، مستقیم، 
 POST /api/v1/referral/apply        → ثبتِ معرف (earth_id) با محافظت در برابرِ حلقه
 GET  /api/v1/referral/network      → شمارِ زیرمجموعه به تفکیکِ سطح + فهرستِ مستقیم‌ها
 GET  /api/v1/referral/commissions  → لِجِرِ کمیسیون‌های من + جمعِ درآمد به تفکیکِ ارز
+GET  /api/v1/referral/qr           → QRِ دعوت (SVG) که به /join?ref=… می‌رسد
 
 زنجیرهٔ معرف روی `User.referred_by` است؛ کمیسیونِ چندسطحی توسطِ
 `app/services/mlm.py::distribute_commission` هنگامِ فعالیتِ زیرمجموعه (مثلِ شارژِ کیف)
 توزیع می‌شود. نرخ‌های سطح: L1 ۸٪ · L2 ۳٪ · L3 ۱٪.
 """
+import io as _io
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 
@@ -169,3 +171,25 @@ async def referral_commissions(
     ]
     totals = await _earned_by_currency(db, current_user.id)
     return {"commissions": items, "totals": totals}
+
+
+# ─── GET /referral/qr ────────────────────────────────────────────────────────
+@router.get("/qr")
+async def referral_qr(current_user: User = Depends(get_current_user)):
+    """QRِ دعوت — لینکِ `/join?ref=…` را کد می‌کند، نه لینکِ پروفایل را.
+
+    QRِ پروفایل (`/social/qr/{earth_id}`) بیننده را به صفحهٔ کاربر می‌بَرد و
+    زنجیرهٔ معرف را از دست می‌دهد؛ این یکی همان اسکن را به یک عضویتِ منتسب
+    تبدیل می‌کند. کدِ معرف راز نیست، پس QR هم رازی حمل نمی‌کند.
+    """
+    import segno
+    url = f"{SITE_URL}/join?ref={current_user.earth_id}"
+    buf = _io.BytesIO()
+    segno.make(url, error="m").save(
+        buf, kind="svg", scale=7, border=3, dark="#0A0A0A", light="#FFFFFF"
+    )
+    return Response(
+        content=buf.getvalue(),
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "private, max-age=3600"},
+    )

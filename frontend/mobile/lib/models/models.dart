@@ -1329,6 +1329,10 @@ class StickerPack {
     this.isPublic = false,
     this.installCount = 0,
     this.stickers = const [],
+    this.price = 0,
+    this.purchased = false,
+    this.canInstall = true,
+    this.salesCount = 0,
   });
 
   final String id;
@@ -1344,6 +1348,14 @@ class StickerPack {
   final int installCount;
   final List<StickerItem> stickers;
 
+  /// بازارِ استیکر (فاز ۵) — قیمت به ریال؛ صفر یعنی رایگان.
+  final int price;
+  final bool purchased;
+  final bool canInstall;
+  final int salesCount;
+
+  bool get isPaid => price > 0;
+
   factory StickerPack.fromJson(Map<String, dynamic> j) => StickerPack(
         id: (j['id'] ?? '') as String,
         title: (j['title'] ?? '') as String,
@@ -1358,6 +1370,62 @@ class StickerPack {
         installCount: (j['install_count'] as num?)?.toInt() ?? 0,
         stickers: ((j['stickers'] ?? const []) as List)
             .map((e) => StickerItem.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        price: (j['price'] as num?)?.toInt() ?? 0,
+        purchased: (j['is_purchased'] ?? false) as bool,
+        canInstall: (j['can_install'] ?? true) as bool,
+        salesCount: (j['sales_count'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// یک خریدِ بستهٔ پولی (`PurchaseOut`) — قیمت و کارمزد snapshot شده‌اند.
+class StickerPurchase {
+  StickerPurchase({
+    required this.id,
+    required this.packId,
+    required this.packTitle,
+    required this.price,
+    required this.fee,
+    this.coverUrl,
+    this.createdAt,
+  });
+
+  final String id;
+  final String packId;
+  final String packTitle;
+  final int price;
+  final int fee;
+  final String? coverUrl;
+  final DateTime? createdAt;
+
+  factory StickerPurchase.fromJson(Map<String, dynamic> j) => StickerPurchase(
+        id: (j['id'] ?? '') as String,
+        packId: (j['pack_id'] ?? '') as String,
+        packTitle: (j['pack_title'] ?? '') as String,
+        price: (j['price'] as num?)?.toInt() ?? 0,
+        fee: (j['fee'] as num?)?.toInt() ?? 0,
+        coverUrl: j['cover_url'] as String?,
+        createdAt: DateTime.tryParse((j['created_at'] ?? '') as String),
+      );
+}
+
+/// فروش و درآمدِ خالصِ سازنده (`SalesOut`).
+class StickerSales {
+  StickerSales({
+    required this.salesCount,
+    required this.revenueTotal,
+    required this.packs,
+  });
+
+  final int salesCount;
+  final int revenueTotal;
+  final List<StickerPack> packs;
+
+  factory StickerSales.fromJson(Map<String, dynamic> j) => StickerSales(
+        salesCount: (j['sales_count'] as num?)?.toInt() ?? 0,
+        revenueTotal: (j['revenue_total'] as num?)?.toInt() ?? 0,
+        packs: ((j['packs'] ?? const []) as List)
+            .map((e) => StickerPack.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
 }
@@ -1960,6 +2028,240 @@ class Membership {
         expiresAt: j['expires_at'] == null
             ? null
             : DateTime.tryParse(j['expires_at'] as String),
+      );
+}
+
+// ── گیمیفیکیشنِ زنده (`/api/v1/gamification`) — فاز ۵ ────────────────────────
+
+/// سطحِ کاربر و پیشرفتش تا سطحِ بعد (`LevelOut`).
+class GameLevel {
+  GameLevel({
+    required this.level,
+    required this.title,
+    required this.points,
+    required this.toNext,
+    required this.progressPct,
+    this.nextAt,
+  });
+
+  final int level;
+  final String title;
+  final int points;
+  final int toNext;
+  final int progressPct;
+
+  /// آستانهٔ سطحِ بعد؛ `null` یعنی بالاترین سطح.
+  final int? nextAt;
+
+  factory GameLevel.fromJson(Map<String, dynamic> j) => GameLevel(
+        level: (j['level'] as num?)?.toInt() ?? 1,
+        title: (j['title'] ?? '') as String,
+        points: (j['points'] as num?)?.toInt() ?? 0,
+        toNext: (j['to_next'] as num?)?.toInt() ?? 0,
+        progressPct: (j['progress_pct'] as num?)?.toInt() ?? 0,
+        nextAt: (j['next_at'] as num?)?.toInt(),
+      );
+}
+
+/// یک نشان از کاتالوگ، همراهِ پیشرفتِ واقعیِ کاربر (`BadgeOut`).
+class GameBadge {
+  GameBadge({
+    required this.code,
+    required this.title,
+    required this.description,
+    required this.points,
+    required this.earned,
+    required this.progress,
+    required this.target,
+    this.awardedAt,
+  });
+
+  final String code;
+  final String title;
+  final String description;
+  final int points;
+  final bool earned;
+  final int progress;
+  final int target;
+  final DateTime? awardedAt;
+
+  double get ratio => target <= 0 ? 0 : (progress / target).clamp(0, 1).toDouble();
+
+  factory GameBadge.fromJson(Map<String, dynamic> j) => GameBadge(
+        code: (j['code'] ?? '') as String,
+        title: (j['title'] ?? '') as String,
+        description: (j['description'] ?? '') as String,
+        points: (j['points'] as num?)?.toInt() ?? 0,
+        earned: (j['earned'] ?? false) as bool,
+        progress: (j['progress'] as num?)?.toInt() ?? 0,
+        target: (j['target'] as num?)?.toInt() ?? 0,
+        awardedAt: DateTime.tryParse((j['awarded_at'] ?? '') as String),
+      );
+}
+
+/// نمایهٔ بازیِ کاربر (`ProfileOut`).
+class GameProfile {
+  GameProfile({
+    required this.points,
+    required this.level,
+    required this.streakDays,
+    required this.longestStreak,
+    required this.checkedInToday,
+    required this.badgesEarned,
+    required this.badgesTotal,
+    required this.badges,
+    this.rank,
+  });
+
+  final int points;
+  final GameLevel level;
+  final int streakDays;
+  final int longestStreak;
+  final bool checkedInToday;
+  final int badgesEarned;
+  final int badgesTotal;
+  final List<GameBadge> badges;
+  final int? rank;
+
+  factory GameProfile.fromJson(Map<String, dynamic> j) => GameProfile(
+        points: (j['points'] as num?)?.toInt() ?? 0,
+        level: GameLevel.fromJson((j['level'] ?? const <String, dynamic>{}) as Map<String, dynamic>),
+        streakDays: (j['streak_days'] as num?)?.toInt() ?? 0,
+        longestStreak: (j['longest_streak'] as num?)?.toInt() ?? 0,
+        checkedInToday: (j['checked_in_today'] ?? false) as bool,
+        badgesEarned: (j['badges_earned'] as num?)?.toInt() ?? 0,
+        badgesTotal: (j['badges_total'] as num?)?.toInt() ?? 0,
+        badges: ((j['badges'] ?? const []) as List)
+            .map((e) => GameBadge.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        rank: (j['rank'] as num?)?.toInt(),
+      );
+}
+
+/// نتیجهٔ ورودِ روزانه (`CheckInOut`). `already` خطا نیست؛ یعنی امروز ثبت بوده.
+class CheckInResult {
+  CheckInResult({
+    required this.already,
+    required this.gained,
+    required this.points,
+    required this.streakDays,
+    required this.longestStreak,
+  });
+
+  final bool already;
+  final int gained;
+  final int points;
+  final int streakDays;
+  final int longestStreak;
+
+  factory CheckInResult.fromJson(Map<String, dynamic> j) => CheckInResult(
+        already: (j['already'] ?? false) as bool,
+        gained: (j['gained'] as num?)?.toInt() ?? 0,
+        points: (j['points'] as num?)?.toInt() ?? 0,
+        streakDays: (j['streak_days'] as num?)?.toInt() ?? 0,
+        longestStreak: (j['longest_streak'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// نتیجهٔ اعطای نشان‌ها (`SyncOut`).
+class BadgeSyncResult {
+  BadgeSyncResult({
+    required this.awarded,
+    required this.gained,
+    required this.points,
+  });
+
+  final List<String> awarded;
+  final int gained;
+  final int points;
+
+  factory BadgeSyncResult.fromJson(Map<String, dynamic> j) => BadgeSyncResult(
+        awarded: ((j['awarded'] ?? const []) as List).map((e) => e.toString()).toList(),
+        gained: (j['gained'] as num?)?.toInt() ?? 0,
+        points: (j['points'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// یک ردیفِ دفترِ امتیاز (`PointEventOut`).
+class PointEvent {
+  PointEvent({
+    required this.id,
+    required this.kind,
+    required this.kindLabel,
+    required this.delta,
+    this.note,
+    this.createdAt,
+  });
+
+  final String id;
+  final String kind;
+  final String kindLabel;
+  final int delta;
+  final String? note;
+  final DateTime? createdAt;
+
+  factory PointEvent.fromJson(Map<String, dynamic> j) => PointEvent(
+        id: (j['id'] ?? '') as String,
+        kind: (j['kind'] ?? '') as String,
+        kindLabel: (j['kind_label'] ?? '') as String,
+        delta: (j['delta'] as num?)?.toInt() ?? 0,
+        note: j['note'] as String?,
+        createdAt: DateTime.tryParse((j['created_at'] ?? '') as String),
+      );
+}
+
+/// یک ردیفِ تابلوی رتبه (`LeaderRow`).
+class LeaderRow {
+  LeaderRow({
+    required this.rank,
+    required this.earthId,
+    required this.name,
+    required this.points,
+    required this.level,
+    required this.isMe,
+    this.avatarUrl,
+  });
+
+  final int rank;
+  final String earthId;
+  final String name;
+  final int points;
+  final int level;
+  final bool isMe;
+  final String? avatarUrl;
+
+  factory LeaderRow.fromJson(Map<String, dynamic> j) => LeaderRow(
+        rank: (j['rank'] as num?)?.toInt() ?? 0,
+        earthId: (j['earth_id'] ?? '') as String,
+        name: (j['name'] ?? '') as String,
+        points: (j['points'] as num?)?.toInt() ?? 0,
+        level: (j['level'] as num?)?.toInt() ?? 1,
+        isMe: (j['is_me'] ?? false) as bool,
+        avatarUrl: j['avatar_url'] as String?,
+      );
+}
+
+/// تابلوی رتبه (`LeaderboardOut`).
+class Leaderboard {
+  Leaderboard({
+    required this.period,
+    required this.rows,
+    required this.myPoints,
+    this.myRank,
+  });
+
+  final String period;
+  final List<LeaderRow> rows;
+  final int myPoints;
+  final int? myRank;
+
+  factory Leaderboard.fromJson(Map<String, dynamic> j) => Leaderboard(
+        period: (j['period'] ?? 'all') as String,
+        rows: ((j['rows'] ?? const []) as List)
+            .map((e) => LeaderRow.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        myPoints: (j['my_points'] as num?)?.toInt() ?? 0,
+        myRank: (j['my_rank'] as num?)?.toInt(),
       );
 }
 
