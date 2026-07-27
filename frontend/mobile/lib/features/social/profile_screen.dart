@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../app.dart';
+import '../../core/api_client.dart';
 import '../../core/config.dart';
 import '../../models/models.dart';
 import '../feed/post_card.dart';
@@ -32,6 +35,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<Reel>? _reels;
   List<Post>? _posts;
   List<StoryHighlight>? _highlights;
+  BizProfile? _biz;
+  List<SubTier> _tiers = const [];
+  Set<String> _subscribedTiers = const {};
+  String? _subBusy;
   bool _loading = true;
   bool _busy = false;
   String? _error;
@@ -78,6 +85,76 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) setState(() => _highlights = highlights);
     } catch (_) {
       if (mounted) setState(() => _highlights = const []);
+    }
+    // نمایهٔ کسب‌وکار و پلن‌های اشتراک. `null` یعنی این کاربر حسابِ کسب‌وکار
+    // ندارد که حالتی عادی است، نه خطا.
+    try {
+      final biz = await api.businessOf(widget.earthId);
+      if (mounted) setState(() => _biz = biz);
+      if (biz != null) {
+        // بازدید را سرور روزی یک‌بار و بدونِ خودبازدید می‌شمارد.
+        unawaited(api.viewBusiness(widget.earthId).catchError((_) {}));
+      }
+    } catch (_) {
+      if (mounted) setState(() => _biz = null);
+    }
+    try {
+      final tiers = await api.tiersOf(widget.earthId);
+      if (mounted) setState(() => _tiers = tiers);
+    } catch (_) {
+      if (mounted) setState(() => _tiers = const []);
+    }
+    try {
+      final mine = await api.mySubscriptions();
+      if (mounted) {
+        setState(() => _subscribedTiers = mine
+            .where((x) => x.status == 'active')
+            .map((x) => x.tierId)
+            .toSet());
+      }
+    } catch (_) {
+      if (mounted) setState(() => _subscribedTiers = const {});
+    }
+  }
+
+  String _toman(int rial) => tr('{0} تومان', [(rial / 10).round()]);
+
+  /// اشتراک در یک پلن؛ اولین دوره همان لحظه از کیف کسر می‌شود، پس تأییدِ
+  /// صریح گرفته می‌شود.
+  Future<void> _subscribe(SubTier t) async {
+    final api = ApiScope.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('اشتراک در «{0}»', [t.name])),
+        content: Text(tr('{0} از کیفِ شما کسر می‌شود. ادامه؟', [_toman(t.price)])),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(tr('انصراف')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(tr('تأیید')),
+          ),
+        ],
+      ),
+    );
+    if (yes != true) return;
+    setState(() => _subBusy = t.id);
+    try {
+      await api.subscribe(t.id);
+      messenger.showSnackBar(SnackBar(content: Text(tr('اشتراک فعال شد.'))));
+      if (mounted) await _load();
+    } on ApiException catch (e) {
+      messenger.showSnackBar(SnackBar(
+        content: Text(e.detail.isNotEmpty ? e.detail : tr('اشتراک فعال نشد.')),
+      ));
+    } catch (_) {
+      messenger.showSnackBar(SnackBar(content: Text(tr('اشتراک فعال نشد.'))));
+    } finally {
+      if (mounted) setState(() => _subBusy = null);
     }
   }
 
@@ -165,6 +242,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             style: Theme.of(context).textTheme.bodyMedium),
                       ],
                       const SizedBox(height: 24),
+                      _businessCard(),
+                      _tiersSection(p),
                       _identityCard(p),
                       _highlightsSection(p),
                       const SizedBox(height: 24),
@@ -174,6 +253,98 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                   ),
                 ),
+    );
+  }
+
+  /// کارتِ کسب‌وکار. فقط وقتی رندر می‌شود که کاربر واقعاً حسابِ کسب‌وکار
+  /// داشته باشد.
+  Widget _businessCard() {
+    final b = _biz;
+    if (b == null) return const SizedBox.shrink();
+    final rows = <String>[
+      if (b.website != null && b.website!.isNotEmpty) '🌐 ${b.website}',
+      if (b.contactPhone != null && b.contactPhone!.isNotEmpty) '📞 ${b.contactPhone}',
+      if (b.contactEmail != null && b.contactEmail!.isNotEmpty) '✉️ ${b.contactEmail}',
+      if (b.address != null && b.address!.isNotEmpty) '📍 ${b.address}',
+    ];
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(b.kindEmoji, style: const TextStyle(fontSize: 20)),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(b.displayName,
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                ),
+                if (b.verified) ...[
+                  const SizedBox(width: 4),
+                  const Icon(Icons.verified, size: 16, color: Colors.lightBlue),
+                ],
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text('${b.categoryEmoji} ${b.categoryLabel} · ${b.kindLabel}',
+                style: Theme.of(context).textTheme.bodySmall),
+            if (b.about != null && b.about!.trim().isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(b.about!.trim(),
+                  style: Theme.of(context).textTheme.bodyMedium),
+            ],
+            if (rows.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              for (final r in rows)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Text(r, style: Theme.of(context).textTheme.bodySmall),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// پلن‌های اشتراکِ سازنده. روی نمایهٔ خودم نمایش داده نمی‌شود چون سرور
+  /// اشتراکِ خودی را رد می‌کند.
+  Widget _tiersSection(SocialProfile p) {
+    if (p.isMe || _tiers.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+        Text(tr('حمایت با اشتراکِ ماهانه'),
+            style: const TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 6),
+        for (final t in _tiers)
+          Card(
+            child: ListTile(
+              title: Text(t.name),
+              subtitle: Text(
+                '${_toman(t.price)} ${tr('ماهانه')}'
+                '${t.subscriberCount > 0 ? ' · ${tr('{0} مشترک', [t.subscriberCount])}' : ''}'
+                '${t.perks != null && t.perks!.isNotEmpty ? '\n${t.perks}' : ''}',
+              ),
+              isThreeLine: t.perks != null && t.perks!.isNotEmpty,
+              trailing: _subscribedTiers.contains(t.id)
+                  ? Text(tr('مشترک هستید'))
+                  : _subBusy == t.id
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : FilledButton(
+                          onPressed: () => _subscribe(t),
+                          child: Text(tr('اشتراک')),
+                        ),
+            ),
+          ),
+      ],
     );
   }
 

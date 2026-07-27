@@ -3431,3 +3431,292 @@ class SavedBill {
         createdAt: DateTime.parse(j['created_at'] as String).toLocal(),
       );
 }
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// حسابِ کسب‌وکار/سازنده + آمار + اشتراک (فاز ۴)
+//
+// همهٔ مبلغ‌ها به **ریال** می‌آیند؛ تبدیل به تومان کارِ UI است.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// یک دستهٔ کسب‌وکار (فروشگاه، خوراک، سلامت، …) — از سرور می‌آید تا فهرست
+/// در اپ و وب یکی بماند.
+class BizCategory {
+  BizCategory({required this.key, required this.label, required this.emoji});
+
+  final String key;
+  final String label;
+  final String emoji;
+
+  factory BizCategory.fromJson(Map<String, dynamic> j) => BizCategory(
+        key: j['key'] as String,
+        label: (j['label'] ?? '') as String,
+        emoji: (j['emoji'] ?? '📦') as String,
+      );
+}
+
+/// نوعِ حساب. `minKyc` حداقلِ سطحِ احرازِ هویتِ لازم برای انتخابِ آن است؛
+/// حسابِ «رسمی» بدونِ احراز هویتِ کامل ساخته نمی‌شود.
+class BizKind {
+  BizKind({
+    required this.key,
+    required this.label,
+    required this.emoji,
+    required this.minKyc,
+  });
+
+  final String key;
+  final String label;
+  final String emoji;
+  final int minKyc;
+
+  factory BizKind.fromJson(Map<String, dynamic> j) => BizKind(
+        key: j['key'] as String,
+        label: (j['label'] ?? '') as String,
+        emoji: (j['emoji'] ?? '🏢') as String,
+        minKyc: (j['min_kyc'] ?? 0) as int,
+      );
+}
+
+/// نمایهٔ کسب‌وکار. `verified` خواندنی است و از سطحِ KYC محاسبه می‌شود؛
+/// هیچ مسیری برای روشن کردنِ دستیِ آن وجود ندارد.
+class BizProfile {
+  BizProfile({
+    required this.id,
+    required this.earthId,
+    required this.kind,
+    required this.kindLabel,
+    required this.kindEmoji,
+    required this.displayName,
+    required this.category,
+    required this.categoryLabel,
+    required this.categoryEmoji,
+    required this.verified,
+    required this.followerCount,
+    this.about,
+    this.website,
+    this.contactPhone,
+    this.contactEmail,
+    this.address,
+  });
+
+  final String id;
+  final String earthId;
+  final String kind;
+  final String kindLabel;
+  final String kindEmoji;
+  final String displayName;
+  final String category;
+  final String categoryLabel;
+  final String categoryEmoji;
+  final bool verified;
+  final int followerCount;
+  final String? about;
+  final String? website;
+  final String? contactPhone;
+  final String? contactEmail;
+  final String? address;
+
+  factory BizProfile.fromJson(Map<String, dynamic> j) => BizProfile(
+        id: j['id'] as String,
+        earthId: (j['earth_id'] ?? '') as String,
+        kind: (j['kind'] ?? 'business') as String,
+        kindLabel: (j['kind_label'] ?? '') as String,
+        kindEmoji: (j['kind_emoji'] ?? '🏢') as String,
+        displayName: (j['display_name'] ?? '') as String,
+        category: (j['category'] ?? 'other') as String,
+        categoryLabel: (j['category_label'] ?? '') as String,
+        categoryEmoji: (j['category_emoji'] ?? '📦') as String,
+        verified: (j['verified'] ?? false) as bool,
+        followerCount: (j['follower_count'] ?? 0) as int,
+        about: j['about'] as String?,
+        website: j['website'] as String?,
+        contactPhone: j['contact_phone'] as String?,
+        contactEmail: j['contact_email'] as String?,
+        address: j['address'] as String?,
+      );
+}
+
+/// یک نقطه از سریِ زمانیِ آمار (یک روز).
+class BizDayPoint {
+  BizDayPoint({required this.day, required this.value});
+
+  final String day;
+  final int value;
+
+  factory BizDayPoint.fromJson(Map<String, dynamic> j) => BizDayPoint(
+        day: (j['day'] ?? '') as String,
+        value: (j['value'] ?? 0) as int,
+      );
+}
+
+/// پستِ پرتعامل در آمار.
+class BizTopPost {
+  BizTopPost({
+    required this.id,
+    required this.likeCount,
+    required this.commentCount,
+    required this.saveCount,
+    required this.engagement,
+    this.caption,
+  });
+
+  final String id;
+  final int likeCount;
+  final int commentCount;
+  final int saveCount;
+  final int engagement;
+  final String? caption;
+
+  factory BizTopPost.fromJson(Map<String, dynamic> j) => BizTopPost(
+        id: j['id'] as String,
+        likeCount: (j['like_count'] ?? 0) as int,
+        commentCount: (j['comment_count'] ?? 0) as int,
+        saveCount: (j['save_count'] ?? 0) as int,
+        engagement: (j['engagement'] ?? 0) as int,
+        caption: j['caption'] as String?,
+      );
+}
+
+/// آمارِ نمایه. هیچ عددی تخمینی نیست؛ همه از جدول‌های واقعی خوانده می‌شوند.
+class BizInsights {
+  BizInsights({
+    required this.followersTotal,
+    required this.followers7d,
+    required this.followers30d,
+    required this.views7d,
+    required this.views30d,
+    required this.postsTotal,
+    required this.likesTotal,
+    required this.commentsTotal,
+    required this.savesTotal,
+    required this.engagementRate,
+    required this.subscribersActive,
+    required this.revenue30d,
+    required this.viewsSeries,
+    required this.followersSeries,
+    required this.topPosts,
+  });
+
+  final int followersTotal;
+  final int followers7d;
+  final int followers30d;
+  final int views7d;
+  final int views30d;
+  final int postsTotal;
+  final int likesTotal;
+  final int commentsTotal;
+  final int savesTotal;
+  final double engagementRate;
+  final int subscribersActive;
+  final int revenue30d;
+  final List<BizDayPoint> viewsSeries;
+  final List<BizDayPoint> followersSeries;
+  final List<BizTopPost> topPosts;
+
+  factory BizInsights.fromJson(Map<String, dynamic> j) => BizInsights(
+        followersTotal: (j['followers_total'] ?? 0) as int,
+        followers7d: (j['followers_7d'] ?? 0) as int,
+        followers30d: (j['followers_30d'] ?? 0) as int,
+        views7d: (j['views_7d'] ?? 0) as int,
+        views30d: (j['views_30d'] ?? 0) as int,
+        postsTotal: (j['posts_total'] ?? 0) as int,
+        likesTotal: (j['likes_total'] ?? 0) as int,
+        commentsTotal: (j['comments_total'] ?? 0) as int,
+        savesTotal: (j['saves_total'] ?? 0) as int,
+        engagementRate: ((j['engagement_rate'] ?? 0) as num).toDouble(),
+        subscribersActive: (j['subscribers_active'] ?? 0) as int,
+        revenue30d: (j['revenue_30d'] ?? 0) as int,
+        viewsSeries: ((j['views_series'] ?? []) as List)
+            .map((e) => BizDayPoint.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        followersSeries: ((j['followers_series'] ?? []) as List)
+            .map((e) => BizDayPoint.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        topPosts: ((j['top_posts'] ?? []) as List)
+            .map((e) => BizTopPost.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+/// پلنِ اشتراکِ ماهانه. `price` ریال است.
+class SubTier {
+  SubTier({
+    required this.id,
+    required this.ownerEarthId,
+    required this.name,
+    required this.price,
+    required this.isActive,
+    required this.subscriberCount,
+    this.perks,
+  });
+
+  final String id;
+  final String ownerEarthId;
+  final String name;
+  final int price;
+  final bool isActive;
+  final int subscriberCount;
+  final String? perks;
+
+  factory SubTier.fromJson(Map<String, dynamic> j) => SubTier(
+        id: j['id'] as String,
+        ownerEarthId: (j['owner_earth_id'] ?? '') as String,
+        name: (j['name'] ?? '') as String,
+        price: (j['price'] ?? 0) as int,
+        isActive: (j['is_active'] ?? true) as bool,
+        subscriberCount: (j['subscriber_count'] ?? 0) as int,
+        perks: j['perks'] as String?,
+      );
+}
+
+/// یک اشتراکِ فعال/لغوشده/منقضی. وضعیت را سرور تعیین می‌کند؛ اپ آن را
+/// دوباره حساب نمی‌کند تا با انقضای تنبلِ سرور اختلاف پیدا نکند.
+class Subscription {
+  Subscription({
+    required this.id,
+    required this.ownerEarthId,
+    required this.subscriberEarthId,
+    required this.tierId,
+    required this.tierName,
+    required this.price,
+    required this.status,
+    required this.autoRenew,
+    required this.currentPeriodEnd,
+    required this.periodsPaid,
+    required this.totalPaid,
+    this.ownerName,
+    this.subscriberName,
+  });
+
+  final String id;
+  final String ownerEarthId;
+  final String subscriberEarthId;
+  final String tierId;
+  final String tierName;
+  final int price;
+  final String status;
+  final bool autoRenew;
+  final DateTime currentPeriodEnd;
+  final int periodsPaid;
+  final int totalPaid;
+  final String? ownerName;
+  final String? subscriberName;
+
+  factory Subscription.fromJson(Map<String, dynamic> j) => Subscription(
+        id: j['id'] as String,
+        ownerEarthId: (j['owner_earth_id'] ?? '') as String,
+        subscriberEarthId: (j['subscriber_earth_id'] ?? '') as String,
+        tierId: (j['tier_id'] ?? '') as String,
+        tierName: (j['tier_name'] ?? '') as String,
+        price: (j['price'] ?? 0) as int,
+        status: (j['status'] ?? 'active') as String,
+        autoRenew: (j['auto_renew'] ?? true) as bool,
+        currentPeriodEnd:
+            DateTime.parse(j['current_period_end'] as String).toLocal(),
+        periodsPaid: (j['periods_paid'] ?? 0) as int,
+        totalPaid: (j['total_paid'] ?? 0) as int,
+        ownerName: j['owner_name'] as String?,
+        subscriberName: j['subscriber_name'] as String?,
+      );
+}

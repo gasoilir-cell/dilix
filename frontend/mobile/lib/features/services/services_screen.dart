@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app.dart';
 import '../../models/models.dart';
 import '../bills/bills_screen.dart';
+import '../business/business_screen.dart';
 import '../discovery/discovery_screen.dart';
 import '../freight/cargo_detail_screen.dart';
 import '../gamification/gamification_screen.dart';
@@ -41,6 +42,7 @@ class ServicesScreen extends StatelessWidget {
       _Service(Icons.verified_outlined, tr('اعتبار'), tr('امتیازِ اعتماد و نظرها'), const ReputationScreen()),
       _Service(Icons.hub_outlined, tr('ارائه‌دهنده'), tr('KYB، API، sandbox و کلید'), const ProviderScreen()),
       _Service(Icons.receipt_long_outlined, tr('قبوض'), tr('آب، برق، گاز و عوارض'), const BillsScreen()),
+      _Service(Icons.insights_outlined, tr('حسابِ کسب‌وکار'), tr('آمارِ نمایه و اشتراک'), const BusinessScreen()),
       _Service(Icons.account_balance_wallet_outlined, tr('کیف پول'), tr('پاداش و پرداختِ امن'), const WalletScreen()),
       _Service(Icons.notifications_outlined, tr('اعلان‌ها'), tr('رویدادها و پیام‌ها'), const NotificationsScreen()),
     ];

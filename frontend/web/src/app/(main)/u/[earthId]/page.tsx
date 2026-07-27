@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowRight, BadgeCheck, Loader2, MessageCircle,
+  ArrowRight, BadgeCheck, Loader2, MessageCircle, Globe, Phone, Mail, MapPin, Star,
   UserPlus, UserCheck, Users, QrCode, Share2, Copy, Check, X, Grid3X3, Heart, Play,
 } from "lucide-react";
-import { socialApi, messagesApi, postsApi, getApiErrorMessage } from "@/lib/api";
+import {
+  socialApi, messagesApi, postsApi, businessApi, subscriptionsApi, getApiErrorMessage,
+} from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
 import { Button } from "@/components/ui/Button";
 import StoryHighlights from "@/components/chat/StoryHighlights";
@@ -49,6 +51,29 @@ const ROLE_LABEL: Record<string, string> = {
   super_admin: "مدیر ارشد",
 };
 
+interface BusinessCard {
+  earth_id: string;
+  kind_label: string;
+  kind_emoji: string;
+  display_name: string;
+  category_label: string;
+  category_emoji: string;
+  about?: string | null;
+  website?: string | null;
+  contact_phone?: string | null;
+  contact_email?: string | null;
+  address?: string | null;
+  verified: boolean;
+}
+
+interface TierCard {
+  id: string;
+  name: string;
+  price: number;          // ریال
+  perks?: string | null;
+  subscriber_count: number;
+}
+
 type Tab = "posts" | "followers" | "following";
 
 export default function UserProfilePage() {
@@ -68,6 +93,10 @@ export default function UserProfilePage() {
   const [msgBusy, setMsgBusy] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [biz, setBiz] = useState<BusinessCard | null>(null);
+  const [tiers, setTiers] = useState<TierCard[]>([]);
+  const [subscribedTo, setSubscribedTo] = useState<Set<string>>(new Set());
+  const [subBusy, setSubBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -108,7 +137,51 @@ export default function UserProfilePage() {
     }
   }, [earthId]);
 
+  // نمایهٔ کسب‌وکار و پلن‌های اشتراک. ۴۰۴ یعنی این کاربر حسابِ کسب‌وکار ندارد،
+  // که حالتی عادی است و نباید خطا نشان بدهد.
+  const loadBusiness = useCallback(async () => {
+    if (!earthId) return;
+    try {
+      const r = await businessApi.profile(earthId);
+      setBiz(r.data);
+      businessApi.view(earthId).catch(() => {});
+    } catch {
+      setBiz(null);
+    }
+    try {
+      const r = await subscriptionsApi.tiersOf(earthId);
+      setTiers(r.data ?? []);
+    } catch {
+      setTiers([]);
+    }
+    try {
+      const r = await subscriptionsApi.mine();
+      setSubscribedTo(new Set(
+        (r.data ?? [])
+          .filter((s: { status: string }) => s.status === "active")
+          .map((s: { tier_id: string }) => s.tier_id)
+      ));
+    } catch {
+      setSubscribedTo(new Set());
+    }
+  }, [earthId]);
+
+  const subscribe = async (tier: TierCard) => {
+    if (!confirm(`اشتراکِ «${tier.name}» با ${toPersianNum(Math.round(tier.price / 10).toLocaleString("en-US"))} تومان از کیفِ شما کسر می‌شود. ادامه؟`)) return;
+    setSubBusy(tier.id);
+    try {
+      await subscriptionsApi.subscribe(tier.id);
+      toast.success("اشتراک فعال شد");
+      loadBusiness();
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, "اشتراک فعال نشد"));
+    } finally {
+      setSubBusy(null);
+    }
+  };
+
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadBusiness(); }, [loadBusiness]);
   useEffect(() => { loadList(tab); }, [tab, loadList]);
   useEffect(() => { if (tab === "posts") loadPosts(); }, [tab, loadPosts]);
 
@@ -281,6 +354,97 @@ export default function UserProfilePage() {
                 )}
               </div>
             </div>
+
+            {/* کارتِ کسب‌وکار */}
+            {biz && (
+              <div className="mx-4 mt-4 rounded-2xl border border-surface-800 bg-surface-900/60 p-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">{biz.kind_emoji}</span>
+                  <span className="font-bold text-surface-50">{biz.display_name}</span>
+                  {biz.verified && <BadgeCheck className="w-4 h-4 text-sky-400" />}
+                  <span className="text-xs text-surface-400">
+                    · {biz.category_emoji} {biz.category_label}
+                  </span>
+                </div>
+                {biz.about && (
+                  <p className="mt-2 text-sm text-surface-300 whitespace-pre-wrap leading-6">
+                    {biz.about}
+                  </p>
+                )}
+                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-surface-400">
+                  {biz.website && (
+                    <a
+                      href={biz.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 hover:text-primary"
+                      dir="ltr"
+                    >
+                      <Globe className="w-3.5 h-3.5" /> {biz.website}
+                    </a>
+                  )}
+                  {biz.contact_phone && (
+                    <a href={`tel:${biz.contact_phone}`} className="flex items-center gap-1 hover:text-primary" dir="ltr">
+                      <Phone className="w-3.5 h-3.5" /> {toPersianNum(biz.contact_phone)}
+                    </a>
+                  )}
+                  {biz.contact_email && (
+                    <a href={`mailto:${biz.contact_email}`} className="flex items-center gap-1 hover:text-primary" dir="ltr">
+                      <Mail className="w-3.5 h-3.5" /> {biz.contact_email}
+                    </a>
+                  )}
+                  {biz.address && (
+                    <span className="flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5" /> {biz.address}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* پلن‌های اشتراک */}
+            {!profile.is_me && tiers.length > 0 && (
+              <div className="mx-4 mt-3 space-y-2">
+                <div className="text-sm font-semibold text-surface-100 flex items-center gap-1.5">
+                  <Star className="w-4 h-4 text-amber-400" />
+                  حمایت با اشتراکِ ماهانه
+                </div>
+                {tiers.map((x) => {
+                  const active = subscribedTo.has(x.id);
+                  return (
+                    <div
+                      key={x.id}
+                      className="rounded-2xl border border-surface-800 bg-surface-900/60 p-3.5 flex items-start gap-3"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-surface-50">{x.name}</div>
+                        <div className="text-xs text-surface-400 mt-0.5">
+                          {toPersianNum(Math.round(x.price / 10).toLocaleString("en-US"))} تومان ماهانه
+                          {x.subscriber_count > 0 && (
+                            <> · {toPersianNum(String(x.subscriber_count))} مشترک</>
+                          )}
+                        </div>
+                        {x.perks && (
+                          <p className="text-xs text-surface-300 mt-1.5 leading-5 whitespace-pre-wrap">
+                            {x.perks}
+                          </p>
+                        )}
+                      </div>
+                      <Button
+                        variant={active ? "outline" : "primary"}
+                        onClick={() => subscribe(x)}
+                        disabled={active || subBusy === x.id}
+                        className="shrink-0"
+                      >
+                        {subBusy === x.id
+                          ? <Loader2 className="w-4 h-4 animate-spin" />
+                          : active ? "مشترک هستید" : "اشتراک"}
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Highlights */}
             <StoryHighlights earthId={profile.earth_id} isMe={profile.is_me} />

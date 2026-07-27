@@ -2543,4 +2543,122 @@ class ApiClient {
   Future<void> deleteSavedBill(String id) =>
       _delete('/api/v1/bills/saved/$id');
 
+  // ── حسابِ کسب‌وکار/سازنده + آمار + اشتراک (فاز ۴) ──────────────────────────
+
+  /// فهرستِ دسته‌های کسب‌وکار (از سرور، نه ثابتِ درونِ اپ).
+  Future<List<BizCategory>> bizCategories() async =>
+      ((await _get('/api/v1/business/categories')) as List)
+          .map((e) => BizCategory.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  /// انواعِ حساب به‌همراه حداقلِ سطحِ احرازِ هویتِ لازم.
+  Future<List<BizKind>> bizKinds() async =>
+      ((await _get('/api/v1/business/kinds')) as List)
+          .map((e) => BizKind.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  /// نمایهٔ کسب‌وکارِ خودم؛ اگر نداشته باشم سرور ۴۰۴ می‌دهد و اینجا `null`.
+  Future<BizProfile?> myBusiness() async {
+    try {
+      return BizProfile.fromJson(
+          await _get('/api/v1/business/me') as Map<String, dynamic>);
+    } on ApiException catch (e) {
+      if (e.status == 404) return null;
+      rethrow;
+    }
+  }
+
+  /// ساختِ حسابِ کسب‌وکار. نقشِ کاربر خودکار به «سازنده» تغییر می‌کند.
+  Future<BizProfile> createBusiness(Map<String, dynamic> body) async =>
+      BizProfile.fromJson(
+          await _post('/api/v1/business/me', body) as Map<String, dynamic>);
+
+  /// ویرایشِ نمایه. نشانِ تأیید در همین درخواست از سطحِ KYC بازمحاسبه می‌شود.
+  Future<BizProfile> updateBusiness(Map<String, dynamic> body) async =>
+      BizProfile.fromJson(
+          await _patch('/api/v1/business/me', body) as Map<String, dynamic>);
+
+  /// بازگشت به حسابِ شخصی. پست‌ها و دنبال‌کننده‌ها دست‌نخورده می‌مانند.
+  Future<void> deleteBusiness() => _delete('/api/v1/business/me');
+
+  /// آمارِ واقعیِ نمایه.
+  Future<BizInsights> bizInsights() async => BizInsights.fromJson(
+      await _get('/api/v1/business/insights') as Map<String, dynamic>);
+
+  /// نمایهٔ عمومیِ کسب‌وکارِ یک کاربر؛ `null` یعنی حسابِ کسب‌وکار ندارد.
+  Future<BizProfile?> businessOf(String earthId) async {
+    try {
+      return BizProfile.fromJson(
+          await _get('/api/v1/business/$earthId') as Map<String, dynamic>);
+    } on ApiException catch (e) {
+      if (e.status == 404) return null;
+      rethrow;
+    }
+  }
+
+  /// ثبتِ بازدیدِ نمایه. سرور خودبازدید را نادیده می‌گیرد و هر بیننده را
+  /// روزی یک‌بار می‌شمارد، پس فراخوانیِ مکرر بی‌ضرر است.
+  Future<void> viewBusiness(String earthId) =>
+      _post('/api/v1/business/$earthId/view', null);
+
+  /// پلن‌های اشتراکِ خودم (شاملِ غیرفعال‌ها).
+  Future<List<SubTier>> myTiers() async =>
+      ((await _get('/api/v1/subscriptions/tiers/mine')) as List)
+          .map((e) => SubTier.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  /// ساختِ پلنِ تازه. `price` ریال است.
+  Future<SubTier> createTier({
+    required String name,
+    required int price,
+    String? perks,
+  }) async =>
+      SubTier.fromJson(await _post('/api/v1/subscriptions/tiers', {
+        'name': name,
+        'price': price,
+        if (perks != null && perks.isNotEmpty) 'perks': perks,
+      }) as Map<String, dynamic>);
+
+  /// ویرایشِ پلن.
+  Future<SubTier> updateTier(String id, Map<String, dynamic> body) async =>
+      SubTier.fromJson(await _patch('/api/v1/subscriptions/tiers/$id', body)
+          as Map<String, dynamic>);
+
+  /// غیرفعال‌سازیِ پلن — حذف نمی‌شود تا تاریخچهٔ مشترکانِ فعلی نشکند.
+  Future<void> deactivateTier(String id) =>
+      _delete('/api/v1/subscriptions/tiers/$id');
+
+  /// پلن‌های فعالِ یک سازنده برای نمایش در نمایهٔ او.
+  Future<List<SubTier>> tiersOf(String earthId) async =>
+      ((await _get('/api/v1/subscriptions/tiers/of/$earthId')) as List)
+          .map((e) => SubTier.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  /// اشتراک در یک پلن؛ اولین دوره همان لحظه از کیف کسر می‌شود.
+  Future<Subscription> subscribe(String tierId) async => Subscription.fromJson(
+      await _post('/api/v1/subscriptions/subscribe', {'tier_id': tierId})
+          as Map<String, dynamic>);
+
+  /// اشتراک‌هایی که خریده‌ام.
+  Future<List<Subscription>> mySubscriptions() async =>
+      ((await _get('/api/v1/subscriptions/mine')) as List)
+          .map((e) => Subscription.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  /// مشترکانِ من.
+  Future<List<Subscription>> mySubscribers() async =>
+      ((await _get('/api/v1/subscriptions/subscribers')) as List)
+          .map((e) => Subscription.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  /// لغوِ اشتراک؛ تا پایانِ دورهٔ پرداخت‌شده فعال می‌ماند و پول برنمی‌گردد.
+  Future<Subscription> cancelSubscription(String id) async =>
+      Subscription.fromJson(await _post('/api/v1/subscriptions/$id/cancel', null)
+          as Map<String, dynamic>);
+
+  /// تمدیدِ دستی؛ دورهٔ تازه از پایانِ دورهٔ قبلی شروع می‌شود، نه از اکنون.
+  Future<Subscription> renewSubscription(String id) async =>
+      Subscription.fromJson(await _post('/api/v1/subscriptions/$id/renew', null)
+          as Map<String, dynamic>);
+
 }

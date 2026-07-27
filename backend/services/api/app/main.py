@@ -38,13 +38,18 @@ async def lifespan(app: FastAPI):
     from app.services.fx_feed import periodic_fx_refresh
     app.state.fx_task = asyncio.create_task(periodic_fx_refresh())
 
+    # تمدیدِ خودکارِ اشتراکِ سازندگان؛ بدونِ آن `auto_renew` فقط تیکی تزئینی است.
+    from app.services.subscription_renew import periodic_subscription_renew
+    app.state.subs_task = asyncio.create_task(periodic_subscription_renew())
+
     log.info("dilix_api_ready")
     yield
 
     # Shutdown
-    task = getattr(app.state, "fx_task", None)
-    if task is not None:
-        task.cancel()
+    for name in ("fx_task", "subs_task"):
+        task = getattr(app.state, name, None)
+        if task is not None:
+            task.cancel()
     await close_redis()
     await engine.dispose()
     log.info("dilix_api_shutdown")
@@ -252,3 +257,9 @@ from app.models.mlm import MlmCommission  # noqa: F401  (تا create_all جدو�
 # ─── Bills (قبوض و خدماتِ شهری) ──────────────────────────────────────────────
 from app.api.v1.bills.router import router as bills_router
 app.include_router(bills_router, prefix="/api/v1")
+
+# ─── Business / Creator accounts + Insights + Subscriptions (فاز ۴) ──────────
+from app.api.v1.business.router import router as business_router
+from app.api.v1.business.subscriptions import router as subscriptions_router
+app.include_router(business_router, prefix="/api/v1")
+app.include_router(subscriptions_router, prefix="/api/v1")

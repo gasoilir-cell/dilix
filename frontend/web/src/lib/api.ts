@@ -629,6 +629,53 @@ export const billsApi = {
   unsave: (id: string) => api.delete(`/bills/saved/${id}`),
 };
 
+// ─── Business / Creator API (حسابِ رسمی + Insights) ──────────────────────────
+// نشانِ تأیید (verified) دستی نیست؛ از سطحِ KYC کاربر محاسبه می‌شود.
+export type BusinessPayload = {
+  kind?: string;
+  display_name?: string;
+  category?: string;
+  about?: string | null;
+  website?: string | null;
+  contact_phone?: string | null;
+  contact_email?: string | null;
+  address?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+};
+
+export const businessApi = {
+  categories: () => api.get("/business/categories"),
+  kinds: () => api.get("/business/kinds"),
+  me: () => api.get("/business/me"),
+  create: (body: BusinessPayload) => api.post("/business/me", body),
+  update: (body: BusinessPayload) => api.patch("/business/me", body),
+  remove: () => api.delete("/business/me"),
+  insights: () => api.get("/business/insights"),
+  profile: (earth_id: string) => api.get(`/business/${earth_id}`),
+  // ثبتِ بازدید؛ سرور خودبازدید را نادیده می‌گیرد و هر بیننده را روزی یک‌بار می‌شمارد.
+  view: (earth_id: string) => api.post(`/business/${earth_id}/view`),
+};
+
+// ─── Subscriptions API (اشتراکِ پولیِ سازندگان) ──────────────────────────────
+// همهٔ مبلغ‌ها ریال‌اند؛ تبدیل به تومان کارِ UI است.
+export const subscriptionsApi = {
+  myTiers: () => api.get("/subscriptions/tiers/mine"),
+  createTier: (body: { name: string; price: number; perks?: string | null }) =>
+    api.post("/subscriptions/tiers", body),
+  updateTier: (
+    id: string,
+    body: { name?: string; price?: number; perks?: string | null; is_active?: boolean },
+  ) => api.patch(`/subscriptions/tiers/${id}`, body),
+  deactivateTier: (id: string) => api.delete(`/subscriptions/tiers/${id}`),
+  tiersOf: (earth_id: string) => api.get(`/subscriptions/tiers/of/${earth_id}`),
+  subscribe: (tier_id: string) => api.post("/subscriptions/subscribe", { tier_id }),
+  mine: () => api.get("/subscriptions/mine"),
+  subscribers: () => api.get("/subscriptions/subscribers"),
+  cancel: (id: string) => api.post(`/subscriptions/${id}/cancel`),
+  renew: (id: string) => api.post(`/subscriptions/${id}/renew`),
+};
+
 // ─── Holdings API (کیف‌پولِ چندارزی + تبدیلِ درون‌کیفی) ───────────────────────
 export const holdingsApi = {
   list: () => api.get("/holdings"),
