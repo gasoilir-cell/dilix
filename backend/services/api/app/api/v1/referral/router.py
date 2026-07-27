@@ -4,7 +4,7 @@ GET  /api/v1/referral/stats        → آمار: کد/لینک، مستقیم، 
 POST /api/v1/referral/apply        → ثبتِ معرف (earth_id) با محافظت در برابرِ حلقه
 GET  /api/v1/referral/network      → شمارِ زیرمجموعه به تفکیکِ سطح + فهرستِ مستقیم‌ها
 GET  /api/v1/referral/commissions  → لِجِرِ کمیسیون‌های من + جمعِ درآمد به تفکیکِ ارز
-GET  /api/v1/referral/qr           → QRِ دعوت (SVG) که به /join?ref=… می‌رسد
+GET  /api/v1/referral/qr           → QRِ دعوت (SVG یا ?format=png) که به /join?ref=… می‌رسد
 
 زنجیرهٔ معرف روی `User.referred_by` است؛ کمیسیونِ چندسطحی توسطِ
 `app/services/mlm.py::distribute_commission` هنگامِ فعالیتِ زیرمجموعه (مثلِ شارژِ کیف)
@@ -175,21 +175,35 @@ async def referral_commissions(
 
 # ─── GET /referral/qr ────────────────────────────────────────────────────────
 @router.get("/qr")
-async def referral_qr(current_user: User = Depends(get_current_user)):
+async def referral_qr(
+    format: str = "svg",
+    current_user: User = Depends(get_current_user),
+):
     """QRِ دعوت — لینکِ `/join?ref=…` را کد می‌کند، نه لینکِ پروفایل را.
 
     QRِ پروفایل (`/social/qr/{earth_id}`) بیننده را به صفحهٔ کاربر می‌بَرد و
     زنجیرهٔ معرف را از دست می‌دهد؛ این یکی همان اسکن را به یک عضویتِ منتسب
     تبدیل می‌کند. کدِ معرف راز نیست، پس QR هم رازی حمل نمی‌کند.
+
+    `format=png` برای موبایل است: Flutter بدونِ پکیجِ اضافه SVG را رندر نمی‌کند،
+    ولی `Image.memory` هر PNGی را نشان می‌دهد. نوشتنِ PNG در خودِ segno است و
+    وابستگیِ تازه‌ای (Pillow) نمی‌خواهد، پس هر دو نسخه از یک منبع می‌آیند و
+    نمی‌توانند از هم واگرا شوند.
     """
     import segno
     url = f"{SITE_URL}/join?ref={current_user.earth_id}"
+    png = format.lower() == "png"
     buf = _io.BytesIO()
     segno.make(url, error="m").save(
-        buf, kind="svg", scale=7, border=3, dark="#0A0A0A", light="#FFFFFF"
+        buf,
+        kind="png" if png else "svg",
+        scale=10 if png else 7,
+        border=3,
+        dark="#0A0A0A",
+        light="#FFFFFF",
     )
     return Response(
         content=buf.getvalue(),
-        media_type="image/svg+xml",
+        media_type="image/png" if png else "image/svg+xml",
         headers={"Cache-Control": "private, max-age=3600"},
     )

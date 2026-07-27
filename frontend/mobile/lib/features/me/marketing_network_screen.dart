@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+// `services.dart` هم `Clipboard` را می‌دهد و هم `Uint8List` را؛ importِ جداگانهٔ
+// `dart:typed_data` تکراری می‌شد.
 import 'package:flutter/services.dart';
 
 import '../../app.dart';
@@ -20,6 +22,9 @@ class _MarketingNetworkScreenState extends State<MarketingNetworkScreen> {
   CommissionLedger? _ledger;
   bool _loading = true;
   String? _error;
+  Uint8List? _qr;
+  bool _qrOpen = false;
+  bool _qrLoading = false;
 
   @override
   void didChangeDependencies() {
@@ -203,10 +208,68 @@ class _MarketingNetworkScreenState extends State<MarketingNetworkScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton.icon(
+                onPressed: _qrLoading ? null : _toggleQr,
+                icon: _qrLoading
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : Icon(_qrOpen ? Icons.expand_less : Icons.qr_code_2),
+                label: Text(tr('QRِ دعوت')),
+              ),
+            ),
+            if (_qrOpen && _qr != null) ...[
+              Center(
+                // پس‌زمینهٔ سفیدِ صریح: در پوستهٔ تیره، QRِ مشکی روی کارتِ تیره
+                // اسکن نمی‌شود.
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Image.memory(_qr!, width: 180, height: 180),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                tr('اسکنِ این کد، ثبت‌نام را مستقیم به شبکهٔ شما وصل می‌کند.'),
+                style: theme.textTheme.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  /// QR از سرور می‌آید (همان تصویری که وب نشان می‌دهد) و یک‌بار کش می‌شود؛
+  /// بستن و باز کردنِ دوباره درخواستِ تازه نمی‌فرستد.
+  Future<void> _toggleQr() async {
+    if (_qrOpen) {
+      setState(() => _qrOpen = false);
+      return;
+    }
+    setState(() => _qrOpen = true);
+    if (_qr != null) return;
+    setState(() => _qrLoading = true);
+    try {
+      final bytes = await ApiScope.of(context).referralQrPng();
+      if (!mounted) return;
+      setState(() => _qr = bytes);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _qrOpen = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('ساختِ QR ممکن نشد: {0}', [e]))));
+    } finally {
+      if (mounted) setState(() => _qrLoading = false);
+    }
   }
 
   /// ثبتِ معرف. فقط یک‌بار در عمرِ حساب ممکن است و سرور خودش حلقه را رد می‌کند،

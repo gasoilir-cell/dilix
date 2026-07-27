@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -167,6 +168,17 @@ class ApiClient {
     if (res.statusCode >= 400) _raise(res);
     // پاسخ UTF-8 است ولی هدرِ charset ندارد؛ `res.body` بدونِ آن latin-1 می‌خوانَد.
     return utf8.decode(res.bodyBytes);
+  }
+
+  /// GET برای پاسخِ دودویی (تصویر). مثلِ `_getText` است ولی بایت‌ها را دست‌نخورده
+  /// برمی‌گرداند تا بشود مستقیم به `Image.memory` داد.
+  Future<Uint8List> _getBytes(String path) async {
+    Future<http.Response> run() =>
+        _client.get(Uri.parse('$_base$path'), headers: _headers());
+    var res = await run();
+    if (res.statusCode == 401 && await _refreshSession()) res = await run();
+    if (res.statusCode >= 400) _raise(res);
+    return res.bodyBytes;
   }
 
   Future<dynamic> _post(String path, Object? body) => _exec(
@@ -415,6 +427,11 @@ class ApiClient {
     }) as Map<String, dynamic>;
     return (j['referred_by'] ?? '') as String;
   }
+
+  /// QRِ دعوت به‌صورتِ PNG. نسخهٔ پیش‌فرضِ سرور SVG است و Flutter بدونِ پکیجِ
+  /// اضافه آن را رندر نمی‌کند، پس اینجا `format=png` می‌خواهیم.
+  Future<Uint8List> referralQrPng() =>
+      _getBytes('/api/v1/referral/qr?format=png');
 
   // ─────────────── Social (دنبال‌کردن و پروفایل) ───────────────
   /// پروفایلِ عمومیِ یک کاربر؛ فیلدهای `is_following`/`is_followed_by`/`is_me`
