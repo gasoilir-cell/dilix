@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../app.dart';
 import '../../models/models.dart';
@@ -284,8 +286,8 @@ class _WalletScreenState extends State<WalletScreen> {
         ),
         _actionTile(
           icon: Icons.account_balance_wallet_outlined,
-          title: tr('جیب‌های ارزی'),
-          desc: tr('تبدیل، دریافت و برداشتِ چندارزی'),
+          title: tr('جیب‌های ارزی و رمزارز'),
+          desc: tr('تبدیل، آدرسِ واریز و برداشت — BTC، ETH، TON، TRX'),
           onTap: _openHoldings,
         ),
         _actionTile(
@@ -413,18 +415,65 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
+  Future<void> _copyInvite(String url) async {
+    await Clipboard.setData(ClipboardData(text: url));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(tr('لینکِ دعوت کپی شد.'))));
+  }
+
+  Future<void> _shareInvite(String url) async {
+    await Share.share(
+      tr('با این لینک به دیلیکس بپیوند: {0}', [url]),
+      subject: tr('دعوت به دیلیکس'),
+    );
+  }
+
   Widget _referralCard() {
     final ref = _referral;
+    final url = ref?.url ?? '';
     return Card(
-      child: ListTile(
-        leading: const Icon(Icons.link),
-        title: Text(tr('لینکِ دعوت')),
-        subtitle: Text(
-          ref == null
-              ? tr('در دسترس نیست')
-              : tr('{0}\nدعوت‌شده‌ها: {1}', [ref.url, ref.totalReferred]),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.link),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(tr('لینکِ دعوت'),
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                ),
+                if (ref != null)
+                  Text(tr('دعوت‌شده‌ها: {0}', [ref.totalReferred]),
+                      style: Theme.of(context).textTheme.bodySmall),
+              ],
+            ),
+            const SizedBox(height: 6),
+            SelectableText(
+              url.isEmpty ? tr('در دسترس نیست') : url,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                TextButton.icon(
+                  onPressed: url.isEmpty ? null : () => _copyInvite(url),
+                  icon: const Icon(Icons.copy, size: 18),
+                  label: Text(tr('کپی')),
+                ),
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: url.isEmpty ? null : () => _shareInvite(url),
+                  icon: const Icon(Icons.ios_share, size: 18),
+                  label: Text(tr('اشتراک‌گذاری')),
+                ),
+              ],
+            ),
+          ],
         ),
-        isThreeLine: ref != null,
       ),
     );
   }

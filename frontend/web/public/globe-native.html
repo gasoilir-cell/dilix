@@ -164,6 +164,17 @@
   window.focusOn = function (lat, lng, alt) {
     if (globe) globe.pointOfView({ lat: lat, lng: lng, altitude: alt || 0.5 }, 800);
   };
+
+  // ── راه‌اندازیِ خودکار پس از لودِ صفحه ──
+  // native هیچ‌وقت `initGlobe` را صدا نمی‌زند؛ فقط منتظرِ رویدادِ `ready` می‌ماند
+  // که خودش انتهای `initGlobe` فرستاده می‌شود. بدونِ این boot، کره ساخته نمی‌شد
+  // و صفحه سیاه می‌ماند (اسکریپت لود شده بود، پس نه خطایی بود نه اسپینری).
+  function boot() { if (!globe) window.initGlobe(); }
+  if (document.readyState === "complete" || document.readyState === "interactive") {
+    setTimeout(boot, 0);
+  } else {
+    window.addEventListener("DOMContentLoaded", boot);
+  }
 })();
 </script>
 </body>

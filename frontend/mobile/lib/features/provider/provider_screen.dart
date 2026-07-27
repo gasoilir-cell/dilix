@@ -72,7 +72,6 @@ class _ProviderScreenState extends State<ProviderScreen> {
   Future<void> _bootstrap() async {
     final api = ApiScope.of(context);
     List<CatalogEntry> types = const [];
-    List<CatalogEntry> catalog = const [];
     Provider? mine;
     try {
       types = await api.providerTypes();
@@ -80,26 +79,89 @@ class _ProviderScreenState extends State<ProviderScreen> {
       // کاتالوگ اختیاری است؛ fallback سخت‌کدشده کار می‌کند.
     }
     try {
-      catalog = await api.providerProductCatalog();
-    } catch (_) {}
-    try {
       final list = await api.myProviders();
       if (list.isNotEmpty) mine = list.first;
     } catch (_) {
       // کاربرِ ناواردشده یا بدونِ مرکز → فرمِ ثبت‌نام.
     }
+    // کاتالوگِ محصولات به نوعِ مرکز وابسته است؛ اگر بدونِ نوع بخوانیم سرور
+    // کاتالوگِ بیمه را می‌دهد و یک بانک، محصولاتِ بیمه‌ای می‌بیند.
+    var type = mine?.providerType ?? _providerType;
+    if (mine == null && types.isNotEmpty && !types.any((t) => t.id == type)) {
+      type = types.first.id;
+    }
+    List<CatalogEntry> catalog = const [];
+    try {
+      catalog = await api.providerProductCatalog(providerType: type);
+    } catch (_) {}
     if (!mounted) return;
     setState(() {
       _types = types;
       _productCatalog = catalog;
       _provider = mine;
       _products = {...?mine?.products};
-      if (types.isNotEmpty && !types.any((t) => t.id == _providerType)) {
-        _providerType = types.first.id;
-      }
+      if (mine == null) _providerType = type;
       _loading = false;
     });
     if (mine != null) await _hydrate(mine.id);
+  }
+
+  /// نوعِ مرکز در فرمِ ثبت‌نام عوض شد → کاتالوگِ محصولات باید دوباره خوانده شود.
+  Future<void> _onTypeChanged(String type) async {
+    setState(() {
+      _providerType = type;
+      _products = {};
+    });
+    try {
+      final catalog =
+          await ApiScope.of(context).providerProductCatalog(providerType: type);
+      if (!mounted) return;
+      setState(() => _productCatalog = catalog);
+    } catch (_) {}
+  }
+
+  /// متنِ توافق‌نامه را از سرور می‌گیرد و در یک شیت نشان می‌دهد.
+  Future<void> _showAgreement() async {
+    final messenger = ScaffoldMessenger.of(context);
+    ProviderAgreement agreement;
+    try {
+      agreement = await ApiScope.of(context).providerAgreement();
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(tr('دریافتِ متنِ توافق‌نامه ممکن نشد: {0}', [e]))),
+      );
+      return;
+    }
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.85,
+        maxChildSize: 0.95,
+        builder: (_, controller) => ListView(
+          controller: controller,
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          children: [
+            Text(agreement.title,
+                style: Theme.of(ctx).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Text(tr('نسخهٔ {0}', [agreement.version]),
+                style: Theme.of(ctx).textTheme.bodySmall),
+            const SizedBox(height: 16),
+            for (final s in agreement.sections) ...[
+              Text(s.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              Text(s.body, style: Theme.of(ctx).textTheme.bodyMedium),
+              const SizedBox(height: 16),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   /// فهرست‌های وابسته به یک مرکز. هرکدام جدا try می‌شود تا خطای یکی بقیه را
@@ -348,7 +410,7 @@ class _ProviderScreenState extends State<ProviderScreen> {
                       for (final t in _fallbackTypes)
                         DropdownMenuItem(value: t.$1, child: Text(t.$2)),
                     ],
-              onChanged: (v) => setState(() => _providerType = v ?? 'psp'),
+              onChanged: (v) => _onTypeChanged(v ?? 'psp'),
             ),
             const SizedBox(height: 4),
             CheckboxListTile(
@@ -357,6 +419,19 @@ class _ProviderScreenState extends State<ProviderScreen> {
               value: _agreementAccepted,
               onChanged: (v) => setState(() => _agreementAccepted = v ?? false),
               title: Text(tr('توافق‌نامهٔ همکاری را می‌پذیرم.')),
+              subtitle: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: TextButton.icon(
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  icon: const Icon(Icons.description_outlined, size: 16),
+                  label: Text(tr('خواندنِ متنِ توافق‌نامه')),
+                  onPressed: _showAgreement,
+                ),
+              ),
             ),
             const SizedBox(height: 12),
             SizedBox(
@@ -402,7 +477,7 @@ class _ProviderScreenState extends State<ProviderScreen> {
         child: ListTile(
           leading: const Icon(Icons.receipt_long_outlined),
           title: Text(tr('صورت‌حسابِ کارمزد')),
-          subtitle: Text(tr('کارمزدِ بیمه‌نامه‌های صادرشده از این مرکز')),
+          subtitle: Text(_statementSubtitle(p.providerType)),
           trailing: const Icon(Icons.chevron_left),
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute<void>(
@@ -559,6 +634,22 @@ class _ProviderScreenState extends State<ProviderScreen> {
   }
 
   /// محصولاتی که این مرکز پوشش می‌دهد؛ خالی یعنی «همه».
+  /// توضیحِ صورت‌حساب بسته به نوعِ مرکز؛ «بیمه‌نامهٔ صادرشده» برای بانک بی‌معناست.
+  String _statementSubtitle(String providerType) {
+    switch (providerType) {
+      case 'insurer':
+        return tr('کارمزدِ بیمه‌نامه‌های صادرشده از این مرکز');
+      case 'bank':
+        return tr('کارمزدِ خدماتِ بانکیِ ارائه‌شده از این مرکز');
+      case 'psp':
+        return tr('کارمزدِ تراکنش‌های پرداختِ این مرکز');
+      case 'broker':
+        return tr('کارمزدِ معامله‌ها و صدور/ابطالِ این کارگزاری');
+      default:
+        return tr('کارمزدِ سرویس‌های ارائه‌شده از این مرکز');
+    }
+  }
+
   Widget _productsCard(Provider p) {
     if (_productCatalog.isEmpty) return const SizedBox.shrink();
     return Card(

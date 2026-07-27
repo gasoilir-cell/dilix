@@ -22,7 +22,7 @@ import secrets as _secrets
 from datetime import datetime, timezone
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import (
     Column, DateTime, Enum, Float, ForeignKey, String, Boolean, Text, select,
@@ -199,15 +199,140 @@ INSURANCE_PRODUCTS = {
     "engineering": "بیمه مهندسی",
 }
 
+# سرویس‌های قابلِ ارائه به‌تفکیکِ نوعِ مرکز. پیش‌تر کاتالوگ **همیشه** بیمه بود، پس
+# یک بانک در پورتالِ خودش فهرستِ «بیمهٔ باربری/شخصِ ثالث/…» می‌دید و هیچ سرویسِ
+# بانکی‌ای برای انتخاب نداشت. کاتالوگ باید تابعِ نوعِ مرکز باشد، نه ثابت.
+BANK_PRODUCTS = {
+    "deposit":       "افتتاح و مدیریتِ سپرده",
+    "card_issue":    "صدورِ کارتِ بانکی",
+    "loan":          "تسهیلات و وام",
+    "guarantee":     "ضمانت‌نامهٔ بانکی",
+    "lc":            "اعتبارِ اسنادی (LC)",
+    "fx_transfer":   "حوالهٔ ارزی",
+    "settlement":    "تسویه و پایاپای",
+    "account_info":  "خدماتِ اطلاعاتِ حساب (Open Banking)",
+}
+PSP_PRODUCTS = {
+    "ipg":           "درگاهِ پرداختِ اینترنتی (IPG)",
+    "direct_debit":  "پرداختِ مستقیم و برداشتِ خودکار",
+    "payout":        "واریزِ گروهی (تسویه با فروشندگان)",
+    "pos":           "کارت‌خوانِ فروشگاهی",
+    "wallet_topup":  "شارژِ کیفِ پول",
+    "bill_payment":  "پرداختِ قبض",
+    "tokenization":  "توکن‌سازیِ کارت",
+}
+BROKER_PRODUCTS = {
+    "fund_units":    "خرید و فروشِ واحدِ صندوق",
+    "equity":        "معاملهٔ سهام",
+    "fixed_income":  "اوراقِ با درآمدِ ثابت",
+    "portfolio":     "سبدگردانیِ اختصاصی",
+    "advisory":      "مشاورهٔ سرمایه‌گذاری",
+    "custody":       "امانت‌داریِ دارایی",
+}
+OTHER_PRODUCTS = {
+    "logistics":     "خدماتِ حمل‌ونقل",
+    "telecom":       "خدماتِ ارتباطی",
+    "identity":      "احرازِ هویت",
+    "data":          "سرویسِ داده",
+    "other":         "سایرِ خدمات",
+}
 
-def _clean_products(products) -> Optional[list]:
-    """اعتبارسنجیِ لیستِ کدهای محصول؛ None/[] یعنی «همهٔ محصولات»."""
+PRODUCT_CATALOGS: dict[str, dict] = {
+    "insurer": INSURANCE_PRODUCTS,
+    "bank":    BANK_PRODUCTS,
+    "psp":     PSP_PRODUCTS,
+    "broker":  BROKER_PRODUCTS,
+    "other":   OTHER_PRODUCTS,
+}
+
+# برچسبِ همهٔ کدها در یک نگاشت، برای نمایشِ محصولاتِ ذخیره‌شده بدونِ دانستنِ نوع.
+ALL_PRODUCT_LABELS: dict[str, str] = {
+    code: label for cat in PRODUCT_CATALOGS.values() for code, label in cat.items()
+}
+
+
+# ── توافق‌نامهٔ همکاری ───────────────────────────────────────────
+# نسخه را با هر تغییرِ معناییِ متن بالا ببرید.
+AGREEMENT_VERSION = "1.0"
+
+AGREEMENT_SECTIONS: list[tuple[str, str]] = [
+    (
+        "۱) جایگاهِ طرفین",
+        "دیلیکس یک بسترِ واسط (Marketplace/Orchestrator) است و خود ارائه‌دهندهٔ "
+        "خدماتِ بانکی، بیمه‌ای، پرداختی یا سرمایه‌گذاری نیست. مسئولیتِ صدور، "
+        "اجرا و پاسخ‌گوییِ خدمات بر عهدهٔ ارائه‌دهنده است و ارائه‌دهنده تأیید "
+        "می‌کند که مجوزهای لازم از نهادِ ناظرِ مربوطه را دارد و آن‌ها را معتبر "
+        "نگه می‌دارد.",
+    ),
+    (
+        "۲) احرازِ هویتِ کسب‌وکار (KYB)",
+        "ثبت‌نام پس از ارسالِ مدارک در وضعیتِ «در انتظارِ احراز» قرار می‌گیرد. تا "
+        "پیش از تأییدِ KYB، سرویس‌های ارائه‌دهنده فقط در محیطِ آزمایشی (sandbox) "
+        "قابلِ فراخوانی‌اند و به کاربرِ نهایی عرضه نمی‌شوند. ارائه‌دهنده متعهد "
+        "است هر تغییر در وضعیتِ مجوز یا مالکیت را بی‌درنگ اعلام کند.",
+    ),
+    (
+        "۳) سطحِ خدمت و کیفیت",
+        "ارائه‌دهنده متعهد به پاسخ‌گوییِ APIهای ثبت‌شده با دسترس‌پذیریِ حداقل ۹۹٪ "
+        "ماهانه و زمانِ پاسخِ متعارف است. قطعیِ برنامه‌ریزی‌شده باید دستِ‌کم ۴۸ "
+        "ساعت پیش‌تر اعلام شود. دیلیکس می‌تواند سرویسی را که پیوسته خطا می‌دهد "
+        "به‌طورِ موقت از موتورِ مقایسه خارج کند.",
+    ),
+    (
+        "۴) کارمزد و تسویه",
+        "نرخِ کارمزدِ پلتفرم هنگامِ ثبت‌نام تعیین و در صورت‌حسابِ ماهانه اعمال "
+        "می‌شود. تسویه بر پایهٔ تراکنش‌های موفقِ ثبت‌شده در سامانه انجام می‌گیرد و "
+        "مبنای محاسبه، دفترِ تراکنشِ دیلیکس است. اعتراض به صورت‌حساب حداکثر تا "
+        "۳۰ روز پس از صدور پذیرفته می‌شود.",
+    ),
+    (
+        "۵) دادهٔ کاربر و محرمانگی",
+        "ارائه‌دهنده فقط به حداقلِ دادهٔ لازم برای انجامِ همان خدمت دسترسی دارد و "
+        "حق ندارد آن را برای مقصودِ دیگر، بازاریابی یا انتقال به شخصِ ثالث "
+        "استفاده کند. دادهٔ کاربرانِ ایران در ریجنِ داخلی نگه‌داری می‌شود و "
+        "رعایتِ قوانینِ حفاظت از داده بر عهدهٔ هر دو طرف است.",
+    ),
+    (
+        "۶) امنیت و کلیدها",
+        "کلیدهای صادرشده محرمانه‌اند و مسئولیتِ هر فراخوانی که با آن‌ها انجام "
+        "شود بر عهدهٔ ارائه‌دهنده است. در صورتِ نشتِ کلید، ارائه‌دهنده موظف است "
+        "بی‌درنگ آن را ابطال و حادثه را گزارش کند. امضای webhookها باید در سمتِ "
+        "ارائه‌دهنده راستی‌آزمایی شود.",
+    ),
+    (
+        "۷) تعلیق و خاتمه",
+        "هر طرف می‌تواند با اعلامِ کتبیِ ۳۰ روزه همکاری را خاتمه دهد. دیلیکس "
+        "می‌تواند در صورتِ تخلفِ آشکار، نقضِ امنیت یا ابطالِ مجوز، دسترسی را "
+        "فوراً تعلیق کند. تعهداتِ مربوط به تراکنش‌های انجام‌شده و محرمانگیِ داده "
+        "پس از خاتمه نیز پابرجاست.",
+    ),
+    (
+        "۸) قانونِ حاکم",
+        "این توافق‌نامه تابعِ قوانینِ جمهوری اسلامی ایران است. اختلافات ابتدا از "
+        "راهِ مذاکره و در صورتِ عدمِ حصولِ نتیجه از طریقِ مراجعِ صالحِ قضایی حل "
+        "می‌شود.",
+    ),
+]
+
+
+def catalog_for(provider_type: str | None) -> dict:
+    """کاتالوگِ سرویسِ متناسب با نوعِ مرکز (پیش‌فرض: بیمه، برای سازگاری با گذشته)."""
+    return PRODUCT_CATALOGS.get((provider_type or "").strip(), INSURANCE_PRODUCTS)
+
+
+def _clean_products(products, provider_type: str | None = None) -> Optional[list]:
+    """اعتبارسنجیِ لیستِ کدهای محصول؛ None/[] یعنی «همهٔ محصولات».
+
+    کدها باید در کاتالوگِ **همان نوعِ مرکز** باشند؛ وگرنه یک بانک می‌توانست
+    کدِ بیمه‌ای ذخیره کند و در موتورِ مقایسه به‌عنوانِ بیمه‌گر فراخوانده شود.
+    """
     if not products:
         return None
+    allowed = catalog_for(provider_type)
     seen, out = set(), []
     for code in products:
         c = str(code).strip()
-        if c in INSURANCE_PRODUCTS and c not in seen:
+        if c in allowed and c not in seen:
             seen.add(c)
             out.append(c)
     return out or None
@@ -275,7 +400,7 @@ class ProviderOut(BaseModel):
             contact_name=o.contact_name, contact_phone=o.contact_phone,
             contact_email=o.contact_email, commission_rate=o.commission_rate,
             products=prods,
-            products_labels=[INSURANCE_PRODUCTS.get(c, c) for c in prods],
+            products_labels=[ALL_PRODUCT_LABELS.get(c, c) for c in prods],
             country=country, country_flag=_flag(country),
             currency=(getattr(o, "currency", None) or "IRR").upper(),
             regulator=getattr(o, "regulator", None),
@@ -292,6 +417,17 @@ class ProductsUpdate(BaseModel):
 class ProductCatalogOut(BaseModel):
     id:    str
     label: str
+
+
+class AgreementSection(BaseModel):
+    title: str
+    body:  str
+
+
+class AgreementOut(BaseModel):
+    version:  str
+    title:    str
+    sections: List[AgreementSection]
 
 
 class APICreate(BaseModel):
@@ -445,7 +581,7 @@ async def register_provider(
         contact_phone      = (body.contact_phone or None),
         contact_email      = (body.contact_email or None),
         commission_rate    = body.commission_rate,
-        products           = _clean_products(body.products),
+        products           = _clean_products(body.products, body.provider_type),
         country            = (body.country or "IR").strip().upper(),
         currency           = (body.currency or "IRR").strip().upper(),
         regulator          = ((body.regulator or "").strip() or None),
@@ -460,9 +596,27 @@ async def register_provider(
 
 
 @router.get("/catalog/products", response_model=List[ProductCatalogOut])
-async def list_product_catalog(me: User = Depends(get_current_user)):
-    """کاتالوگِ کدهای بیمه‌ای که یک مرکز می‌تواند پوشش دهد."""
-    return [ProductCatalogOut(id=k, label=v) for k, v in INSURANCE_PRODUCTS.items()]
+async def list_product_catalog(
+    provider_type: Optional[str] = Query(None, description="نوعِ مرکز؛ خالی = بیمه"),
+    me: User = Depends(get_current_user),
+):
+    """کاتالوگِ سرویس‌هایی که یک مرکز از **نوعِ داده‌شده** می‌تواند ارائه دهد."""
+    return [ProductCatalogOut(id=k, label=v) for k, v in catalog_for(provider_type).items()]
+
+
+@router.get("/agreement", response_model=AgreementOut)
+async def get_agreement(me: User = Depends(get_current_user)):
+    """متنِ توافق‌نامهٔ همکاری که مرکز هنگامِ ثبت‌نام می‌پذیرد.
+
+    متن از سرور می‌آید تا نسخهٔ پذیرفته‌شده یکتا و قابلِ استناد بماند؛ اگر در
+    کلاینت سخت‌کد می‌شد، هر نسخهٔ اپ می‌توانست متنِ متفاوتی نشان دهد در حالی که
+    همان تیکِ «می‌پذیرم» را به سرور می‌فرستاد.
+    """
+    return AgreementOut(
+        version=AGREEMENT_VERSION,
+        title="توافق‌نامهٔ همکاریِ ارائه‌دهنده",
+        sections=[AgreementSection(title=t, body=b) for t, b in AGREEMENT_SECTIONS],
+    )
 
 
 @router.put("/{provider_id}/products", response_model=ProviderOut)
@@ -472,13 +626,13 @@ async def set_provider_products(
     db:   AsyncSession = Depends(get_db),
     me:   User         = Depends(get_current_user),
 ):
-    """تعیینِ محصولاتِ بیمه‌ایِ تحتِ پوششِ مرکز (فقط مالک).
+    """تعیینِ سرویس‌های تحتِ پوششِ مرکز، از کاتالوگِ نوعِ همان مرکز (فقط مالک).
 
     لیستِ خالی یعنی «همهٔ محصولات». در موتورِ مقایسه فقط مراکزی که
     محصولِ درخواستی را پوشش می‌دهند فراخوانی می‌شوند.
     """
     p = await _owned_provider(db, provider_id, me)
-    p.products = _clean_products(body.products)
+    p.products = _clean_products(body.products, p.provider_type)
     await db.commit()
     await db.refresh(p)
     return ProviderOut.of(p)

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../app.dart';
 import '../../core/config.dart';
@@ -234,6 +235,15 @@ class _MeScreenState extends State<MeScreen> {
     if (value.isEmpty) return;
     await Clipboard.setData(ClipboardData(text: value));
     _snack(tr('{0} کپی شد.', [label]));
+  }
+
+  /// برگهٔ اشتراک‌گذاریِ بومی برای لینکِ دعوت.
+  Future<void> _shareInvite(String url) async {
+    if (url.isEmpty) return;
+    await Share.share(
+      tr('با این لینک به دیلیکس بپیوند: {0}', [url]),
+      subject: tr('دعوت به دیلیکس'),
+    );
   }
 
   /// trigger دستیِ فیدِ نرخ (فقط مدیر). سرور حلقهٔ دوره‌ای هم دارد، پس این
@@ -953,6 +963,13 @@ class _MeScreenState extends State<MeScreen> {
                     ),
                     const SizedBox(width: 8),
                     const Icon(Icons.copy, size: 16),
+                    if ((_referral?.url ?? '').isNotEmpty)
+                      IconButton(
+                        tooltip: tr('اشتراک‌گذاری'),
+                        visualDensity: VisualDensity.compact,
+                        icon: const Icon(Icons.ios_share, size: 18),
+                        onPressed: () => _shareInvite(_referral!.url),
+                      ),
                   ],
                 ),
               ),

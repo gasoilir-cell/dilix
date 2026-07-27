@@ -2265,27 +2265,6 @@ class Leaderboard {
       );
 }
 
-/// نشانِ کسب‌شده (`BadgeOut`).
-class Badge {
-  Badge({
-    required this.id,
-    required this.badgeCode,
-    required this.description,
-    required this.awardedAt,
-  });
-  final String id;
-  final String badgeCode;
-  final String? description;
-  final DateTime awardedAt;
-  factory Badge.fromJson(Map<String, dynamic> j) => Badge(
-        id: (j['id'] ?? '') as String,
-        badgeCode: (j['badge_code'] ?? '') as String,
-        description: j['description'] as String?,
-        awardedAt: DateTime.tryParse((j['awarded_at'] ?? '') as String) ??
-            DateTime.fromMillisecondsSinceEpoch(0),
-      );
-}
-
 /// امتیازِ اعتبار در یک حوزه (`ScoreOut`).
 class ReputationScore {
   ReputationScore({
@@ -2826,6 +2805,40 @@ class CatalogEntry {
         id: (j['id'] ?? '') as String,
         label: (j['label'] ?? '') as String,
         emoji: j['emoji'] as String?,
+      );
+}
+
+/// یک بندِ توافق‌نامهٔ ارائه‌دهنده (`AgreementSection`).
+class AgreementSection {
+  AgreementSection({required this.title, required this.body});
+
+  final String title;
+  final String body;
+
+  factory AgreementSection.fromJson(Map<String, dynamic> j) => AgreementSection(
+        title: (j['title'] ?? '') as String,
+        body: (j['body'] ?? '') as String,
+      );
+}
+
+/// متنِ کاملِ توافق‌نامهٔ ارائه‌دهنده (`AgreementOut`).
+class ProviderAgreement {
+  ProviderAgreement({
+    required this.version,
+    required this.title,
+    required this.sections,
+  });
+
+  final String version;
+  final String title;
+  final List<AgreementSection> sections;
+
+  factory ProviderAgreement.fromJson(Map<String, dynamic> j) => ProviderAgreement(
+        version: (j['version'] ?? '') as String,
+        title: (j['title'] ?? '') as String,
+        sections: ((j['sections'] ?? const []) as List)
+            .map((e) => AgreementSection.fromJson(e as Map<String, dynamic>))
+            .toList(),
       );
 }
 

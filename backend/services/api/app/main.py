@@ -289,3 +289,30 @@ app.include_router(ads_router, prefix="/api/v1")
 # ─── Gamification — امتیاز/نشان/streak/تابلوی رتبه (فاز ۵) ────────────────────
 from app.api.v1.gamification.router import router as gamification_router
 app.include_router(gamification_router, prefix="/api/v1")
+
+# ─── ماژول‌هایی که فقط در سرویسِ قدیمیِ `core` بودند و روی API زنده ۴۰۴ می‌دادند ──
+# اپِ موبایل این مسیرها را صدا می‌زد ولی هیچ‌کدام روی این سرویس ثبت نشده بودند،
+# پس صفحه‌های «عضویت»، «سرمایه‌گذاری»، «بازارگاه»، «اعتبار» و «ارتباطات» و نیز
+# کارتِ «سهم از درآمد» و «انتقالِ امن» در کیفِ پول همگی «Not Found» می‌گرفتند.
+from app.api.v1.membership.router import router as membership_router
+app.include_router(membership_router, prefix="/api/v1")
+
+from app.api.v1.investment.router import router as investment_router
+app.include_router(investment_router, prefix="/api/v1")
+
+from app.api.v1.reputation.router import router as reputation_router
+app.include_router(reputation_router, prefix="/api/v1")
+
+from app.api.v1.telecom.router import router as telecom_router
+app.include_router(telecom_router, prefix="/api/v1")
+
+from app.api.v1.marketplace.router import router as marketplace_router
+app.include_router(marketplace_router, prefix="/api/v1")
+
+# سهم از درآمد؛ پس از membership/investment چون از مدل‌های آن‌ها می‌خوانَد.
+from app.api.v1.growth.router import router as growth_router
+app.include_router(growth_router, prefix="/api/v1")
+
+# پرداختِ امانیِ کاربر-به-کاربر (جدا از درگاهِ شارژِ `/payment`).
+from app.api.v1.escrow.router import router as escrow_router
+app.include_router(escrow_router, prefix="/api/v1")

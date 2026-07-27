@@ -1,5 +1,4 @@
-// `Badge` مدلِ ماست؛ ویجتِ هم‌نامِ Material را پنهان می‌کنیم تا ابهام نشود.
-import 'package:flutter/material.dart' hide Badge;
+import 'package:flutter/material.dart';
 
 import '../../app.dart';
 import '../../core/l10n.dart';

@@ -372,11 +372,15 @@ class _ExchangeSheetState extends State<_ExchangeSheet> {
   List<String> get _currencies {
     final set = <String>{
       ...widget.snapshot.pockets.map((p) => p.currency),
+      // فقط ارزهایی که سرور نرخ دارد؛ USDT در `fx_rates` نیست و تبدیل را
+      // با خطا برمی‌گرداند. ارزهای دیجیتالِ پشتیبانی‌شده: BTC/ETH/TON/TRX.
       'IRR',
       'USD',
       'EUR',
-      'USDT',
       'BTC',
+      'ETH',
+      'TON',
+      'TRX',
     };
     return set.toList()..sort();
   }

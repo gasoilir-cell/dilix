@@ -1,5 +1,4 @@
-// `Badge` مدلِ ماست؛ ویجتِ هم‌نامِ Material را پنهان می‌کنیم تا ابهام نشود.
-import 'package:flutter/material.dart' hide Badge;
+import 'package:flutter/material.dart';
 
 import '../../app.dart';
 import '../../models/models.dart';
@@ -35,7 +34,7 @@ class _MembershipScreenState extends State<MembershipScreen> {
   };
 
   Membership? _membership;
-  List<Badge> _badges = const [];
+  List<GameBadge> _badges = const [];
   List<ReputationScore> _scores = const [];
   List<Review> _reviews = const [];
   bool _loading = true;
@@ -58,11 +57,13 @@ class _MembershipScreenState extends State<MembershipScreen> {
     try {
       final membership = await api.membership();
       // بخش‌های زیر اختیاری‌اند؛ نبودشان نباید صفحه را بشکند.
-      List<Badge> badges = const [];
+      List<GameBadge> badges = const [];
       List<ReputationScore> scores = const [];
       List<Review> reviews = const [];
       try {
-        badges = await api.gamificationBadges();
+        // فقط نشان‌هایِ کسب‌شده؛ کاتالوگِ کامل جای خودش در صفحهٔ گیمیفیکیشن است.
+        final profile = await api.gameProfile();
+        badges = profile.badges.where((b) => b.earned).toList();
       } catch (_) {}
       try {
         final me = await api.me();
@@ -284,7 +285,7 @@ class _MembershipScreenState extends State<MembershipScreen> {
                 children: _badges
                     .map((b) => Chip(
                           avatar: const Icon(Icons.emoji_events_outlined, size: 18),
-                          label: Text(b.description ?? b.badgeCode),
+                          label: Text(b.title.isEmpty ? b.code : b.title),
                         ))
                     .toList(),
               ),

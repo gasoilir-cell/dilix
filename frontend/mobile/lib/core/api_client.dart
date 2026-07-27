@@ -946,11 +946,20 @@ class ApiClient {
     return list.map((e) => CatalogEntry.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  /// کاتالوگِ محصولاتِ بیمه‌ای که یک مرکز می‌تواند پوشش دهد.
-  Future<List<CatalogEntry>> providerProductCatalog() async {
-    final list = await _get('/api/v1/providers/catalog/products') as List;
+  /// کاتالوگِ محصولاتی که یک مرکز می‌تواند پوشش دهد.
+  /// [providerType] تعیین می‌کند کدام کاتالوگ برگردد (بانک، بیمه، PSP، ...)؛
+  /// بدونِ آن سرور کاتالوگِ بیمه را برمی‌گرداند.
+  Future<List<CatalogEntry>> providerProductCatalog({String? providerType}) async {
+    final q = (providerType == null || providerType.isEmpty)
+        ? ''
+        : '?provider_type=${Uri.encodeQueryComponent(providerType)}';
+    final list = await _get('/api/v1/providers/catalog/products$q') as List;
     return list.map((e) => CatalogEntry.fromJson(e as Map<String, dynamic>)).toList();
   }
+
+  /// متنِ توافقنامهٔ ارائه‌دهنده (نسخه + بندها).
+  Future<ProviderAgreement> providerAgreement() async => ProviderAgreement.fromJson(
+      await _get('/api/v1/providers/agreement') as Map<String, dynamic>);
 
   /// به‌روزرسانیِ محصولاتِ پوشش‌داده‌شده. فهرستِ خالی یعنی «همه».
   Future<Provider> updateProviderProducts(
@@ -1017,7 +1026,7 @@ class ApiClient {
     final q = (keyword == null || keyword.isEmpty)
         ? ''
         : '?keyword=${Uri.encodeQueryComponent(keyword)}';
-    final list = await _get('/v1/marketplace/listings$q') as List;
+    final list = await _get('/api/v1/marketplace/listings$q') as List;
     return list.map((e) => Listing.fromJson(e as Map<String, dynamic>)).toList();
   }
 
@@ -1030,7 +1039,7 @@ class ApiClient {
     String currency = 'IRR',
     int deliveryDays = 7,
   }) async {
-    final j = await _post('/v1/marketplace/listings', {
+    final j = await _post('/api/v1/marketplace/listings', {
       'title': title,
       'description': description,
       'category': category,
@@ -1048,7 +1057,7 @@ class ApiClient {
     required String currency,
     String? requirements,
   }) async {
-    final j = await _post('/v1/marketplace/orders', {
+    final j = await _post('/api/v1/marketplace/orders', {
       'listing_id': listingId,
       'agreed_price_minor': agreedPriceMinor,
       'currency': currency,
@@ -1059,13 +1068,13 @@ class ApiClient {
 
   /// سفارش‌هایی که کاربر خریدار یا فروشندهٔ آن‌هاست.
   Future<List<MarketOrder>> marketplaceOrders() async {
-    final list = await _get('/v1/marketplace/orders') as List;
+    final list = await _get('/api/v1/marketplace/orders') as List;
     return list.map((e) => MarketOrder.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   /// اکشن‌های چرخهٔ سفارش: accept/deliver/complete.
   Future<MarketOrder> orderAction(String orderId, String action) async {
-    final j = await _post('/v1/marketplace/orders/$orderId/$action', null);
+    final j = await _post('/api/v1/marketplace/orders/$orderId/$action', null);
     return MarketOrder.fromJson(j as Map<String, dynamic>);
   }
 
@@ -1257,7 +1266,7 @@ class ApiClient {
   /// سهم از درآمد در dilix-api معادل ندارد؛ فراخوان 404 می‌دهد و مصرف‌کننده
   /// آن را اختیاری گرفته و کارت را پنهان می‌کند.
   Future<RevenueShare> revenueShare() async =>
-      RevenueShare.fromJson(await _get('/v1/growth/revenue-share') as Map<String, dynamic>);
+      RevenueShare.fromJson(await _get('/api/v1/growth/revenue-share') as Map<String, dynamic>);
 
   // ─────────────── Payments (escrow) ───────────────
   /// ساختِ سفارشِ پرداختِ امانی (Dilix فقط ارکستریت می‌کند؛ مدلِ escrow).
@@ -1267,7 +1276,7 @@ class ApiClient {
     required String currency,
     String providerCode = 'sandbox',
   }) async {
-    final j = await _post('/v1/payments/escrow', {
+    final j = await _post('/api/v1/payments/escrow', {
       'payee_earth_id': payeeEarthId,
       'amount_minor': amountMinor,
       'currency': currency,
@@ -1278,13 +1287,13 @@ class ApiClient {
 
   /// تسویهٔ سفارشِ امانی (held → captured).
   Future<PaymentOrder> capturePayment(String orderId) async {
-    final j = await _post('/v1/payments/$orderId/capture', null);
+    final j = await _post('/api/v1/payments/$orderId/capture', null);
     return PaymentOrder.fromJson(j as Map<String, dynamic>);
   }
 
   /// برگشتِ سفارشِ امانی (held → refunded).
   Future<PaymentOrder> refundPayment(String orderId) async {
-    final j = await _post('/v1/payments/$orderId/refund', null);
+    final j = await _post('/api/v1/payments/$orderId/refund', null);
     return PaymentOrder.fromJson(j as Map<String, dynamic>);
   }
 
@@ -1306,21 +1315,7 @@ class ApiClient {
   Future<void> markAllNotificationsRead() =>
       _post('/api/v1/notifications/read-all', null);
 
-  // ─────────────── Gamification (کیفِ پاداش) ───────────────
-  /// موجودیِ امتیازِ پاداش (سکه‌ی دیلیکس).
-  Future<int> rewardPoints() async {
-    final j = await _get('/v1/gamification/points') as Map<String, dynamic>;
-    return (j['balance'] as num).toInt();
-  }
-
-  /// نشان‌هایِ کسب‌شدهٔ کاربر.
-  Future<List<Badge>> gamificationBadges() async {
-    final list = await _get('/v1/gamification/badges') as List;
-    return list.map((e) => Badge.fromJson(e as Map<String, dynamic>)).toList();
-  }
-
-  // ── گیمیفیکیشنِ زنده (`/api/v1/gamification`) — فاز ۵ ──
-  // جدا از دو متدِ بالا که به سرویسِ `core` می‌خورند و شکلِ پاسخِ دیگری دارند.
+  // ─────────────── Gamification (`/api/v1/gamification`) — فاز ۵ ───────────────
 
   /// نمایهٔ بازی: امتیاز، سطح، زنجیره، نشان‌ها و رتبه.
   Future<GameProfile> gameProfile() async => GameProfile.fromJson(
@@ -1349,13 +1344,13 @@ class ApiClient {
   // ─────────────── Investment ───────────────
   /// آخرین NAVِ یک صندوق (به کوچک‌ترین واحدِ پول).
   Future<NavQuote> investmentNav(String fundCode) async {
-    final j = await _get('/v1/investment/nav?fund_code=${Uri.encodeQueryComponent(fundCode)}');
+    final j = await _get('/api/v1/investment/nav?fund_code=${Uri.encodeQueryComponent(fundCode)}');
     return NavQuote.fromJson(j as Map<String, dynamic>);
   }
 
   /// موقعیت‌های سرمایه‌گذاریِ کاربر.
   Future<List<InvestmentPosition>> investmentPositions() async {
-    final list = await _get('/v1/investment/positions') as List;
+    final list = await _get('/api/v1/investment/positions') as List;
     return list.map((e) => InvestmentPosition.fromJson(e as Map<String, dynamic>)).toList();
   }
 
@@ -1366,7 +1361,7 @@ class ApiClient {
     String currency = 'IRR',
     String providerCode = 'sandbox_fund',
   }) async {
-    final j = await _post('/v1/investment/buy', {
+    final j = await _post('/api/v1/investment/buy', {
       'fund_code': fundCode,
       'amount_minor': amountMinor,
       'currency': currency,
@@ -1378,30 +1373,30 @@ class ApiClient {
   // ─────────────── Membership ───────────────
   /// عضویتِ جاریِ کاربر.
   Future<Membership> membership() async =>
-      Membership.fromJson(await _get('/v1/membership') as Map<String, dynamic>);
+      Membership.fromJson(await _get('/api/v1/membership') as Map<String, dynamic>);
 
   /// ارتقا/تمدیدِ پلنِ عضویت.
   Future<Membership> upgradeMembership(String plan, {int months = 1}) async {
-    final j = await _post('/v1/membership/upgrade', {'plan': plan, 'months': months});
+    final j = await _post('/api/v1/membership/upgrade', {'plan': plan, 'months': months});
     return Membership.fromJson(j as Map<String, dynamic>);
   }
 
   /// لغوِ عضویت (بازگشت به پلنِ رایگان).
   Future<Membership> cancelMembership() async {
-    final j = await _post('/v1/membership/cancel', null);
+    final j = await _post('/api/v1/membership/cancel', null);
     return Membership.fromJson(j as Map<String, dynamic>);
   }
 
   // ─────────────── Reputation ───────────────
   /// امتیازهایِ اعتبارِ یک کاربر به‌تفکیکِ حوزه.
   Future<List<ReputationScore>> reputationScores(String earthId) async {
-    final list = await _get('/v1/reputation/scores/$earthId') as List;
+    final list = await _get('/api/v1/reputation/scores/$earthId') as List;
     return list.map((e) => ReputationScore.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   /// نظرهایِ دریافتیِ یک کاربر.
   Future<List<Review>> reputationReviews(String earthId) async {
-    final list = await _get('/v1/reputation/reviews/$earthId') as List;
+    final list = await _get('/api/v1/reputation/reviews/$earthId') as List;
     return list.map((e) => Review.fromJson(e as Map<String, dynamic>)).toList();
   }
 
@@ -1581,7 +1576,7 @@ class ApiClient {
     String currency = 'IRR',
     String providerCode = 'sandbox',
   }) async {
-    final j = await _post('/v1/telecom/top-up', {
+    final j = await _post('/api/v1/telecom/top-up', {
       'msisdn': msisdn,
       'product_code': productCode,
       'amount_minor': amountMinor,
@@ -1597,7 +1592,7 @@ class ApiClient {
     required String countryCode,
     String providerCode = 'sandbox',
   }) async {
-    final j = await _post('/v1/telecom/esim/activate', {
+    final j = await _post('/api/v1/telecom/esim/activate', {
       'iccid': iccid,
       'country_code': countryCode,
       'provider_code': providerCode,

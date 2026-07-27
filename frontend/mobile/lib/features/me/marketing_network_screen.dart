@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 // `services.dart` هم `Clipboard` را می‌دهد و هم `Uint8List` را؛ importِ جداگانهٔ
 // `dart:typed_data` تکراری می‌شد.
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../app.dart';
 import '../../models/models.dart';
@@ -71,6 +72,14 @@ class _MarketingNetworkScreenState extends State<MarketingNetworkScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(tr('{0} کپی شد.', [label]))));
+  }
+
+  /// برگهٔ اشتراک‌گذاریِ بومی برای لینکِ دعوت.
+  Future<void> _shareInvite(String url) async {
+    await Share.share(
+      tr('با این لینک به دیلیکس بپیوند: {0}', [url]),
+      subject: tr('دعوت به دیلیکس'),
+    );
   }
 
   @override
@@ -209,18 +218,25 @@ class _MarketingNetworkScreenState extends State<MarketingNetworkScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: TextButton.icon(
-                onPressed: _qrLoading ? null : _toggleQr,
-                icon: _qrLoading
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : Icon(_qrOpen ? Icons.expand_less : Icons.qr_code_2),
-                label: Text(tr('QRِ دعوت')),
-              ),
+            Row(
+              children: [
+                TextButton.icon(
+                  onPressed: _qrLoading ? null : _toggleQr,
+                  icon: _qrLoading
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : Icon(_qrOpen ? Icons.expand_less : Icons.qr_code_2),
+                  label: Text(tr('QRِ دعوت')),
+                ),
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: link.isEmpty ? null : () => _shareInvite(link),
+                  icon: const Icon(Icons.ios_share, size: 18),
+                  label: Text(tr('اشتراک‌گذاری')),
+                ),
+              ],
             ),
             if (_qrOpen && _qr != null) ...[
               Center(
