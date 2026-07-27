@@ -42,7 +42,7 @@ from app.models.messages import (
     MessagePoll, PollVote, UserBlock, MessageEvent, UserReport,
     MessageRedPacket, RedPacketClaim, MessageMoney,
 )
-from app.models.wallet import Wallet, WalletTransaction
+from app.models.wallet import WalletTransaction
 
 router = APIRouter(prefix="/messages", tags=["Messages"])
 

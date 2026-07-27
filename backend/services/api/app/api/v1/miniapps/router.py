@@ -53,7 +53,7 @@ from jose import JWTError
 from pydantic import BaseModel, Field
 from sqlalchemy import (
     BigInteger, Column, DateTime, ForeignKey, Index, Integer, String, Text,
-    UniqueConstraint, func, select,
+    UniqueConstraint, select,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.exc import IntegrityError

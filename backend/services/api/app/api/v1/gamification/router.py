@@ -33,7 +33,7 @@ import uuid as _uuid
 from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy import (
     BigInteger, Column, DateTime, ForeignKey, Index, Integer, String,
