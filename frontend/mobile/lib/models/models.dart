@@ -3720,3 +3720,145 @@ class Subscription {
         subscriberName: j['subscriber_name'] as String?,
       );
 }
+
+// ─── فروشگاه و پرداختِ امانی (فاز ۴) ─────────────────────────────────────────
+
+/// کالا/خدمتِ یک فروشنده. `stock == -1` یعنی نامحدود (خدمتِ دیجیتال).
+class ShopProduct {
+  const ShopProduct({
+    required this.id,
+    required this.sellerEarthId,
+    required this.title,
+    required this.price,
+    required this.currency,
+    required this.stock,
+    required this.isActive,
+    required this.soldCount,
+    required this.createdAt,
+    this.sellerName,
+    this.description,
+    this.imageUrl,
+  });
+
+  final String id;
+  final String sellerEarthId;
+  final String? sellerName;
+  final String title;
+  final String? description;
+  final int price; // ریال
+  final String currency;
+  final int stock;
+  final String? imageUrl;
+  final bool isActive;
+  final int soldCount;
+  final DateTime createdAt;
+
+  bool get unlimited => stock == -1;
+
+  factory ShopProduct.fromJson(Map<String, dynamic> j) => ShopProduct(
+        id: j['id'] as String,
+        sellerEarthId: (j['seller_earth_id'] ?? '') as String,
+        sellerName: j['seller_name'] as String?,
+        title: (j['title'] ?? '') as String,
+        description: j['description'] as String?,
+        price: (j['price'] ?? 0) as int,
+        currency: (j['currency'] ?? 'IRR') as String,
+        stock: (j['stock'] ?? -1) as int,
+        imageUrl: j['image_url'] as String?,
+        isActive: (j['is_active'] ?? true) as bool,
+        soldCount: (j['sold_count'] ?? 0) as int,
+        createdAt: DateTime.parse(j['created_at'] as String).toLocal(),
+      );
+}
+
+/// یک سفارش. پرچم‌های `can*` را سرور می‌دهد؛ کلاینت ماشینِ وضعیت را دوباره
+/// پیاده نمی‌کند تا با سرور اختلاف پیدا نکند.
+class ShopOrder {
+  const ShopOrder({
+    required this.id,
+    required this.ref,
+    required this.productId,
+    required this.sellerEarthId,
+    required this.buyerEarthId,
+    required this.title,
+    required this.unitPrice,
+    required this.qty,
+    required this.total,
+    required this.commission,
+    required this.status,
+    required this.statusLabel,
+    required this.escrowStatus,
+    required this.createdAt,
+    this.sellerName,
+    this.buyerName,
+    this.note,
+    this.address,
+    this.roomId,
+    this.shippedAt,
+    this.closedAt,
+    this.canAccept = false,
+    this.canShip = false,
+    this.canComplete = false,
+    this.canCancel = false,
+  });
+
+  final String id;
+  final String ref;
+  final String productId;
+  final String sellerEarthId;
+  final String? sellerName;
+  final String buyerEarthId;
+  final String? buyerName;
+  final String title;
+  final int unitPrice;
+  final int qty;
+  final int total;
+  final int commission;
+  final String status;
+  final String statusLabel;
+  final String escrowStatus;
+  final String? note;
+  final String? address;
+  final String? roomId;
+  final DateTime createdAt;
+  final DateTime? shippedAt;
+  final DateTime? closedAt;
+  final bool canAccept;
+  final bool canShip;
+  final bool canComplete;
+  final bool canCancel;
+
+  bool get escrowLocked => escrowStatus == 'locked';
+  bool get hasAction => canAccept || canShip || canComplete || canCancel;
+
+  static DateTime? _dt(Object? v) =>
+      v == null ? null : DateTime.parse(v as String).toLocal();
+
+  factory ShopOrder.fromJson(Map<String, dynamic> j) => ShopOrder(
+        id: j['id'] as String,
+        ref: (j['ref'] ?? '') as String,
+        productId: (j['product_id'] ?? '') as String,
+        sellerEarthId: (j['seller_earth_id'] ?? '') as String,
+        sellerName: j['seller_name'] as String?,
+        buyerEarthId: (j['buyer_earth_id'] ?? '') as String,
+        buyerName: j['buyer_name'] as String?,
+        title: (j['title'] ?? '') as String,
+        unitPrice: (j['unit_price'] ?? 0) as int,
+        qty: (j['qty'] ?? 1) as int,
+        total: (j['total'] ?? 0) as int,
+        commission: (j['commission'] ?? 0) as int,
+        status: (j['status'] ?? 'pending') as String,
+        statusLabel: (j['status_label'] ?? '') as String,
+        escrowStatus: (j['escrow_status'] ?? 'locked') as String,
+        note: j['note'] as String?,
+        address: j['address'] as String?,
+        roomId: j['room_id'] as String?,
+        createdAt: DateTime.parse(j['created_at'] as String).toLocal(),
+        shippedAt: _dt(j['shipped_at']),
+        closedAt: _dt(j['closed_at']),
+        canAccept: (j['can_accept'] ?? false) as bool,
+        canShip: (j['can_ship'] ?? false) as bool,
+        canComplete: (j['can_complete'] ?? false) as bool,
+        canCancel: (j['can_cancel'] ?? false) as bool,
+      );
+}

@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useRef, useCallback, Suspense, Fragment } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, MessageCircle, Send, ArrowRight, Loader2, Users, Reply, Pencil, Trash2, Check, CheckCheck, X, UserPlus, LogOut, Crown, Paperclip, Mic, FileText, Download, Play, Pause, MapPin, Radio, Image as ImageIcon, Languages, Phone, Video, PhoneMissed, Smile, Camera, Copy, Palette, Sticker, Star, Compass, Forward, MoreHorizontal, MoreVertical, ChevronDown, Pin, PinOff, BarChart3, PlusCircle, CheckCircle2, BellOff, Bell, Ban, Share2, ListChecks, Plus, UserRound, CalendarClock, Timer, Flag, CalendarPlus, Gift, Banknote, HandCoins } from "lucide-react";
+import { Search, MessageCircle, Send, ArrowRight, Loader2, Users, Reply, Pencil, Trash2, Check, CheckCheck, X, UserPlus, LogOut, Crown, Paperclip, Mic, FileText, Download, Play, Pause, MapPin, Radio, Image as ImageIcon, Languages, Phone, Video, PhoneMissed, Smile, Camera, Copy, Palette, Sticker, Star, Compass, Forward, MoreHorizontal, MoreVertical, ChevronDown, Pin, PinOff, BarChart3, PlusCircle, CheckCircle2, BellOff, Bell, Ban, Share2, ListChecks, Plus, UserRound, CalendarClock, Timer, Flag, CalendarPlus, Gift, Banknote, HandCoins, Package } from "lucide-react";
 import AppShell from "@/components/layout/AppShell";
-import { messagesApi, stickersApi, socialApi, getApiErrorMessage} from "@/lib/api";
+import { messagesApi, stickersApi, socialApi, shopApi, getApiErrorMessage} from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
 import { useCallStore } from "@/store/call";
 import { toPersianNum } from "@/lib/utils";
@@ -31,6 +31,132 @@ const ROLE_LABEL: Record<string, string> = {
 function fmtToman(rial: number): string {
   const toman = Math.round((rial || 0) / 10);
   return toPersianNum(toman.toLocaleString("en-US"));
+}
+
+interface ShopOrderCard {
+  id: string;
+  ref: string;
+  title: string;
+  qty: number;
+  total: number;
+  status: string;
+  status_label: string;
+  escrow_status: string;
+  can_accept: boolean;
+  can_ship: boolean;
+  can_complete: boolean;
+  can_cancel: boolean;
+}
+
+/** کارتِ سفارشِ فروشگاه درونِ گفتگو.
+ *
+ * پیام فقط `ref` را حمل می‌کند، نه وضعیت را؛ وضعیتِ سفارش پس از ارسالِ پیام
+ * بارها عوض می‌شود، پس اگر در متنِ پیام ذخیره می‌شد همان لحظه کهنه می‌شد.
+ * کارت وضعیت را زنده می‌خواند و دکمه‌ها را از `can_*`ِ سرور می‌گیرد تا قواعدِ
+ * گذار دوباره در کلاینت پیاده نشوند و با سرور اختلاف پیدا نکنند. */
+function OrderBubble({ orderRef, t }: { orderRef: string; t: (k: string) => string }) {
+  const [o, setO] = useState<ShopOrderCard | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const { data } = await shopApi.order(orderRef);
+      setO(data);
+    } catch {
+      setO(null);
+    }
+  }, [orderRef]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function act(kind: "accept" | "ship" | "complete" | "cancel") {
+    if (!o) return;
+    setBusy(true);
+    try {
+      const { data } = await shopApi[kind](o.id);
+      setO(data);
+      toast.success(t("shop.done"));
+    } catch (e) {
+      toast.error(getApiErrorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!o) {
+    return (
+      <div className="min-w-[13rem] rounded-2xl bg-white/5 px-3.5 py-3 text-white/60 text-[12px]">
+        {t("shop.orderCard")} · <span dir="ltr">{orderRef}</span>
+      </div>
+    );
+  }
+
+  const dead = o.status === "cancelled";
+  const done = o.status === "completed";
+  return (
+    <div className="min-w-[14rem] rounded-2xl overflow-hidden">
+      <div className={`px-3.5 pt-3 pb-2.5 ${
+        dead ? "bg-white/5"
+          : done ? "bg-gradient-to-br from-emerald-500 to-teal-600"
+            : "bg-gradient-to-br from-orange-500 to-amber-600"
+      }`}>
+        <div className="flex items-center gap-2">
+          <span className="shrink-0 w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
+            <Package size={18} className="text-white" />
+          </span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-white/80 text-[11px]">{t("shop.orderCard")}</span>
+            <span className="block text-white font-bold text-[13px] leading-tight truncate">
+              {o.title}
+            </span>
+          </span>
+        </div>
+        <div className="text-white font-black text-lg mt-1.5">
+          {fmtToman(o.total)}{" "}
+          <span className="text-[11px] font-bold">{t("shop.toman")}</span>
+          <span className="text-white/70 text-[11px] font-normal">
+            {" "}× {toPersianNum(o.qty)}
+          </span>
+        </div>
+      </div>
+      <div className="px-3.5 py-2 bg-black/25 text-[12px] space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-white/70">{o.status_label}</span>
+          {o.escrow_status === "locked" && (
+            <span className="text-amber-300">{t("shop.escrowLocked")}</span>
+          )}
+        </div>
+        {(o.can_accept || o.can_ship || o.can_complete || o.can_cancel) && (
+          <div className="flex gap-2">
+            {o.can_accept && (
+              <button onClick={(e) => { e.stopPropagation(); act("accept"); }} disabled={busy}
+                className="flex-1 py-1.5 rounded-lg bg-sky-500 text-white font-bold disabled:opacity-50">
+                {t("shop.accept")}
+              </button>
+            )}
+            {o.can_ship && (
+              <button onClick={(e) => { e.stopPropagation(); act("ship"); }} disabled={busy}
+                className="flex-1 py-1.5 rounded-lg bg-violet-500 text-white font-bold disabled:opacity-50">
+                {t("shop.ship")}
+              </button>
+            )}
+            {o.can_complete && (
+              <button onClick={(e) => { e.stopPropagation(); act("complete"); }} disabled={busy}
+                className="flex-1 py-1.5 rounded-lg bg-emerald-500 text-white font-bold disabled:opacity-50">
+                {t("shop.complete")}
+              </button>
+            )}
+            {o.can_cancel && (
+              <button onClick={(e) => { e.stopPropagation(); act("cancel"); }} disabled={busy}
+                className="px-3 py-1.5 rounded-lg bg-white/10 text-white/70 font-semibold disabled:opacity-50">
+                {t("shop.cancel")}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function lastSeenLabel(iso: string | null | undefined, t: (k: string) => string): string {
@@ -2113,7 +2239,10 @@ function ChatView({ room, onBack, onLeave, initialDraft }: { room: Room; onBack:
                     </div>
                   );
                 })()}
-                {(msg.is_deleted || (msg.content && msg.media_type !== "call" && msg.media_type !== "poll" && msg.media_type !== "contact" && msg.media_type !== "event" && msg.media_type !== "red_packet" && msg.media_type !== "money" && msg.media_type !== "money_request") || (!msg.media_url && !msg.location && msg.media_type !== "call" && msg.media_type !== "poll" && msg.media_type !== "contact" && msg.media_type !== "event" && msg.media_type !== "red_packet" && msg.media_type !== "money" && msg.media_type !== "money_request")) && (
+                {!msg.is_deleted && msg.media_type === "order" && msg.media_name && (
+                  <OrderBubble orderRef={msg.media_name} t={t} />
+                )}
+                {(msg.is_deleted || (msg.content && msg.media_type !== "call" && msg.media_type !== "poll" && msg.media_type !== "contact" && msg.media_type !== "event" && msg.media_type !== "red_packet" && msg.media_type !== "money" && msg.media_type !== "money_request" && msg.media_type !== "order") || (!msg.media_url && !msg.location && msg.media_type !== "call" && msg.media_type !== "poll" && msg.media_type !== "contact" && msg.media_type !== "event" && msg.media_type !== "red_packet" && msg.media_type !== "money" && msg.media_type !== "money_request" && msg.media_type !== "order")) && (
                   <p>{msg.is_deleted ? t("chat.thisMsgDeleted") : msg.content}</p>
                 )}
                 {/* inline translation */}

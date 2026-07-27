@@ -2661,4 +2661,109 @@ class ApiClient {
       Subscription.fromJson(await _post('/api/v1/subscriptions/$id/renew', null)
           as Map<String, dynamic>);
 
+
+  // ─── فروشگاه و پرداختِ امانی (فاز ۴) ──────────────────────────────────────
+
+  /// کاتالوگِ عمومی؛ فقط کالای فعال و موجود.
+  Future<List<ShopProduct>> shopProducts({String? q, String? seller}) async {
+    final qp = <String>[];
+    if (q != null && q.isNotEmpty) qp.add('q=${Uri.encodeQueryComponent(q)}');
+    if (seller != null && seller.isNotEmpty) {
+      qp.add('seller=${Uri.encodeQueryComponent(seller)}');
+    }
+    final suffix = qp.isEmpty ? '' : '?${qp.join('&')}';
+    return ((await _get('/api/v1/shop/products$suffix')) as List)
+        .map((e) => ShopProduct.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// کالاهای من — شاملِ غیرفعال‌ها، برخلافِ کاتالوگ.
+  Future<List<ShopProduct>> myProducts() async =>
+      ((await _get('/api/v1/shop/products/mine')) as List)
+          .map((e) => ShopProduct.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  Future<ShopProduct> shopProduct(String id) async => ShopProduct.fromJson(
+      await _get('/api/v1/shop/products/$id') as Map<String, dynamic>);
+
+  /// `stock: -1` یعنی نامحدود. `price` ریال است.
+  Future<ShopProduct> createProduct({
+    required String title,
+    required int price,
+    String? description,
+    String? imageUrl,
+    int stock = -1,
+  }) async =>
+      ShopProduct.fromJson(await _post('/api/v1/shop/products', {
+        'title': title,
+        'price': price,
+        'stock': stock,
+        if (description != null && description.isNotEmpty)
+          'description': description,
+        if (imageUrl != null && imageUrl.isNotEmpty) 'image_url': imageUrl,
+      }) as Map<String, dynamic>);
+
+  Future<ShopProduct> updateProduct(String id, Map<String, dynamic> body) async =>
+      ShopProduct.fromJson(await _patch('/api/v1/shop/products/$id', body)
+          as Map<String, dynamic>);
+
+  /// غیرفعال‌سازی، نه حذف؛ سفارش‌های گذشته باید کالای خود را داشته باشند.
+  Future<void> removeProduct(String id) =>
+      _delete('/api/v1/shop/products/$id');
+
+  /// ثبتِ سفارش. وجه همان لحظه در کیفِ خریدار بلوکه می‌شود، نه به فروشنده
+  /// منتقل. اگر `roomId` بدهی، کارتِ سفارش در همان گفتگو ساخته می‌شود.
+  Future<ShopOrder> createOrder({
+    required String productId,
+    int qty = 1,
+    String? roomId,
+    String? note,
+    String? address,
+  }) async =>
+      ShopOrder.fromJson(await _post('/api/v1/shop/orders', {
+        'product_id': productId,
+        'qty': qty,
+        if (roomId != null && roomId.isNotEmpty) 'room_id': roomId,
+        if (note != null && note.isNotEmpty) 'note': note,
+        if (address != null && address.isNotEmpty) 'address': address,
+      }) as Map<String, dynamic>);
+
+  Future<List<ShopOrder>> myOrders() async =>
+      ((await _get('/api/v1/shop/orders/mine')) as List)
+          .map((e) => ShopOrder.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  Future<List<ShopOrder>> mySales() async =>
+      ((await _get('/api/v1/shop/orders/sales')) as List)
+          .map((e) => ShopOrder.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  /// یک سفارش با `ref` یا `id`. برای کارتِ درون‌چت که فقط `ref` دارد.
+  Future<ShopOrder?> shopOrder(String ref) async {
+    try {
+      return ShopOrder.fromJson(
+          await _get('/api/v1/shop/orders/$ref') as Map<String, dynamic>);
+    } on ApiException catch (e) {
+      if (e.status == 404) return null;
+      rethrow;
+    }
+  }
+
+  Future<ShopOrder> acceptOrder(String id) async => ShopOrder.fromJson(
+      await _post('/api/v1/shop/orders/$id/accept', null)
+          as Map<String, dynamic>);
+
+  Future<ShopOrder> shipOrder(String id) async => ShopOrder.fromJson(
+      await _post('/api/v1/shop/orders/$id/ship', null)
+          as Map<String, dynamic>);
+
+  /// تأییدِ دریافت → آزادسازیِ وجه به فروشنده منهای کارمزد.
+  Future<ShopOrder> completeOrder(String id) async => ShopOrder.fromJson(
+      await _post('/api/v1/shop/orders/$id/complete', null)
+          as Map<String, dynamic>);
+
+  /// لغو → بازگشتِ کاملِ وجه و برگشتِ موجودیِ کالا. بدونِ کارمزد.
+  Future<ShopOrder> cancelOrder(String id) async => ShopOrder.fromJson(
+      await _post('/api/v1/shop/orders/$id/cancel', null)
+          as Map<String, dynamic>);
 }

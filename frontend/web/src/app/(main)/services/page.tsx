@@ -3,7 +3,7 @@
 import Link from "next/link";
 import {
   Truck, Shield, Globe2, Wallet, Bot, FileText,
-  ChevronLeft, Zap, Lock, Package, Receipt, BarChart3,
+  ChevronLeft, Zap, Lock, Package, Receipt, BarChart3, Store,
 } from "lucide-react";
 import AppShell from "@/components/layout/AppShell";
 import { useAuthStore } from "@/store/auth";
@@ -85,6 +85,17 @@ const SERVICES: Service[] = [
     color: "text-violet-400",
     bg: "bg-violet-500/8",
     border: "border-violet-500/20",
+    badge: "new",
+  },
+  {
+    id: "shop",
+    href: "/shop",
+    icon: Store,
+    label: "svc.shop.l",
+    description: "svc.shop.d",
+    color: "text-orange-400",
+    bg: "bg-orange-500/8",
+    border: "border-orange-500/20",
     badge: "new",
   },
   {

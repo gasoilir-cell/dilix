@@ -42,11 +42,16 @@ async def lifespan(app: FastAPI):
     from app.services.subscription_renew import periodic_subscription_renew
     app.state.subs_task = asyncio.create_task(periodic_subscription_renew())
 
+    # آزادسازیِ خودکارِ وجهِ امانیِ سفارش‌های ارسال‌شده؛ بدونِ آن پولِ فروشنده
+    # گروگانِ تأییدنکردنِ خریدار می‌ماند.
+    from app.services.shop_autorelease import periodic_shop_autorelease
+    app.state.shop_task = asyncio.create_task(periodic_shop_autorelease())
+
     log.info("dilix_api_ready")
     yield
 
     # Shutdown
-    for name in ("fx_task", "subs_task"):
+    for name in ("fx_task", "subs_task", "shop_task"):
         task = getattr(app.state, name, None)
         if task is not None:
             task.cancel()
@@ -263,3 +268,7 @@ from app.api.v1.business.router import router as business_router
 from app.api.v1.business.subscriptions import router as subscriptions_router
 app.include_router(business_router, prefix="/api/v1")
 app.include_router(subscriptions_router, prefix="/api/v1")
+
+# ─── Shop / Escrow checkout درون‌چت (فاز ۴) ──────────────────────────────────
+from app.api.v1.shop.router import router as shop_router
+app.include_router(shop_router, prefix="/api/v1")

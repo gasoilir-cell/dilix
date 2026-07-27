@@ -676,6 +676,42 @@ export const subscriptionsApi = {
   renew: (id: string) => api.post(`/subscriptions/${id}/renew`),
 };
 
+// ─── Shop API (فروشگاه + پرداختِ امانی درون‌چت) ───────────────────────────────
+// مبالغ همه‌جا ریال‌اند؛ تبدیل به تومان فقط در لایهٔ نمایش انجام می‌شود.
+export type ProductPayload = {
+  title: string;
+  price: number;
+  description?: string | null;
+  image_url?: string | null;
+  stock?: number;
+};
+
+export const shopApi = {
+  products: (params?: { q?: string; seller?: string; limit?: number; offset?: number }) =>
+    api.get("/shop/products", { params }),
+  myProducts: () => api.get("/shop/products/mine"),
+  product: (id: string) => api.get(`/shop/products/${id}`),
+  createProduct: (body: ProductPayload) => api.post("/shop/products", body),
+  updateProduct: (id: string, body: Partial<ProductPayload> & { is_active?: boolean }) =>
+    api.patch(`/shop/products/${id}`, body),
+  removeProduct: (id: string) => api.delete(`/shop/products/${id}`),
+
+  createOrder: (body: {
+    product_id: string;
+    qty?: number;
+    room_id?: string | null;
+    note?: string | null;
+    address?: string | null;
+  }) => api.post("/shop/orders", body),
+  myOrders: () => api.get("/shop/orders/mine"),
+  mySales: () => api.get("/shop/orders/sales"),
+  order: (ref: string) => api.get(`/shop/orders/${ref}`),
+  accept: (id: string) => api.post(`/shop/orders/${id}/accept`),
+  ship: (id: string) => api.post(`/shop/orders/${id}/ship`),
+  complete: (id: string) => api.post(`/shop/orders/${id}/complete`),
+  cancel: (id: string) => api.post(`/shop/orders/${id}/cancel`),
+};
+
 // ─── Holdings API (کیف‌پولِ چندارزی + تبدیلِ درون‌کیفی) ───────────────────────
 export const holdingsApi = {
   list: () => api.get("/holdings"),

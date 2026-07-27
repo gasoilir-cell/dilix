@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/config.dart';
 import '../../models/models.dart';
+import '../shop/order_chat_card.dart';
 
 import '../../core/l10n.dart';
 /// حبابِ یک پیامِ چت با پوششِ کاملِ `MessageOut` دیلیکس‌اِی‌پی‌آی:
@@ -225,6 +226,11 @@ class MessageBubble extends StatelessWidget {
       case 'money_request':
         return [
           if (message.money != null) _moneyCard(context),
+        ];
+      case 'order':
+        return [
+          if ((message.mediaName ?? '').isNotEmpty)
+            OrderChatCard(orderRef: message.mediaName!),
         ];
       default:
         if (message.stickerId != null) return [_stickerBox()];
