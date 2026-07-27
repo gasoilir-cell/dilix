@@ -230,10 +230,26 @@ jobs:
       # اثرِ انگشتِ گواهیِ APKِ ساخته‌شده باید **دقیقاً** با مقدارِ ANDROID_CERT_SHA256
       # در محیطِ وب (که /.well-known/assetlinks.json را می‌سازد) یکی باشد؛ وگرنه
       # اندروید App Link را تأیید نمی‌کند و لینک‌ها باز هم در مرورگر باز می‌شوند.
-      - name: Print APK signer fingerprint
+      - name: Verify APK signer fingerprint
         run: |
           APK=build/app/outputs/flutter-apk/app-release.apk
-          "$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs "$APK" | grep -i "SHA-256 digest\|Signer #1 certificate DN" || true
+          # ⚠ گلابِ `build-tools/*/apksigner` وقتی چند نسخهٔ build-tools نصب باشد به چند
+          # مسیر باز می‌شود و مسیرِ دوم به‌عنوان *آرگومان* به اولی می‌رسد
+          # («Unsupported command: …»). با `|| true`ِ نسخهٔ قبلی همین خطا بی‌صدا رد
+          # می‌شد و بیلد سبز می‌ماند بدونِ آنکه هیچ اثرِ انگشتی چاپ شده باشد.
+          SIGNER=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$SIGNER" verify --print-certs "$APK" > /tmp/certs.txt
+          FP=$(grep -i "SHA-256 digest" /tmp/certs.txt | head -1 \
+               | sed 's/.*: *//' | tr 'a-f' 'A-F' | sed 's/\(..\)/\1:/g;s/:$//')
+          if [ -z "$FP" ]; then
+            echo "::error::اثرِ انگشتِ امضا خوانده نشد."; exit 1
+          fi
+          echo "APK signer SHA-256 = $FP"
+          # اگر رازِ کلید نباشد APK با debug امضا می‌شود و چون آن کلید هر اجرا عوض
+          # می‌شود assetlinks هرگز نمی‌خوانَد. این باید *دیده* شود، نه حدس زده شود.
+          if grep -qi "CN=Android Debug" /tmp/certs.txt; then
+            echo "::warning::APK با گواهیِ debug امضا شده — App Links تأیید نخواهد شد و نصبِ به‌روزرسانی روی نسخهٔ release شکست می‌خورد."
+          fi
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
