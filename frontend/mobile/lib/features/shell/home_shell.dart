@@ -7,6 +7,7 @@ import '../me/me_screen.dart';
 import '../messages/messages_screen.dart';
 import '../services/services_screen.dart';
 
+import '../../core/earth_focus.dart';
 import '../../core/l10n.dart';
 import '../../core/preferences.dart';
 
@@ -28,6 +29,22 @@ class _HomeShellState extends State<HomeShell> {
     ServicesScreen(),
     MeScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // کارتِ موقعیتِ پست (فید، کاوش، لحظه‌ها) تبِ کره را فعال می‌کند؛ خودِ تمرکز
+    // را `EarthScreen` از `EarthFocus.request` برمی‌دارد.
+    EarthFocus.openEarthTab = () {
+      if (mounted && _index != 1) setState(() => _index = 1);
+    };
+  }
+
+  @override
+  void dispose() {
+    EarthFocus.openEarthTab = null;
+    super.dispose();
+  }
 
   void _openAssistant() {
     showModalBottomSheet<void>(

@@ -97,44 +97,18 @@ class _MomentsScreenState extends State<MomentsScreen> {
                         itemCount: posts.length,
                         itemBuilder: (_, i) {
                           final p = posts[i];
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              if (p.placeName != null || p.hasLocation)
-                                Padding(
-                                  padding:
-                                      const EdgeInsets.fromLTRB(4, 0, 4, 4),
-                                  child: Row(
-                                    children: [
-                                      const Icon(Icons.place_outlined, size: 14),
-                                      const SizedBox(width: 4),
-                                      Expanded(
-                                        child: Text(
-                                          p.placeName ?? _coords(p),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodySmall,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              PostCard(
-                                key: ValueKey(p.id),
-                                post: p,
-                                onDeleted: () => setState(() =>
-                                    posts.removeWhere((e) => e.id == p.id)),
-                              ),
-                            ],
+                          // کارتِ پست خودش چیپِ «دیدن روی کره» را دارد؛ لمسِ آن
+                          // این صفحه را می‌بندد و دوربینِ کره را می‌برد.
+                          return PostCard(
+                            key: ValueKey(p.id),
+                            post: p,
+                            popOnFocus: true,
+                            onDeleted: () => setState(
+                                () => posts.removeWhere((e) => e.id == p.id)),
                           );
                         },
                       ),
                     ),
     );
   }
-
-  static String _coords(Post p) =>
-      '${p.lat!.toStringAsFixed(3)}, ${p.lng!.toStringAsFixed(3)}';
 }

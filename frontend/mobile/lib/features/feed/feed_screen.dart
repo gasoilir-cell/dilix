@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../app.dart';
+import '../../core/location_service.dart';
 import '../../models/models.dart';
 import 'explore_screen.dart';
 import 'post_card.dart';
@@ -27,6 +28,11 @@ class _FeedScreenState extends State<FeedScreen> {
   final _picker = ImagePicker();
   XFile? _pickedFile;
   bool _pickedIsVideo = false;
+  bool _attachLocation = false;
+  bool _locating = false;
+  LocationFix? _locationFix;
+  final _placeCtrl = TextEditingController();
+  static const _location = LocationService();
 
   @override
   void didChangeDependencies() {
@@ -37,6 +43,7 @@ class _FeedScreenState extends State<FeedScreen> {
   @override
   void dispose() {
     _draftCtrl.dispose();
+    _placeCtrl.dispose();
     super.dispose();
   }
 
@@ -83,6 +90,31 @@ class _FeedScreenState extends State<FeedScreen> {
     }
   }
 
+  /// موقعیتِ فعلی را می‌گیرد تا پست به‌صورتِ «لحظه» روی کره ثبت شود؛ تپِ دوم
+  /// موقعیت را برمی‌دارد (مثلِ دکمهٔ وب).
+  Future<void> _toggleLocation() async {
+    if (_attachLocation) {
+      setState(() {
+        _attachLocation = false;
+        _locationFix = null;
+        _placeCtrl.clear();
+      });
+      return;
+    }
+    setState(() => _locating = true);
+    final fix = await _location.current();
+    if (!mounted) return;
+    setState(() {
+      _locating = false;
+      if (fix.isOk) {
+        _attachLocation = true;
+        _locationFix = fix;
+      } else {
+        _error = fix.error;
+      }
+    });
+  }
+
   Future<void> _publish() async {
     final file = _pickedFile;
     if (file == null) {
@@ -94,18 +126,31 @@ class _FeedScreenState extends State<FeedScreen> {
       _error = null;
     });
     try {
+      final fix = _attachLocation ? _locationFix : null;
       final post = await ApiScope.of(context).createPost(
         filePath: file.path,
         caption: _draftCtrl.text.trim(),
+        lat: fix?.lat,
+        lng: fix?.lng,
+        placeName: fix == null ? null : _placeCtrl.text.trim(),
       );
       if (!mounted) return;
+      final wasMoment = fix != null;
       setState(() {
         _posts.insert(0, post);
         _draftCtrl.clear();
+        _placeCtrl.clear();
         _pickedFile = null;
         _pickedIsVideo = false;
+        _attachLocation = false;
+        _locationFix = null;
         _publishing = false;
       });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(wasMoment
+            ? tr('لحظهٔ تو روی کره ثبت شد.')
+            : tr('پستِ تو منتشر شد.')),
+      ));
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -208,6 +253,37 @@ class _FeedScreenState extends State<FeedScreen> {
                   onPressed: () => setState(() => _pickedFile = null),
                   icon: const Icon(Icons.close, size: 18),
                   label: Text(tr('حذفِ رسانه')),
+                ),
+              ),
+            ],
+            const SizedBox(height: 8),
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: ActionChip(
+                avatar: _locating
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : Icon(
+                        _attachLocation ? Icons.place : Icons.place_outlined,
+                        size: 18,
+                      ),
+                label: Text(_attachLocation
+                    ? tr('موقعیت افزوده شد — برای حذف بزنید')
+                    : tr('افزودنِ موقعیت (لحظه روی کره)')),
+                onPressed: _locating ? null : _toggleLocation,
+              ),
+            ),
+            if (_attachLocation) ...[
+              const SizedBox(height: 8),
+              TextField(
+                controller: _placeCtrl,
+                decoration: InputDecoration(
+                  isDense: true,
+                  prefixIcon: const Icon(Icons.edit_location_alt_outlined),
+                  hintText: tr('نامِ مکان (اختیاری)'),
+                  border: const OutlineInputBorder(),
                 ),
               ),
             ],

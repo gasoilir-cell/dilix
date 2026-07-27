@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../app.dart';
 import '../../core/api_client.dart';
@@ -48,6 +49,33 @@ class _ChatScreenState extends State<ChatScreen> {
 
   /// ترجمهٔ نمایش‌داده‌شده برای هر پیام (id → متنِ ترجمه).
   final _translations = <String, String>{};
+  final _selectedIds = <String>{};
+  bool _selectMode = false;
+  bool _autoTranslate = false;
+  String _translateLanguage = 'fa';
+  Color? _mineBubbleColor;
+  int _wallpaperIndex = 0;
+
+  static const _bubbleColors = <Color>[
+    Color(0xFF2563EB),
+    Color(0xFF7C3AED),
+    Color(0xFF059669),
+    Color(0xFFEA580C),
+    Color(0xFFDB2777),
+    Color(0xFF0891B2),
+    Color(0xFF4F46E5),
+    Color(0xFF334155),
+  ];
+  static const _wallpapers = <List<Color>>[
+    [Color(0x00000000), Color(0x00000000)],
+    [Color(0x221D4ED8), Color(0x220F766E)],
+    [Color(0x223B0764), Color(0x221E1B4B)],
+    [Color(0x223F6212), Color(0x2214532D)],
+    [Color(0x227C2D12), Color(0x224C0519)],
+    [Color(0x221E3A8A), Color(0x22312E81)],
+    [Color(0x2244403C), Color(0x221C1917)],
+    [Color(0x223F3F46), Color(0x2218181B)],
+  ];
 
   /// ضبطِ پیامِ صوتی.
   final _recorder = AudioRecorder();
@@ -98,6 +126,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _room = widget.room;
     _inputCtrl.addListener(_onInputChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadChatPreferences();
       _load(initial: true);
       _markRead();
       _refreshStatus();
@@ -122,6 +151,45 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
+  Future<void> _loadChatPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _autoTranslate = prefs.getBool('chat.auto_translate') ?? false;
+      _translateLanguage = prefs.getString('chat.translate_language') ?? 'fa';
+      _wallpaperIndex = prefs.getInt('chat.wallpaper.${_room.id}') ?? 0;
+      final color = prefs.getInt('chat.bubble.${_room.id}');
+      _mineBubbleColor = color == null ? null : Color(color);
+    });
+  }
+
+  Future<void> _persistChatPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('chat.auto_translate', _autoTranslate);
+    await prefs.setString('chat.translate_language', _translateLanguage);
+    await prefs.setInt('chat.wallpaper.${_room.id}', _wallpaperIndex);
+    if (_mineBubbleColor != null) {
+      await prefs.setInt('chat.bubble.${_room.id}', _mineBubbleColor!.toARGB32());
+    }
+  }
+
+  Future<void> _translateIncoming(List<ChatMessage> list) async {
+    if (!_autoTranslate) return;
+    final pending = list.where((m) =>
+        !m.isMine &&
+        !m.deleted &&
+        m.content.trim().isNotEmpty &&
+        !_translations.containsKey(m.id));
+    for (final m in pending.take(12)) {
+      try {
+        final result = await _api.translateMessage(m.id, _translateLanguage);
+        if (mounted && result.detectedLang != _translateLanguage) {
+          setState(() => _translations[m.id] = result.translatedText);
+        }
+      } catch (_) {}
+    }
+  }
+
   // ─────────────── داده ───────────────
 
   Future<void> _load({bool initial = false}) async {
@@ -143,6 +211,7 @@ class _ChatScreenState extends State<ChatScreen> {
       });
       if (initial || (hadNew && wasAtBottom)) _scrollToBottom();
       if (hadNew && !initial) _markRead();
+      if (hadNew || initial) _translateIncoming(list);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -521,6 +590,16 @@ class _ChatScreenState extends State<ChatScreen> {
               onTap: () => Navigator.pop(ctx, 'forward'),
             ),
             ListTile(
+              leading: const Icon(Icons.share_outlined),
+              title: Text(tr('اشتراک‌گذاری')),
+              onTap: () => Navigator.pop(ctx, 'share'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.checklist),
+              title: Text(tr('انتخاب')),
+              onTap: () => Navigator.pop(ctx, 'select'),
+            ),
+            ListTile(
               leading: Icon(m.isPinned ? Icons.push_pin_outlined : Icons.push_pin),
               title: Text(m.isPinned ? tr('برداشتنِ سنجاق') : tr('سنجاق‌کردن')),
               onTap: () => Navigator.pop(ctx, 'pin'),
@@ -537,11 +616,23 @@ class _ChatScreenState extends State<ChatScreen> {
                 title: Text(tr('ذخیرهٔ رسانه')),
                 onTap: () => Navigator.pop(ctx, 'save_media'),
               ),
-            if ((m.stickerId ?? '').isNotEmpty)
+            if ((m.stickerId ?? '').isNotEmpty) ...[
               ListTile(
                 leading: const Icon(Icons.star_outline, color: Colors.amber),
                 title: Text(tr('ذخیره در ستاره‌دارها')),
                 onTap: () => Navigator.pop(ctx, 'star_sticker'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.travel_explore),
+                title: Text(tr('کاوشِ بستهٔ این استیکر')),
+                onTap: () => Navigator.pop(ctx, 'explore_sticker'),
+              ),
+            ],
+            if (m.event != null)
+              ListTile(
+                leading: const Icon(Icons.calendar_month_outlined),
+                title: Text(tr('افزودن به تقویم')),
+                onTap: () => Navigator.pop(ctx, 'calendar'),
               ),
             if (m.isMine && m.isPlainText && !m.deleted)
               ListTile(
@@ -578,6 +669,13 @@ class _ChatScreenState extends State<ChatScreen> {
         await copyToClipboard(context, m.content);
       case 'forward':
         await _forward(m);
+      case 'share':
+        await _shareMessages([m]);
+      case 'select':
+        setState(() {
+          _selectMode = true;
+          _selectedIds.add(m.id);
+        });
       case 'pin':
         await _run(() async {
           await _api.pinMessage(m.id);
@@ -592,6 +690,10 @@ class _ChatScreenState extends State<ChatScreen> {
           await _api.setStickerStarred(m.stickerId!, true);
           _toast(tr('به ستاره‌دارها اضافه شد.'));
         }, failure: tr('ستاره‌دارکردن ناموفق بود'));
+      case 'explore_sticker':
+        await _exploreSticker(m.stickerId!);
+      case 'calendar':
+        await _shareEventCalendar(m.event!);
       case 'edit':
         setState(() {
           _editing = m;
@@ -663,6 +765,209 @@ class _ChatScreenState extends State<ChatScreen> {
       await _api.deleteMessage(m.id);
       await _load();
     }, failure: tr('حذف ناموفق بود'));
+  }
+
+  Future<void> _exploreSticker(String stickerId) async {
+    await _run(() async {
+      final item = await _api.sticker(stickerId);
+      final pack = await _api.stickerPack(item.packId);
+      if (!mounted) return;
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (ctx) => SafeArea(
+          child: DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: 0.65,
+            builder: (ctx, controller) => Column(children: [
+              ListTile(
+                title: Text(pack.title),
+                subtitle: Text(pack.description ?? tr('{0} استیکر', [pack.stickerCount])),
+                trailing: pack.installed
+                    ? const Icon(Icons.check_circle, color: Colors.green)
+                    : FilledButton(
+                        onPressed: () async {
+                          await _api.installStickerPack(pack.id);
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          _toast(tr('بسته نصب شد.'));
+                        },
+                        child: Text(tr('نصب')),
+                      ),
+              ),
+              Expanded(
+                child: GridView.builder(
+                  controller: controller,
+                  padding: const EdgeInsets.all(12),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 4, mainAxisSpacing: 8, crossAxisSpacing: 8),
+                  itemCount: pack.stickers.length,
+                  itemBuilder: (_, i) {
+                    final sticker = pack.stickers[i];
+                    final url = AppConfig.absoluteMedia(sticker.mediaUrl);
+                    return InkWell(
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        await _run(() async {
+                          await _api.sendSticker(_room.id, sticker.id,
+                              replyToId: _replyTo?.id);
+                          await _load();
+                        }, failure: tr('ارسالِ استیکر ناموفق بود'));
+                      },
+                      child: url == null
+                          ? const Icon(Icons.emoji_emotions_outlined)
+                          : Image.network(url, fit: BoxFit.contain),
+                    );
+                  },
+                ),
+              ),
+            ]),
+          ),
+        ),
+      );
+    }, failure: tr('کاوشِ بسته ناموفق بود'));
+  }
+
+  String _icsEscape(String value) => value
+      .replaceAll('\\', '\\\\')
+      .replaceAll(';', '\\;')
+      .replaceAll(',', '\\,')
+      .replaceAll('\n', '\\n');
+
+  String _icsDate(DateTime value) {
+    final u = value.toUtc();
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${u.year}${two(u.month)}${two(u.day)}T${two(u.hour)}${two(u.minute)}${two(u.second)}Z';
+  }
+
+  Future<void> _shareEventCalendar(EventInfo event) async {
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/dilix-event-${event.id}.ics');
+    final end = event.startsAt.add(const Duration(hours: 1));
+    final ics = <String>[
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Dilix//Chat Event//FA',
+      'BEGIN:VEVENT',
+      'UID:${event.id}@dilix.ir',
+      'DTSTAMP:${_icsDate(DateTime.now())}',
+      'DTSTART:${_icsDate(event.startsAt)}',
+      'DTEND:${_icsDate(end)}',
+      'SUMMARY:${_icsEscape(event.title)}',
+      if ((event.location ?? '').isNotEmpty) 'LOCATION:${_icsEscape(event.location!)}',
+      if ((event.description ?? '').isNotEmpty)
+        'DESCRIPTION:${_icsEscape(event.description!)}',
+      'END:VEVENT',
+      'END:VCALENDAR',
+      '',
+    ].join('\r\n');
+    await file.writeAsString(ics, flush: true);
+    await Share.shareXFiles([XFile(file.path)], text: event.title);
+  }
+
+  String _shareText(ChatMessage m) {
+    final sender = m.senderName?.trim();
+    final body = m.content.trim().isNotEmpty
+        ? m.content.trim()
+        : (AppConfig.absoluteMedia(m.mediaUrl) ?? m.mediaType ?? tr('رسانه'));
+    return sender == null || sender.isEmpty ? body : '$sender: $body';
+  }
+
+  Future<void> _shareMessages(List<ChatMessage> messages) async {
+    if (messages.isEmpty) return;
+    final files = <XFile>[];
+    final text = messages.map(_shareText).join('\n\n');
+    if (messages.length == 1 && (messages.first.mediaUrl ?? '').isNotEmpty) {
+      try {
+        final m = messages.first;
+        final url = AppConfig.absoluteMedia(m.mediaUrl);
+        if (url != null) {
+          final res = await http.get(Uri.parse(url));
+          if (res.statusCode < 400) {
+            final dir = await getTemporaryDirectory();
+            final name = (m.mediaName ?? '').trim().isNotEmpty
+                ? m.mediaName!.trim()
+                : 'dilix-${m.mediaType ?? 'media'}';
+            final file = File('${dir.path}/$name');
+            await file.writeAsBytes(res.bodyBytes, flush: true);
+            files.add(XFile(file.path));
+          }
+        }
+      } catch (_) {}
+    }
+    if (files.isEmpty) {
+      await Share.share(text);
+    } else {
+      await Share.shareXFiles(files, text: text);
+    }
+  }
+
+  void _toggleSelected(ChatMessage m) {
+    setState(() {
+      if (!_selectedIds.add(m.id)) _selectedIds.remove(m.id);
+      if (_selectedIds.isEmpty) _selectMode = false;
+    });
+  }
+
+  List<ChatMessage> get _selectedMessages =>
+      _messages.where((m) => _selectedIds.contains(m.id)).toList();
+
+  void _exitSelection() => setState(() {
+        _selectedIds.clear();
+        _selectMode = false;
+      });
+
+  Future<void> _bulkCopy() async {
+    await copyToClipboard(context, _selectedMessages.map(_shareText).join('\n\n'));
+    _exitSelection();
+  }
+
+  Future<void> _bulkForward() async {
+    final selected = _selectedMessages;
+    if (selected.isEmpty) return;
+    List<ChatRoom> rooms;
+    try {
+      rooms = await _api.listRooms();
+    } catch (e) {
+      _toast(tr('دریافتِ فهرستِ گفتگوها ناموفق بود: {0}', [e]));
+      return;
+    }
+    if (!mounted) return;
+    final picked = await showForwardPicker(context,
+        rooms: rooms, currentRoomId: _room.id);
+    if (picked == null) return;
+    await _run(() async {
+      for (final m in selected) {
+        await _api.forwardMessage(m.id, picked.$1, anonymous: picked.$2);
+      }
+      _toast(tr('{0} پیام بازارسال شد.', [selected.length]));
+      _exitSelection();
+    }, failure: tr('بازارسال ناموفق بود'));
+  }
+
+  Future<void> _bulkDelete() async {
+    final mine = _selectedMessages.where((m) => m.isMine && !m.deleted).toList();
+    if (mine.isEmpty) {
+      _toast(tr('از میانِ انتخاب‌ها پیامِ قابل‌حذفی از خودت وجود ندارد.'));
+      return;
+    }
+    await _run(() async {
+      for (final m in mine) {
+        await _api.deleteMessage(m.id);
+      }
+      _exitSelection();
+      await _load();
+    }, failure: tr('حذفِ گروهی ناموفق بود'));
+  }
+
+  Future<void> _exportChat() async {
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/dilix-chat-${_room.id}.txt');
+    final text = _messages.map((m) {
+      final at = m.sentAt.toLocal().toIso8601String();
+      return '[$at] ${m.senderName ?? m.senderEarthId}: ${_shareText(m)}';
+    }).join('\n');
+    await file.writeAsString(text, flush: true);
+    await Share.shareXFiles([XFile(file.path)], text: tr('خروجی گفتگوی {0}', [_room.title]));
   }
 
   Future<void> _forward(ChatMessage m) async {
@@ -1103,6 +1408,158 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  Future<void> _translateCompose() async {
+    final text = _inputCtrl.text.trim();
+    if (text.isEmpty) return;
+    final lang = await showLanguagePicker(context);
+    if (lang == null || !mounted) return;
+    await _run(() async {
+      final result = await _api.translateText(text, lang);
+      _inputCtrl.value = TextEditingValue(
+        text: result.translatedText,
+        selection: TextSelection.collapsed(offset: result.translatedText.length),
+      );
+      _translateLanguage = lang;
+      await _persistChatPreferences();
+    }, failure: tr('ترجمهٔ متن ناموفق بود'));
+  }
+
+  Future<void> _translationSettings() async {
+    var enabled = _autoTranslate;
+    var language = _translateLanguage;
+    final result = await showModalBottomSheet<(bool, String)>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setLocal) {
+        const langs = <String, String>{
+          'fa': 'فارسی', 'en': 'English', 'ar': 'العربية', 'tr': 'Türkçe',
+          'ru': 'Русский', 'fr': 'Français', 'de': 'Deutsch', 'es': 'Español',
+          'zh': '中文', 'hi': 'हिन्दी', 'ur': 'اردو', 'ps': 'پښتو',
+        };
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              SwitchListTile(
+                value: enabled,
+                title: Text(tr('ترجمهٔ خودکارِ پیام‌های دریافتی')),
+                onChanged: (v) => setLocal(() => enabled = v),
+              ),
+              Align(alignment: Alignment.centerRight, child: Text(tr('زبانِ مقصد'))),
+              const SizedBox(height: 8),
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                for (final e in langs.entries)
+                  ChoiceChip(
+                    label: Text(e.value),
+                    selected: language == e.key,
+                    onSelected: (_) => setLocal(() => language = e.key),
+                  ),
+              ]),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(ctx, (enabled, language)),
+                  child: Text(tr('ذخیره و ترجمهٔ پیام‌های موجود')),
+                ),
+              ),
+            ]),
+          ),
+        );
+      }),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      _autoTranslate = result.$1;
+      _translateLanguage = result.$2;
+      _translations.clear();
+    });
+    await _persistChatPreferences();
+    if (_autoTranslate) await _translateIncoming(_messages);
+  }
+
+  Future<void> _chatAppearance() async {
+    var wallpaper = _wallpaperIndex;
+    var bubble = _mineBubbleColor ?? Theme.of(context).colorScheme.primary;
+    final saved = await showModalBottomSheet<(int, Color)>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setLocal) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Align(alignment: Alignment.centerRight, child: Text(tr('پس‌زمینهٔ گفتگو'))),
+            const SizedBox(height: 8),
+            Wrap(spacing: 10, children: [
+              for (var i = 0; i < _wallpapers.length; i++)
+                ChoiceChip(
+                  selected: wallpaper == i,
+                  label: Container(
+                    width: 28, height: 28,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(colors: _wallpapers[i]),
+                      border: Border.all(color: Theme.of(ctx).dividerColor),
+                    ),
+                  ),
+                  onSelected: (_) => setLocal(() => wallpaper = i),
+                ),
+            ]),
+            const SizedBox(height: 16),
+            Align(alignment: Alignment.centerRight, child: Text(tr('رنگِ حباب‌های من'))),
+            const SizedBox(height: 8),
+            Wrap(spacing: 10, children: [
+              for (final color in _bubbleColors)
+                ChoiceChip(
+                  selected: bubble.toARGB32() == color.toARGB32(),
+                  label: CircleAvatar(radius: 13, backgroundColor: color),
+                  onSelected: (_) => setLocal(() => bubble = color),
+                ),
+            ]),
+            const SizedBox(height: 16),
+            SizedBox(width: double.infinity, child: FilledButton(
+              onPressed: () => Navigator.pop(ctx, (wallpaper, bubble)),
+              child: Text(tr('ذخیره')),
+            )),
+          ]),
+        ),
+      )),
+    );
+    if (saved == null || !mounted) return;
+    setState(() {
+      _wallpaperIndex = saved.$1;
+      _mineBubbleColor = saved.$2;
+    });
+    await _persistChatPreferences();
+  }
+
+  Future<void> _emojiPicker() async {
+    const emojis = <String>[
+      '😀','😂','😍','🥰','😎','🤔','😭','😡','👍','👎','👏','🙏','🔥','❤️','💯','🎉',
+      '🌹','✨','💪','🤝','✅','⭐','🚀','📌','💬','😊','😉','😅','🤩','🥳','😴','🤯',
+    ];
+    final emoji = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(child: GridView.count(
+        shrinkWrap: true,
+        crossAxisCount: 8,
+        padding: const EdgeInsets.all(12),
+        children: [for (final e in emojis) InkWell(
+          onTap: () => Navigator.pop(ctx, e),
+          child: Center(child: Text(e, style: const TextStyle(fontSize: 26))),
+        )],
+      )),
+    );
+    if (emoji == null) return;
+    final value = _inputCtrl.value;
+    final start = value.selection.isValid ? value.selection.start : value.text.length;
+    final end = value.selection.isValid ? value.selection.end : value.text.length;
+    final text = value.text.replaceRange(start, end, emoji);
+    _inputCtrl.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: start + emoji.length),
+    );
+  }
+
   // ─────────────── UI ───────────────
 
   @override
@@ -1110,7 +1567,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final isDirect =
         _room.partnerEarthId != null && _room.partnerEarthId!.isNotEmpty;
     return Scaffold(
-      appBar: AppBar(
+      appBar: _selectMode ? _selectionBar() : AppBar(
         titleSpacing: 0,
         title: _appBarTitle(),
         actions: [
@@ -1146,6 +1603,12 @@ class _ChatScreenState extends State<ChatScreen> {
                   _setDisappearing();
                 case 'report':
                   _report();
+                case 'translate_settings':
+                  _translationSettings();
+                case 'appearance':
+                  _chatAppearance();
+                case 'export':
+                  _exportChat();
               }
             },
             itemBuilder: (ctx) => [
@@ -1159,6 +1622,21 @@ class _ChatScreenState extends State<ChatScreen> {
                   child: ListTile(
                       leading: const Icon(Icons.push_pin),
                       title: Text(tr('سنجاق‌شده‌ها')))),
+              PopupMenuItem(
+                  value: 'translate_settings',
+                  child: ListTile(
+                      leading: const Icon(Icons.translate),
+                      title: Text(tr('ترجمهٔ همزمان')))),
+              PopupMenuItem(
+                  value: 'appearance',
+                  child: ListTile(
+                      leading: const Icon(Icons.palette_outlined),
+                      title: Text(tr('ظاهرِ گفتگو')))),
+              PopupMenuItem(
+                  value: 'export',
+                  child: ListTile(
+                      leading: const Icon(Icons.file_download_outlined),
+                      title: Text(tr('خروجیِ گفتگو')))),
               if (_room.isGroup)
                 PopupMenuItem(
                     value: 'members',
@@ -1207,13 +1685,39 @@ class _ChatScreenState extends State<ChatScreen> {
           if ((_status?.disappearSeconds ?? 0) > 0) _disappearingBanner(),
           if (_liveLocationId != null) _liveLocationBanner(),
           if (_room.isBlocked) _blockedBanner(),
-          Expanded(child: _body()),
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topRight,
+                  end: Alignment.bottomLeft,
+                  colors: _wallpapers[_wallpaperIndex.clamp(0, _wallpapers.length - 1)],
+                ),
+              ),
+              child: _body(),
+            ),
+          ),
           if (_replyTo != null || _editing != null) _draftBanner(),
           _composer(),
         ],
       ),
     );
   }
+
+  PreferredSizeWidget _selectionBar() => AppBar(
+        leading: IconButton(icon: const Icon(Icons.close), onPressed: _exitSelection),
+        title: Text(tr('{0} انتخاب', [_selectedIds.length])),
+        actions: [
+          IconButton(tooltip: tr('کپی'), icon: const Icon(Icons.copy), onPressed: _bulkCopy),
+          IconButton(tooltip: tr('اشتراک'), icon: const Icon(Icons.share_outlined),
+              onPressed: () async {
+                await _shareMessages(_selectedMessages);
+                _exitSelection();
+              }),
+          IconButton(tooltip: tr('بازارسال'), icon: const Icon(Icons.shortcut), onPressed: _bulkForward),
+          IconButton(tooltip: tr('حذف پیام‌های من'), icon: const Icon(Icons.delete_outline), onPressed: _bulkDelete),
+        ],
+      );
 
   Widget _appBarTitle() {
     final avatar = AppConfig.absoluteMedia(_room.partnerAvatar);
@@ -1466,7 +1970,21 @@ class _ChatScreenState extends State<ChatScreen> {
           message: m,
           showSender: _room.isGroup,
           translation: _translations[m.id],
-          onLongPress: () => _messageActions(m),
+          selected: _selectedIds.contains(m.id),
+          mineColor: _mineBubbleColor,
+          onTap: _selectMode ? () => _toggleSelected(m) : null,
+          onLongPress: () {
+            if (_selectMode) {
+              _toggleSelected(m);
+            } else {
+              _messageActions(m);
+            }
+          },
+          onSwipeReply: _selectMode ? null : () => setState(() {
+            _replyTo = m;
+            _editing = null;
+          }),
+          onSwipeShare: _selectMode ? null : () => _shareMessages([m]),
           onVote: _vote,
           onOpenRedPacket: _onRedPacket,
           onSettleMoney: _settleMoney,
@@ -1533,6 +2051,11 @@ class _ChatScreenState extends State<ChatScreen> {
               icon: const Icon(Icons.add_circle_outline),
               onPressed: blocked || _sending ? null : _attachmentSheet,
             ),
+            IconButton(
+              tooltip: tr('ایموجی'),
+              icon: const Icon(Icons.emoji_emotions_outlined),
+              onPressed: blocked || _sending ? null : _emojiPicker,
+            ),
             Expanded(
               child: TextField(
                 controller: _inputCtrl,
@@ -1555,6 +2078,12 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
             const SizedBox(width: 4),
+            if (hasText)
+              IconButton(
+                tooltip: tr('ترجمهٔ متنِ در حالِ نگارش'),
+                icon: const Icon(Icons.translate),
+                onPressed: blocked || _sending ? null : _translateCompose,
+              ),
             if (hasText || _editing != null)
               IconButton(
                 tooltip: tr('دوربین'),

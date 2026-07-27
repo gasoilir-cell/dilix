@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app.dart';
+import '../../core/earth_focus.dart';
 import '../../core/location_service.dart';
 import '../../models/models.dart';
 import '../assistant/assistant_sheet.dart';
@@ -37,9 +38,24 @@ class _EarthScreenState extends State<EarthScreen> {
   bool _locating = false;
 
   @override
+  void initState() {
+    super.initState();
+    EarthFocus.request.addListener(_onFocusRequest);
+  }
+
+  @override
   void dispose() {
+    EarthFocus.request.removeListener(_onFocusRequest);
     _queryCtrl.dispose();
     super.dispose();
+  }
+
+  /// درخواستِ تمرکزِ آمده از کارتِ موقعیتِ یک پست (هر جای اپ).
+  void _onFocusRequest() {
+    final req = EarthFocus.request.value;
+    if (req == null) return;
+    EarthFocus.request.value = null;
+    _globe.focusOn(req.lat, req.lng, altitude: 0.35);
   }
 
   @override

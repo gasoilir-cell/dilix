@@ -23,8 +23,13 @@ class MessageBubble extends StatelessWidget {
     required this.onTapMedia,
     required this.onTapReply,
     required this.onToggleReaction,
+    this.onSwipeReply,
+    this.onSwipeShare,
+    this.onTap,
     this.translation,
     this.showSender = false,
+    this.selected = false,
+    this.mineColor,
   });
 
   final ChatMessage message;
@@ -38,19 +43,24 @@ class MessageBubble extends StatelessWidget {
   final void Function(ChatMessage message) onTapMedia;
   final void Function(ReplyPreview reply) onTapReply;
   final void Function(String emoji) onToggleReaction;
+  final VoidCallback? onSwipeReply;
+  final VoidCallback? onSwipeShare;
+  final VoidCallback? onTap;
 
   /// ترجمهٔ نمایش‌داده‌شده زیرِ متن (اگر کاربر ترجمه را خواسته باشد).
   final String? translation;
 
   /// در گروه‌ها نامِ فرستنده بالای حباب نشان داده می‌شود.
   final bool showSender;
+  final bool selected;
+  final Color? mineColor;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final mine = message.isMine;
     final bg = mine
-        ? theme.colorScheme.primary
+        ? (mineColor ?? theme.colorScheme.primary)
         : theme.colorScheme.surfaceContainerHighest;
     final fg = mine ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface;
     final muted = fg.withValues(alpha: 0.6);
@@ -100,23 +110,56 @@ class MessageBubble extends StatelessWidget {
       {required bool mine, required Color bg, required Widget child}) {
     return Align(
       alignment: mine ? Alignment.centerLeft : Alignment.centerRight,
-      child: GestureDetector(
-        onLongPress: onLongPress,
-        child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 3),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          constraints:
-              BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(14),
-              topRight: const Radius.circular(14),
-              bottomLeft: Radius.circular(mine ? 2 : 14),
-              bottomRight: Radius.circular(mine ? 14 : 2),
-            ),
+      child: Dismissible(
+        key: ValueKey('gesture-${message.id}'),
+        direction: (onSwipeReply != null || onSwipeShare != null)
+            ? DismissDirection.horizontal
+            : DismissDirection.none,
+        confirmDismiss: (direction) async {
+          if (direction == DismissDirection.startToEnd) {
+            onSwipeReply?.call();
+          } else {
+            onSwipeShare?.call();
+          }
+          return false;
+        },
+        background: const Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 18),
+            child: Icon(Icons.reply),
           ),
-          child: child,
+        ),
+        secondaryBackground: const Align(
+          alignment: Alignment.centerRight,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 18),
+            child: Icon(Icons.share_outlined),
+          ),
+        ),
+        child: GestureDetector(
+          onTap: onTap,
+          onLongPress: onLongPress,
+          child: Container(
+            margin: const EdgeInsets.symmetric(vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            constraints:
+                BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+            decoration: BoxDecoration(
+              color: bg,
+              border: selected
+                  ? Border.all(
+                      color: Theme.of(context).colorScheme.tertiary, width: 3)
+                  : null,
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(14),
+                topRight: const Radius.circular(14),
+                bottomLeft: Radius.circular(mine ? 2 : 14),
+                bottomRight: Radius.circular(mine ? 14 : 2),
+              ),
+            ),
+            child: child,
+          ),
         ),
       ),
     );

@@ -661,7 +661,7 @@ class _MediaEditorScreenState extends State<MediaEditorScreen> {
               TextButton(
                 onPressed: () {
                   setState(() {
-                    _texts.removeAt(index);
+                    _texts.removeAt(index!);
                     _selected = null;
                   });
                   Navigator.pop(ctx, false);

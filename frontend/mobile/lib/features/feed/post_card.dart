@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../app.dart';
 import '../../core/config.dart';
+import '../../core/earth_focus.dart';
 import '../../models/models.dart';
 import '../social/comments_sheet.dart';
 import '../social/profile_screen.dart';
@@ -14,12 +16,21 @@ import '../../core/l10n.dart';
 /// `Image.network` داده می‌شد و هیچ تصویری بار نمی‌شد. حالا از
 /// [AppConfig.absoluteMedia] رد می‌شود.
 class PostCard extends StatefulWidget {
-  const PostCard({super.key, required this.post, this.onDeleted});
+  const PostCard({
+    super.key,
+    required this.post,
+    this.onDeleted,
+    this.popOnFocus = false,
+  });
 
   final Post post;
 
   /// پس از حذفِ موفقِ پست صدا زده می‌شود تا صداکننده آن را از فهرست بردارد.
   final VoidCallback? onDeleted;
+
+  /// وقتی کارت داخلِ صفحه‌ای روی پوسته است (مثلِ «لحظه‌ها»)، تمرکز روی کره باید
+  /// آن صفحه را هم ببندد تا کره دیده شود.
+  final bool popOnFocus;
 
   @override
   State<PostCard> createState() => _PostCardState();
@@ -118,6 +129,24 @@ class _PostCardState extends State<PostCard> {
     }
   }
 
+  /// بردنِ کاربر به تبِ کره روی مختصاتِ همین لحظه (معادلِ `/earth?focus=…`ِ وب).
+  void _focusOnGlobe() {
+    final p = _post;
+    if (!p.hasLocation) return;
+    if (widget.popOnFocus) Navigator.of(context).pop();
+    EarthFocus.show(p.lat!, p.lng!);
+  }
+
+  Future<void> _share() async {
+    final p = _post;
+    final link = '${AppConfig.webBaseUrl}/u/${p.authorEarthId}';
+    final caption = p.content?.trim();
+    await Share.share(
+      caption == null || caption.isEmpty ? link : '$caption\n$link',
+      subject: AppConfig.appName,
+    );
+  }
+
   void _openProfile() {
     if (_post.authorEarthId.isEmpty) return;
     Navigator.of(context).push(MaterialPageRoute<void>(
@@ -163,6 +192,19 @@ class _PostCardState extends State<PostCard> {
                           const Center(child: Icon(Icons.broken_image_outlined)),
                     ),
                   ),
+                ),
+              ),
+            if (p.hasLocation)
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: ActionChip(
+                  avatar: const Icon(Icons.place_outlined, size: 16),
+                  label: Text(
+                    (p.placeName?.trim().isNotEmpty ?? false)
+                        ? p.placeName!.trim()
+                        : tr('دیدن روی کره'),
+                  ),
+                  onPressed: _focusOnGlobe,
                 ),
               ),
             _actions(p),
@@ -245,6 +287,11 @@ class _PostCardState extends State<PostCard> {
             onPressed: _comments,
             icon: const Icon(Icons.mode_comment_outlined, size: 18),
             label: Text('${p.commentCount}'),
+          ),
+          IconButton(
+            tooltip: tr('اشتراک‌گذاری'),
+            onPressed: _share,
+            icon: const Icon(Icons.share_outlined, size: 18),
           ),
           const Spacer(),
           IconButton(

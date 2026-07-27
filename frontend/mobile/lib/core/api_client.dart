@@ -1726,6 +1726,10 @@ class ApiClient {
       StickerPack.fromJson(
           await _get('/api/v1/stickers/packs/$packId') as Map<String, dynamic>);
 
+  /// جزئیاتِ یک استیکر؛ برای یافتنِ بسته از روی پیامِ استیکردار.
+  Future<StickerItem> sticker(String stickerId) async => StickerItem.fromJson(
+      await _get('/api/v1/stickers/$stickerId') as Map<String, dynamic>);
+
   /// استیکرهای ستاره‌دارِ من (میان‌برِ «پُرکاربرد»).
   Future<List<StickerItem>> starredStickers() async {
     final list = await _get('/api/v1/stickers/starred') as List;
