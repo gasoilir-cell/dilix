@@ -6,10 +6,27 @@ import '../../models/models.dart';
 import 'my_sticker_packs_screen.dart';
 
 import '../../core/l10n.dart';
-/// انتخابگرِ استیکر. شناسهٔ استیکرِ انتخاب‌شده را برمی‌گرداند تا `ChatScreen`
-/// خودش `sendSticker` را صدا بزند (منطقِ ارسال یک‌جا می‌ماند).
-Future<String?> showStickerPicker(BuildContext context, {required ApiClient api}) {
-  return showModalBottomSheet<String>(
+import 'sticker_studio_screen.dart';
+
+/// نتیجهٔ انتخابگرِ استیکر: یا استیکرِ آمادهٔ کتابخانه، یا فایلی که کاربر همان
+/// لحظه در استودیو ساخته. یک نوعِ واحد برگردانده می‌شود تا `ChatScreen` مجبور
+/// نباشد دو مسیرِ جدا برای بازکردنِ شیت داشته باشد.
+class StickerPick {
+  const StickerPick.library(String this.stickerId) : studio = null;
+  const StickerPick.studio(StudioResult this.studio) : stickerId = null;
+
+  /// شناسهٔ استیکرِ کتابخانه‌ای — با `sendSticker` ارسال می‌شود.
+  final String? stickerId;
+
+  /// خروجیِ استودیو — با `sendMedia` ارسال می‌شود.
+  final StudioResult? studio;
+}
+
+/// انتخابگرِ استیکر. انتخابِ کاربر را برمی‌گرداند تا `ChatScreen` خودش ارسال
+/// را انجام دهد (منطقِ ارسال یک‌جا می‌ماند).
+Future<StickerPick?> showStickerPicker(BuildContext context,
+    {required ApiClient api}) {
+  return showModalBottomSheet<StickerPick>(
     context: context,
     isScrollControlled: true,
     builder: (ctx) => _StickerPicker(api: api),
@@ -115,6 +132,14 @@ class _StickerPickerState extends State<_StickerPicker> {
     await _load();
   }
 
+  /// ساختِ استیکرِ تازه. نتیجه از دلِ شیت به `ChatScreen` پاس می‌شود تا خودِ
+  /// شیت درگیرِ ارسال نشود.
+  Future<void> _openStudio() async {
+    final result = await openStickerStudio(context);
+    if (result == null || !mounted) return;
+    Navigator.pop(context, StickerPick.studio(result));
+  }
+
   Future<void> _install(StickerPack pack) async {
     setState(() => _busy = true);
     try {
@@ -176,16 +201,26 @@ class _StickerPickerState extends State<_StickerPicker> {
             ListTile(
               leading: const Icon(Icons.emoji_emotions_outlined),
               title: Text(_discover ? tr('بسته‌های عمومی') : tr('استیکرها')),
+              // سه دکمه با پدینگِ پیش‌فرضِ IconButton (۴۸px هرکدام) روی نمایشگرِ
+              // باریک عنوان را سرریز می‌کند، پس فشرده‌شان می‌کنیم.
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
+                    tooltip: tr('استودیوی استیکر'),
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.auto_awesome_outlined),
+                    onPressed: _openStudio,
+                  ),
+                  IconButton(
                     tooltip: tr('بسته‌های من'),
+                    visualDensity: VisualDensity.compact,
                     icon: const Icon(Icons.brush_outlined),
                     onPressed: _openMyPacks,
                   ),
                   IconButton(
                     tooltip: _discover ? tr('استیکرهای من') : tr('کشفِ بسته‌ها'),
+                    visualDensity: VisualDensity.compact,
                     icon:
                         Icon(_discover ? Icons.close : Icons.add_circle_outline),
                     onPressed: () {
@@ -332,7 +367,7 @@ class _StickerPickerState extends State<_StickerPicker> {
         final url = AppConfig.absoluteMedia(s.mediaUrl);
         return InkWell(
           borderRadius: BorderRadius.circular(10),
-          onTap: () => Navigator.pop(context, s.id),
+          onTap: () => Navigator.pop(context, StickerPick.library(s.id)),
           onLongPress: () => _toggleStar(s),
           child: Stack(
             children: [

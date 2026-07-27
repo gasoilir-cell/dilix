@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../app.dart';
 import '../../core/api_client.dart';
@@ -14,9 +17,11 @@ import '../../models/models.dart';
 import '../call/call_service.dart';
 import '../social/profile_screen.dart';
 import 'chat_sheets.dart';
+import 'media_editor_screen.dart';
 import 'media_viewer.dart';
 import 'message_bubble.dart';
 import 'sticker_picker_sheet.dart';
+import 'sticker_studio_screen.dart';
 
 import '../../core/l10n.dart';
 /// نمای بومیِ گفتگو با پوششِ کاملِ پیام‌رسانِ dilix-api:
@@ -296,16 +301,32 @@ class _ChatScreenState extends State<ChatScreen> {
     _api.setTyping(_room.id).catchError((_) {});
   }
 
+  /// تصویر پیش از ارسال از ویرایشگر می‌گذرد (همان رفتارِ وب در
+  /// `messages/page.tsx` → `onPickFile`). ویدیو مستقیم می‌رود چون ویرایشگرِ
+  /// ویدیو در موبایل بدونِ وابستگیِ بومی ممکن نیست.
+  /// `null` یعنی کاربر در ویرایشگر لغو کرد → ارسالی در کار نیست.
+  Future<String?> _editBeforeSend(String path) async {
+    final edited = await openMediaEditor(context, File(path));
+    return edited?.path;
+  }
+
   Future<void> _pickAndSendMedia({required bool video}) async {
     final XFile? file = video
         ? await _picker.pickVideo(source: ImageSource.gallery)
         : await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
     if (file == null) return;
+    String path = file.path;
+    if (!video) {
+      if (!mounted) return;
+      final edited = await _editBeforeSend(path);
+      if (edited == null) return;
+      path = edited;
+    }
     final caption = _inputCtrl.text.trim();
     await _run(() async {
       final msg = await _api.sendMedia(
         _room.id,
-        file.path,
+        path,
         caption: caption.isEmpty ? null : caption,
         replyToId: _replyTo?.id,
       );
@@ -322,8 +343,11 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _captureAndSendPhoto() async {
     final file = await _picker.pickImage(source: ImageSource.camera, imageQuality: 85);
     if (file == null) return;
+    if (!mounted) return;
+    final path = await _editBeforeSend(file.path);
+    if (path == null) return;
     await _run(() async {
-      final msg = await _api.sendMedia(_room.id, file.path,
+      final msg = await _api.sendMedia(_room.id, path,
           replyToId: _replyTo?.id);
       if (!mounted) return;
       setState(() {
@@ -441,6 +465,34 @@ class _ChatScreenState extends State<ChatScreen> {
     }, failure: tr('ارسالِ پیامِ صوتی ناموفق بود'));
   }
 
+  /// ذخیرهٔ رسانهٔ یک پیام روی دستگاه — معادلِ `saveMedia` در وب.
+  ///
+  /// اندروید بدونِ پلاگینِ MediaStore اجازهٔ نوشتن در گالریِ عمومی نمی‌دهد و
+  /// افزودنِ پکیجِ تازه ممکن نیست (pub.dev از محیطِ بیلد در دسترس نیست). پس
+  /// فایل در فضای موقت دانلود و به برگهٔ اشتراکِ سیستم داده می‌شود؛ کاربر از
+  /// همان‌جا «ذخیره در گالری» یا «ذخیره در فایل‌ها» را می‌زند.
+  Future<void> _saveMedia(ChatMessage m) async {
+    final url = AppConfig.absoluteMedia(m.mediaUrl);
+    if (url == null) {
+      _toast(tr('این پیام رسانه‌ای ندارد.'));
+      return;
+    }
+    await _run(() async {
+      final res = await http.get(Uri.parse(url));
+      if (res.statusCode >= 400) {
+        throw StateError(tr('کدِ {0}', [res.statusCode]));
+      }
+      final dir = await getTemporaryDirectory();
+      // نامِ سرور را نگه می‌داریم تا پسوند (و در نتیجه اپِ بازکننده) درست بماند.
+      final name = (m.mediaName ?? '').trim().isNotEmpty
+          ? m.mediaName!.trim()
+          : 'dilix-${m.mediaType ?? 'media'}-${DateTime.now().millisecondsSinceEpoch}';
+      final f = File('${dir.path}/$name');
+      await f.writeAsBytes(res.bodyBytes, flush: true);
+      await Share.shareXFiles([XFile(f.path)]);
+    }, failure: tr('ذخیرهٔ رسانه ناموفق بود'));
+  }
+
   // ─────────────── کنش‌های پیام ───────────────
 
   Future<void> _messageActions(ChatMessage m) async {
@@ -478,6 +530,18 @@ class _ChatScreenState extends State<ChatScreen> {
                 leading: const Icon(Icons.translate),
                 title: Text(tr('ترجمه')),
                 onTap: () => Navigator.pop(ctx, 'translate'),
+              ),
+            if ((m.mediaUrl ?? '').isNotEmpty)
+              ListTile(
+                leading: const Icon(Icons.download_outlined),
+                title: Text(tr('ذخیرهٔ رسانه')),
+                onTap: () => Navigator.pop(ctx, 'save_media'),
+              ),
+            if ((m.stickerId ?? '').isNotEmpty)
+              ListTile(
+                leading: const Icon(Icons.star_outline, color: Colors.amber),
+                title: Text(tr('ذخیره در ستاره‌دارها')),
+                onTap: () => Navigator.pop(ctx, 'star_sticker'),
               ),
             if (m.isMine && m.isPlainText && !m.deleted)
               ListTile(
@@ -521,6 +585,13 @@ class _ChatScreenState extends State<ChatScreen> {
         }, failure: tr('سنجاق ناموفق بود'));
       case 'translate':
         await _translate(m);
+      case 'save_media':
+        await _saveMedia(m);
+      case 'star_sticker':
+        await _run(() async {
+          await _api.setStickerStarred(m.stickerId!, true);
+          _toast(tr('به ستاره‌دارها اضافه شد.'));
+        }, failure: tr('ستاره‌دارکردن ناموفق بود'));
       case 'edit':
         setState(() {
           _editing = m;
@@ -798,14 +869,41 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _sendSticker() async {
-    final stickerId = await showStickerPicker(context, api: _api);
-    if (stickerId == null || !mounted) return;
+    final pick = await showStickerPicker(context, api: _api);
+    if (pick == null || !mounted) return;
+    final studio = pick.studio;
+    if (studio != null) {
+      await _sendStudioResult(studio);
+      return;
+    }
     await _run(() async {
-      await _api.sendSticker(_room.id, stickerId, replyToId: _replyTo?.id);
+      await _api.sendSticker(_room.id, pick.stickerId!, replyToId: _replyTo?.id);
       if (mounted) setState(() => _replyTo = null);
       await _load();
       _scrollToBottom();
     }, failure: tr('ارسالِ استیکر ناموفق بود'));
+  }
+
+  /// خروجیِ استودیو (تصویر/ویدیو/صدا) مثلِ هر رسانهٔ دیگری ارسال می‌شود؛ سرور
+  /// نوعش را از پسوندِ فایل تشخیص می‌دهد، پس شاخهٔ جداگانه‌ای لازم نیست.
+  Future<void> _sendStudioResult(StudioResult r) async {
+    await _run(() async {
+      final msg = await _api.sendMedia(_room.id, r.file.path,
+          replyToId: _replyTo?.id);
+      if (!mounted) return;
+      setState(() {
+        _messages.add(msg);
+        _replyTo = null;
+      });
+      _scrollToBottom();
+    }, failure: tr('ارسالِ استیکر ناموفق بود'));
+  }
+
+  /// «ساختِ استیکر» از منوی پیوست — معادلِ `chat.makeSticker` در وب.
+  Future<void> _openStickerStudio() async {
+    final result = await openStickerStudio(context);
+    if (result == null || !mounted) return;
+    await _sendStudioResult(result);
   }
 
   Future<void> _createEvent() async {
@@ -1566,6 +1664,11 @@ class _ChatScreenState extends State<ChatScreen> {
               onTap: () => Navigator.pop(ctx, 'sticker'),
             ),
             ListTile(
+              leading: const Icon(Icons.auto_awesome_outlined),
+              title: Text(tr('ساختِ استیکر')),
+              onTap: () => Navigator.pop(ctx, 'studio'),
+            ),
+            ListTile(
               leading: const Icon(Icons.bar_chart),
               title: Text(tr('نظرسنجی')),
               onTap: () => Navigator.pop(ctx, 'poll'),
@@ -1620,6 +1723,8 @@ class _ChatScreenState extends State<ChatScreen> {
         }
       case 'sticker':
         await _sendSticker();
+      case 'studio':
+        await _openStickerStudio();
       case 'poll':
         await _createPoll();
       case 'redpacket':

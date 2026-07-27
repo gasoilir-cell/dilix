@@ -6,6 +6,7 @@ import '../../core/config.dart';
 import '../../models/models.dart';
 
 import '../../core/l10n.dart';
+import 'sticker_studio_screen.dart';
 /// بسته‌های استیکرِ ساختهٔ خودم — `GET /stickers/packs/mine`،
 /// `POST /stickers/packs` و `POST /stickers/packs/{id}/stickers`.
 class MyStickerPacksScreen extends StatefulWidget {
@@ -256,9 +257,28 @@ class _PackEditorScreenState extends State<_PackEditorScreen> {
     }
   }
 
+  /// افزودنِ استیکر از گالری، بدونِ ویرایش.
   Future<void> _addSticker() async {
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (picked == null || !mounted) return;
+    await _attach(picked.path);
+  }
+
+  /// افزودنِ استیکر از استودیو. فقط خروجیِ تصویری پذیرفته می‌شود چون بستهٔ
+  /// استیکر تصویر نگه می‌دارد؛ ویدیو/صدا فقط برای ارسالِ مستقیم در گفتگوست.
+  Future<void> _addFromStudio() async {
+    final result = await openStickerStudio(context);
+    if (result == null || !mounted) return;
+    if (result.kind != 'image') {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              tr('فقط استیکرِ تصویری در بسته ذخیره می‌شود؛ این را می‌توانی مستقیم در گفتگو بفرستی.'))));
+      return;
+    }
+    await _attach(result.file.path);
+  }
+
+  Future<void> _attach(String filePath) async {
     final emoji = await showDialog<String>(
       context: context,
       builder: (_) => const _EmojiTagDialog(),
@@ -269,7 +289,7 @@ class _PackEditorScreenState extends State<_PackEditorScreen> {
     try {
       await widget.api.addSticker(
         packId: widget.packId,
-        filePath: picked.path,
+        filePath: filePath,
         emojiTag: emoji,
       );
       await _load();
@@ -319,7 +339,16 @@ class _PackEditorScreenState extends State<_PackEditorScreen> {
   Widget build(BuildContext context) {
     final pack = _pack;
     return Scaffold(
-      appBar: AppBar(title: Text(pack?.title ?? tr('بسته'))),
+      appBar: AppBar(
+        title: Text(pack?.title ?? tr('بسته')),
+        actions: [
+          IconButton(
+            tooltip: tr('استودیوی استیکر'),
+            icon: const Icon(Icons.auto_awesome_outlined),
+            onPressed: _busy ? null : _addFromStudio,
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _busy ? null : _addSticker,
         icon: const Icon(Icons.add_photo_alternate_outlined),
