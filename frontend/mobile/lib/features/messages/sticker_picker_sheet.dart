@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/api_client.dart';
 import '../../core/config.dart';
+import '../../core/theme.dart';
 import '../../models/models.dart';
 import 'my_sticker_packs_screen.dart';
 
@@ -380,10 +381,12 @@ class _StickerPickerState extends State<_StickerPicker> {
                             child: Text('🙂', style: TextStyle(fontSize: 28)))),
               ),
               if (s.starred)
-                const Positioned(
+                Positioned(
                   top: 0,
                   right: 0,
-                  child: Icon(Icons.star, size: 12, color: Colors.amber),
+                  child: Icon(Icons.star,
+                      size: 12,
+                      color: DilixSemanticColors.from(ctx).warning),
                 ),
             ],
           ),
@@ -436,7 +439,8 @@ class _StickerPickerState extends State<_StickerPicker> {
           trailing: p.installed
               ? IconButton(
                   tooltip: tr('حذفِ بسته'),
-                  icon: const Icon(Icons.check_circle, color: Colors.green),
+                  icon: Icon(Icons.check_circle,
+                      color: DilixSemanticColors.from(context).success),
                   onPressed: _busy ? null : () => _install(p),
                 )
               : IconButton(

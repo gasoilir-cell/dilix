@@ -6,6 +6,7 @@ import '../../models/models.dart';
 import 'topup_screen.dart';
 
 import '../../core/l10n.dart';
+import '../../core/theme.dart';
 /// قالب‌بندیِ مبلغِ خرد (minor) به نمایشِ انسانی.
 ///
 /// ⚠ سرور همه‌چیز را در واحدِ خرد می‌دهد و [scale] برای هر ارز فرق می‌کند
@@ -296,7 +297,9 @@ class _HoldingsScreenState extends State<HoldingsScreen> {
               dense: true,
               leading: Icon(
                 t.isCredit ? Icons.south_west : Icons.north_east,
-                color: t.isCredit ? Colors.green : Colors.redAccent,
+                color: t.isCredit
+                    ? DilixSemanticColors.from(context).success
+                    : Theme.of(context).colorScheme.error,
               ),
               title: Text(t.description ?? _txLabel(t.type)),
               subtitle: Text([
@@ -308,7 +311,9 @@ class _HoldingsScreenState extends State<HoldingsScreen> {
                 '${t.isCredit ? '+' : '−'}${formatMinor(t.amount, t.currency, _scaleOf(t.currency))}',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: t.isCredit ? Colors.green : null,
+                  color: t.isCredit
+                      ? DilixSemanticColors.from(context).success
+                      : null,
                 ),
               ),
             ),

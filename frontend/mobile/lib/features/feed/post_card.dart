@@ -279,7 +279,8 @@ class _PostCardState extends State<PostCard> {
             icon: Icon(
               p.likedByMe ? Icons.favorite : Icons.favorite_border,
               size: 18,
-              color: p.likedByMe ? Colors.red : null,
+              color:
+                  p.likedByMe ? Theme.of(context).colorScheme.error : null,
             ),
             label: Text('${p.reactionCounts['like'] ?? 0}'),
           ),

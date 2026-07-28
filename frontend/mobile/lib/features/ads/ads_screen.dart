@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app.dart';
 import '../../core/api_client.dart';
 import '../../core/l10n.dart';
+import '../../core/ui.dart';
 import '../../models/models.dart';
 
 /// تبلیغاتِ خودخدمت — معادلِ صفحهٔ وبِ `app/(main)/ads/page.tsx`.
@@ -233,12 +234,12 @@ class _AdsScreenState extends State<AdsScreen> {
     }, tr('بارگیریِ آمار ناموفق بود'));
   }
 
-  Color _statusColor(String s) => switch (s) {
-        'active' => Colors.green,
-        'paused' => Colors.amber,
-        'completed' => Colors.lightBlue,
-        'rejected' => Colors.redAccent,
-        _ => Colors.grey,
+  StatusTone _statusTone(String s) => switch (s) {
+        'active' => StatusTone.success,
+        'paused' => StatusTone.warning,
+        'completed' => StatusTone.info,
+        'rejected' => StatusTone.danger,
+        _ => StatusTone.neutral,
       };
 
   @override
@@ -408,13 +409,7 @@ class _AdsScreenState extends State<AdsScreen> {
                 Expanded(
                   child: Text(c.title, style: theme.textTheme.titleSmall),
                 ),
-                Chip(
-                  label:
-                      Text(c.statusLabel, style: const TextStyle(fontSize: 11)),
-                  backgroundColor: _statusColor(c.status).withValues(alpha: .15),
-                  side: BorderSide.none,
-                  visualDensity: VisualDensity.compact,
-                ),
+                StatusChip(label: c.statusLabel, tone: _statusTone(c.status)),
               ],
             ),
             Text(tr(_placements[c.placement] ?? c.placement),

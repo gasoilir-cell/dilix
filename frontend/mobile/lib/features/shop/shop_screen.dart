@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../app.dart';
 import '../../core/api_client.dart';
 import '../../core/l10n.dart';
+import '../../core/theme.dart';
+import '../../core/ui.dart';
 import '../../models/models.dart';
 
 /// فروشگاه و پرداختِ امانی — معادلِ صفحهٔ وبِ `app/(main)/shop/page.tsx`.
@@ -282,12 +284,12 @@ class _ShopScreenState extends State<ShopScreen>
     }, tr('انجامِ عملیات ناموفق بود'));
   }
 
-  Color _statusColor(String s) => switch (s) {
-        'pending' => Colors.amber,
-        'accepted' => Colors.lightBlue,
-        'shipped' => Colors.deepPurpleAccent,
-        'completed' => Colors.green,
-        _ => Colors.grey,
+  StatusTone _statusTone(String s) => switch (s) {
+        'pending' => StatusTone.warning,
+        'accepted' => StatusTone.info,
+        'shipped' => StatusTone.accent,
+        'completed' => StatusTone.success,
+        _ => StatusTone.neutral,
       };
 
   @override
@@ -557,12 +559,7 @@ class _ShopScreenState extends State<ShopScreen>
                   child: Text(o.title,
                       style: Theme.of(context).textTheme.titleSmall),
                 ),
-                Chip(
-                  label: Text(o.statusLabel,
-                      style: const TextStyle(fontSize: 11)),
-                  backgroundColor: _statusColor(o.status).withValues(alpha: 0.15),
-                  visualDensity: VisualDensity.compact,
-                ),
+                StatusChip(label: o.statusLabel, tone: _statusTone(o.status)),
               ],
             ),
             const SizedBox(height: 4),
@@ -578,10 +575,8 @@ class _ShopScreenState extends State<ShopScreen>
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(tr('وجه بلوکه است'),
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: Colors.amber)),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: DilixSemanticColors.from(context).warning)),
               ),
             if ((o.address ?? '').isNotEmpty)
               Text(tr('نشانی: {0}', [o.address!]),

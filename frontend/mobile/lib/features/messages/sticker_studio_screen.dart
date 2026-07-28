@@ -413,7 +413,8 @@ class _StillEditorState extends State<_StillEditor> {
               const SizedBox(height: 16),
               Text(_error!,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
+                  style: TextStyle(
+                      color: Theme.of(context).colorScheme.error, fontSize: 12)),
             ],
           ],
         ),
@@ -542,8 +543,8 @@ class _StillEditorState extends State<_StillEditor> {
             Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Text(_error!,
-                  style:
-                      const TextStyle(color: Colors.redAccent, fontSize: 11)),
+                  style: TextStyle(
+                      color: Theme.of(context).colorScheme.error, fontSize: 11)),
             ),
           const SizedBox(height: 8),
           Row(
@@ -675,8 +676,8 @@ class _AnimatedEditorState extends State<_AnimatedEditor> {
               const SizedBox(height: 12),
               Text(_error!,
                   textAlign: TextAlign.center,
-                  style:
-                      const TextStyle(color: Colors.redAccent, fontSize: 12)),
+                  style: TextStyle(
+                      color: Theme.of(context).colorScheme.error, fontSize: 12)),
             ],
           ],
         ),
@@ -835,8 +836,9 @@ class _AudioEditorState extends State<_AudioEditor> {
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(_error!,
-                      style: const TextStyle(
-                          color: Colors.redAccent, fontSize: 11)),
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                          fontSize: 11)),
                 ),
               const SizedBox(height: 12),
               if (_path == null)
@@ -1052,8 +1054,9 @@ class _FusionEditorState extends State<_FusionEditor> {
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(_error!,
-                      style: const TextStyle(
-                          color: Colors.redAccent, fontSize: 11)),
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                          fontSize: 11)),
                 ),
               const SizedBox(height: 10),
               _primaryButton(

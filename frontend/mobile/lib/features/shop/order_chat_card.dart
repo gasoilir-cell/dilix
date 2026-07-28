@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app.dart';
 import '../../core/api_client.dart';
 import '../../core/l10n.dart';
+import '../../core/theme.dart';
 import '../../models/models.dart';
 
 /// کارتِ سفارشِ فروشگاه درونِ گفتگو.
@@ -90,13 +91,18 @@ class _OrderChatCardState extends State<OrderChatCard> {
       );
     }
 
+    final scheme = Theme.of(context).colorScheme;
+    final semantic = DilixSemanticColors.from(context);
     final done = o.status == 'completed';
     final dead = o.status == 'cancelled';
+    // نوارِ بالا متنِ سفید دارد، پس رنگش باید *تیره و پُر* باشد. پیش از این
+    // `Colors.green`/`Colors.deepOrange` با شفافیتِ ۸۵٪ استفاده می‌شد و سفید
+    // رویشان به‌سختی خوانده می‌شد؛ این سه تن هر کدام ≥۵:۱ کنتراست با سفید دارند.
     final head = dead
-        ? Colors.grey
+        ? scheme.onSurfaceVariant
         : done
-            ? Colors.green
-            : Colors.deepOrange;
+            ? semantic.success
+            : semantic.warning;
 
     return Container(
       margin: const EdgeInsets.only(top: 4),
@@ -108,7 +114,7 @@ class _OrderChatCardState extends State<OrderChatCard> {
         children: [
           Container(
             width: double.infinity,
-            color: head.withValues(alpha: 0.85),
+            color: head,
             padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -142,7 +148,9 @@ class _OrderChatCardState extends State<OrderChatCard> {
           ),
           Container(
             width: double.infinity,
-            color: Colors.black.withValues(alpha: 0.25),
+            // پیش از این «سیاهِ ۲۵٪» بود: روی حبابِ روشنِ گفتگو خاکستریِ گِل‌آلود
+            // می‌ساخت و روی حبابِ تیره تقریباً نامرئی می‌شد.
+            color: scheme.surfaceContainerHigh,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -151,12 +159,15 @@ class _OrderChatCardState extends State<OrderChatCard> {
                   children: [
                     Expanded(
                       child: Text(o.statusLabel,
-                          style: const TextStyle(fontSize: 12)),
+                          style: TextStyle(
+                              fontSize: 12, color: scheme.onSurface)),
                     ),
                     if (o.escrowLocked)
                       Text(tr('وجه بلوکه'),
-                          style: const TextStyle(
-                              fontSize: 12, color: Colors.amber)),
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: semantic.warning)),
                   ],
                 ),
                 if (o.hasAction) ...[

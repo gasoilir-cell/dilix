@@ -14,6 +14,7 @@ import '../../app.dart';
 import '../../core/api_client.dart';
 import '../../core/config.dart';
 import '../../core/location_service.dart';
+import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../call/call_service.dart';
 import '../social/profile_screen.dart';
@@ -618,7 +619,8 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             if ((m.stickerId ?? '').isNotEmpty) ...[
               ListTile(
-                leading: const Icon(Icons.star_outline, color: Colors.amber),
+                leading: Icon(Icons.star_outline,
+                    color: DilixSemanticColors.from(context).warning),
                 title: Text(tr('ذخیره در ستاره‌دارها')),
                 onTap: () => Navigator.pop(ctx, 'star_sticker'),
               ),
@@ -642,9 +644,11 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             if (m.isMine && !m.deleted)
               ListTile(
-                leading: const Icon(Icons.delete_outline, color: Colors.red),
-                title:
-                    Text(tr('حذف'), style: const TextStyle(color: Colors.red)),
+                leading: Icon(Icons.delete_outline,
+                    color: Theme.of(context).colorScheme.error),
+                title: Text(tr('حذف'),
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.error)),
                 onTap: () => Navigator.pop(ctx, 'delete'),
               ),
             if (!m.isMine)
@@ -753,7 +757,10 @@ class _ChatScreenState extends State<ChatScreen> {
               onPressed: () => Navigator.pop(ctx, false),
               child: Text(tr('لغو'))),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+              foregroundColor: Theme.of(ctx).colorScheme.onError,
+            ),
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(tr('حذف')),
           ),
@@ -784,7 +791,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 title: Text(pack.title),
                 subtitle: Text(pack.description ?? tr('{0} استیکر', [pack.stickerCount])),
                 trailing: pack.installed
-                    ? const Icon(Icons.check_circle, color: Colors.green)
+                    ? Icon(Icons.check_circle,
+                        color: DilixSemanticColors.from(ctx).success)
                     : FilledButton(
                         onPressed: () async {
                           await _api.installStickerPack(pack.id);
@@ -1863,13 +1871,18 @@ class _ChatScreenState extends State<ChatScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      color: Colors.amber.withValues(alpha: 0.18),
+      color: DilixSemanticColors.from(context).warningContainer,
       child: Row(
         children: [
-          const Icon(Icons.timer, size: 14),
+          Icon(Icons.timer,
+              size: 14,
+              color: DilixSemanticColors.from(context).onWarningContainer),
           const SizedBox(width: 6),
           Text(tr('پیام‌ها پس از {0} ناپدید می‌شوند.', [label]),
-              style: const TextStyle(fontSize: 11)),
+              style: TextStyle(
+                  fontSize: 11,
+                  color:
+                      DilixSemanticColors.from(context).onWarningContainer)),
         ],
       ),
     );
@@ -1878,15 +1891,19 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _blockedBanner() => Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        color: Colors.red.withValues(alpha: 0.18),
+        color: Theme.of(context).colorScheme.errorContainer,
         child: Row(
           children: [
-            const Icon(Icons.block, size: 14, color: Colors.red),
+            Icon(Icons.block,
+                size: 14,
+                color: Theme.of(context).colorScheme.onErrorContainer),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
                 tr('این کاربر مسدود است؛ ارسالِ پیام ممکن نیست.'),
-                style: const TextStyle(fontSize: 11),
+                style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.onErrorContainer),
               ),
             ),
           ],
@@ -2126,7 +2143,8 @@ class _ChatScreenState extends State<ChatScreen> {
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         child: Row(
           children: [
-            const Icon(Icons.fiber_manual_record, color: Colors.red, size: 16),
+            Icon(Icons.fiber_manual_record,
+                color: Theme.of(context).colorScheme.error, size: 16),
             const SizedBox(width: 8),
             Text(
               '${_recElapsed.inMinutes.toString().padLeft(2, '0')}:'
@@ -2139,7 +2157,8 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             IconButton(
               tooltip: tr('لغو'),
-              icon: const Icon(Icons.delete_outline, color: Colors.red),
+              icon: Icon(Icons.delete_outline,
+                  color: Theme.of(context).colorScheme.error),
               onPressed: _cancelRecording,
             ),
             IconButton.filled(
@@ -2347,7 +2366,9 @@ class _SearchSheetState extends State<_SearchSheet> {
           else if (_error != null)
             Padding(
               padding: const EdgeInsets.all(12),
-              child: Text(_error!, style: const TextStyle(color: Colors.red)),
+              child: Text(_error!,
+                  style:
+                      TextStyle(color: Theme.of(context).colorScheme.error)),
             )
           else if (_results.isEmpty)
             Padding(

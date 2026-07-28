@@ -210,8 +210,29 @@ class _RootGateState extends State<RootGate> {
   Widget build(BuildContext context) {
     final prefs = PreferencesScope.of(context);
     if (!_sessionLoaded || !prefs.loaded) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      // نخستین چیزی که کاربر در هر بار بازکردنِ اپ می‌بیند. یک اسپینرِ تنها روی
+      // صفحهٔ خالی، این لحظه را شبیهِ «گیرکردن» نشان می‌داد؛ نامِ برند بالای آن
+      // همان انتظار را به «در حالِ بالا آمدن» تبدیل می‌کند.
+      final theme = Theme.of(context);
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                AppConfig.appName,
+                style: theme.textTheme.displaySmall
+                    ?.copyWith(color: theme.colorScheme.primary),
+              ),
+              const SizedBox(height: DilixSpacing.xl),
+              const SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(strokeWidth: 2.5),
+              ),
+            ],
+          ),
+        ),
       );
     }
     final api = ApiScope.of(context);

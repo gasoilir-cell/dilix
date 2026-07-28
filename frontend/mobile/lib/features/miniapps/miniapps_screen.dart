@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import '../../app.dart';
 import '../../core/api_client.dart';
 import '../../core/l10n.dart';
+import '../../core/theme.dart';
+import '../../core/ui.dart';
 import '../../models/models.dart';
 import 'miniapp_host_screen.dart';
 
@@ -297,12 +299,12 @@ class _MiniAppsScreenState extends State<MiniAppsScreen>
     }, tr('انجامِ عملیات ناموفق بود'));
   }
 
-  Color _statusColor(String s) => switch (s) {
-        'approved' => Colors.green,
-        'pending' => Colors.amber,
-        'rejected' => Colors.redAccent,
-        'suspended' => Colors.redAccent,
-        _ => Colors.grey,
+  StatusTone _statusTone(String s) => switch (s) {
+        'approved' => StatusTone.success,
+        'pending' => StatusTone.warning,
+        'rejected' => StatusTone.danger,
+        'suspended' => StatusTone.danger,
+        _ => StatusTone.neutral,
       };
 
   @override
@@ -398,12 +400,9 @@ class _MiniAppsScreenState extends State<MiniAppsScreen>
                   ),
                 ),
                 if (mode == 'mine')
-                  Chip(
-                    label: Text(a.statusLabel,
-                        style: const TextStyle(fontSize: 11)),
-                    backgroundColor: _statusColor(a.status).withValues(alpha: .15),
-                    side: BorderSide.none,
-                    visualDensity: VisualDensity.compact,
+                  StatusChip(
+                    label: a.statusLabel,
+                    tone: _statusTone(a.status),
                   ),
               ],
             ),
@@ -416,8 +415,8 @@ class _MiniAppsScreenState extends State<MiniAppsScreen>
                 style: theme.textTheme.bodySmall),
             if (a.needsReconsent)
               Text(tr('برنامه دسترسیِ تازه‌ای خواسته است'),
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: Colors.amber)),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                      color: DilixSemanticColors.from(context).warning)),
             const SizedBox(height: 4),
             Text(
               mode == 'mine'

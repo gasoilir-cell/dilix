@@ -7,6 +7,7 @@ import '../../models/models.dart';
 import 'holdings_screen.dart' show formatMinor, minorScale;
 
 import '../../core/l10n.dart';
+import '../../core/theme.dart';
 /// شارژِ کیف‌پول از درگاهِ پرداخت.
 ///
 /// سه مرحله دارد: فرم (انتخابِ درگاه/مبلغ) → پرداخت → تأیید. مرحلهٔ پرداخت دو
@@ -452,7 +453,8 @@ class _TopupScreenState extends State<TopupScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.check_circle, color: Colors.green, size: 64),
+            Icon(Icons.check_circle,
+                color: DilixSemanticColors.from(context).success, size: 64),
             const SizedBox(height: 12),
             Text(_resultText, textAlign: TextAlign.center),
             const SizedBox(height: 20),

@@ -283,7 +283,8 @@ class _RedPacketComposerState extends State<_RedPacketComposer> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
                   tr('هر سهم باید حداقل ۱۰۰ تومان باشد.'),
-                  style: const TextStyle(color: Colors.orange, fontSize: 12),
+                  style: TextStyle(
+                      color: Theme.of(context).colorScheme.error, fontSize: 12),
                 ),
               ),
             SizedBox(
@@ -410,7 +411,8 @@ class _MoneyComposerState extends State<_MoneyComposer> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
                   tr('مبلغ باید حداقل ۱۰۰ تومان باشد.'),
-                  style: const TextStyle(color: Colors.orange, fontSize: 12),
+                  style: TextStyle(
+                      color: Theme.of(context).colorScheme.error, fontSize: 12),
                 ),
               ),
             Padding(

@@ -10,6 +10,7 @@ import 'qr_scan_pay_screen.dart';
 import 'topup_screen.dart';
 
 import '../../core/l10n.dart';
+import '../../core/theme.dart';
 /// کیفِ پول: کیفِ پاداش + پرداختِ امانی (escrow) + سهم از درآمد و لینکِ دعوت.
 /// معادلِ صفحهٔ وبِ `app/wallet/page.tsx`. شارژ از درگاهِ پرداخت و جیب‌های ارزی
 /// در صفحه‌های جداگانه (`TopupScreen` / `HoldingsScreen`) باز می‌شوند.
@@ -354,7 +355,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   t.isOutgoing ? Icons.north_east : Icons.south_west,
                   color: t.isOutgoing
                       ? Theme.of(context).colorScheme.error
-                      : Colors.green,
+                      : DilixSemanticColors.from(context).success,
                   size: 20,
                 ),
                 title: Text(
