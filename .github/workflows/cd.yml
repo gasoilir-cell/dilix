@@ -46,10 +46,6 @@ jobs:
       contents: read
       packages: write
 
-    outputs:
-      image_tag: ${{ steps.meta.outputs.tags }}
-      image_digest: ${{ steps.build.outputs.digest }}
-
     steps:
       - uses: actions/checkout@v4
 
