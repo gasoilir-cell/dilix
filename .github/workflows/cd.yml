@@ -1,29 +1,47 @@
-name: CD — Build + Deploy
+name: CD — Build Image
+
+# چرا اینجا فقط «build» هست و «deploy» نیست؟
+#
+# توپولوژیِ شبکه استقرار از GitHub Actions را *غیرممکن* می‌کند:
+#   • runnerهای گیت‌هاب (بین‌المللی) به 185.55.226.250 نمی‌رسند — سرور فقط
+#     ترافیکِ داخلیِ ایران را می‌پذیرد.
+#   • خودِ سرور هم به github.com نمی‌رسد (تایم‌اوت).
+# پس هیچ jobِ SSHای اینجا نمی‌تواند سبز شود، حتی با تعریفِ راز.
+#
+# jobهای قبلیِ `deploy-staging` و `deploy-production-ir` به همین دلیل حذف شدند:
+# آن‌ها نه راز داشتند، نه environment، و روی هر push به main دستورِ
+# `alembic upgrade head` را روی دیتابیس اجرا می‌کردند — یعنی مهاجرتِ خودکارِ
+# دیتابیس بدونِ هیچ گاردِ انسانی.
+#
+# استقرارِ واقعی از همین محیطِ داخلی و دستی انجام می‌شود:
+#   infra/deploy/deploy-api.sh   → سرویسِ زنده (backend/services/api)
+#   infra/deploy/deploy-web.sh   → وبِ Next.js
+#   infra/deploy/sync-apk.sh     → APK روی مسیرِ دانلود
+#
+# کارِ این workflow فقط یک چیز است: ثابت کند ایمیجِ core واقعاً build می‌شود
+# و آن را روی ghcr منتشر کند.
 
 on:
   push:
     branches: [main]
     tags: ["v*"]
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/services/core/**"
+      - "backend/libs/shared/**"
+      - ".dockerignore"
+      - ".github/workflows/cd.yml"
   workflow_dispatch:
-    inputs:
-      environment:
-        description: "Target environment"
-        required: true
-        default: staging
-        type: choice
-        options: [staging, production-ir, production-global]
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}/dilix-core
 
 jobs:
-  # ────────────────────────────────────────────────
   build:
     name: Build & Push Docker Image
     runs-on: ubuntu-latest
-    # بیلد سنگین فقط روی سرور SSH (طبق سیاست پروژه)
-    # این job فقط image را می‌سازد — push از SSH runner
     permissions:
       contents: read
       packages: write
@@ -35,6 +53,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # بدونِ این گام، درایورِ پیش‌فرضِ docker است و `cache-to: type=gha`
+      # با «Cache export is not supported for the docker driver» شکست می‌خورد.
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
@@ -42,74 +65,29 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
+            type=ref,event=pr
             type=semver,pattern={{version}}
             type=sha,prefix=sha-,format=short
 
+      # روی pull_request مخزن فقط خواندنی است، پس نه login می‌کنیم نه push.
       - name: Login to registry
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # ⚠ زمینهٔ بیلد ریشهٔ مخزن است چون ایمیج به `backend/libs/shared` نیاز
+      # دارد که بیرونِ پوشهٔ سرویس است. اندازهٔ زمینه با `.dockerignore` مهار شده.
       - name: Build and push
         id: build
         uses: docker/build-push-action@v5
         with:
-          context: backend/services/core
+          context: .
           file: backend/services/core/Dockerfile
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  # ────────────────────────────────────────────────
-  deploy-staging:
-    name: Deploy → Staging
-    needs: build
-    runs-on: ubuntu-latest
-    environment: staging
-    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'staging'
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.STAGING_SSH_HOST }}
-          username: ${{ secrets.STAGING_SSH_USER }}
-          key: ${{ secrets.STAGING_SSH_KEY }}
-          script: |
-            cd /opt/dilix
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker pull ${{ needs.build.outputs.image_tag }}
-            docker compose -f docker-compose.prod.yml up -d --no-deps core
-            docker compose -f docker-compose.prod.yml exec -T core alembic upgrade head
-            echo "✅ Staging deployed: ${{ needs.build.outputs.image_tag }}"
-
-  # ────────────────────────────────────────────────
-  deploy-production-ir:
-    name: Deploy → Production IR
-    needs: [build, deploy-staging]
-    runs-on: ubuntu-latest
-    environment: production-ir
-    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.environment == 'production-ir'
-
-    steps:
-      - name: Deploy via SSH (Iran Region)
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.PROD_IR_SSH_HOST }}
-          username: ${{ secrets.PROD_IR_SSH_USER }}
-          key: ${{ secrets.PROD_IR_SSH_KEY }}
-          script: |
-            cd /opt/dilix
-            docker pull ${{ needs.build.outputs.image_tag }}
-            # Rolling update — zero downtime
-            docker compose -f docker-compose.prod.yml up -d --no-deps --scale core=2 core
-            sleep 15
-            docker compose -f docker-compose.prod.yml exec -T core alembic upgrade head
-            docker compose -f docker-compose.prod.yml up -d --no-deps --scale core=1 core
-            echo "✅ Production IR deployed"

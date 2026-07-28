@@ -1,6 +1,12 @@
 # ── Dilix Core Service Dockerfile ────────────────────────────────────────────
 # Multi-stage build: builder → runtime
-# بیلد سنگین روی سرور SSH انجام می‌شود (طبق سیاست پروژه).
+#
+# ⚠ زمینهٔ بیلد **ریشهٔ مخزن** است، نه پوشهٔ سرویس:
+#     docker build -f backend/services/core/Dockerfile .
+# دلیل: این ایمیج به `backend/libs/shared` نیاز دارد که بیرونِ پوشهٔ سرویس
+# است و `COPY ../../libs/shared` در Docker غیرممکن است — هر مسیرِ بیرون از
+# زمینه با خطای «forbidden path outside the build context» رد می‌شود.
+# اندازهٔ زمینه با `.dockerignore`ِ ریشه مهار شده است.
 
 # Stage 1: builder
 FROM python:3.12-slim AS builder
@@ -9,11 +15,16 @@ WORKDIR /build
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc libpq-dev && rm -rf /var/lib/apt/lists/*
 
-COPY ../../libs/shared /build/shared
-COPY . /build/core
+COPY backend/libs/shared /build/shared
+COPY backend/services/core /build/core
 
+# ⚠ نصبِ **غیرِ editable**: مرحلهٔ runtime فقط `site-packages` را کپی می‌کند و
+# پوشه‌های `/build/*` را ندارد. با `-e` فقط یک فایلِ .pth به `/build/core`
+# کپی می‌شد و `import app` هنگامِ بالا آمدنِ کانتینر می‌شکست — خطایی که در
+# زمانِ بیلد دیده نمی‌شود. نصبِ shared پیش از core لازم است تا وابستگیِ
+# `dilix-shared` از قبل ارضا شده باشد (pip منبعِ `[tool.uv.sources]` را نمی‌فهمد).
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -e /build/shared && \
+    pip install --no-cache-dir /build/shared && \
     pip install --no-cache-dir \
         fastapi "uvicorn[standard]" pydantic pydantic-settings \
         "sqlalchemy[asyncio]" asyncpg alembic \
@@ -23,7 +34,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
         opentelemetry-instrumentation-fastapi \
         opentelemetry-instrumentation-sqlalchemy \
         opentelemetry-exporter-otlp-proto-grpc && \
-    pip install --no-cache-dir -e /build/core
+    pip install --no-cache-dir /build/core
 
 # Stage 2: runtime
 FROM python:3.12-slim AS runtime
@@ -34,7 +45,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
-COPY . /app
+COPY backend/services/core /app
 
 RUN useradd -r -s /bin/false dilix && chown -R dilix:dilix /app
 USER dilix

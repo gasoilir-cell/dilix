@@ -73,7 +73,11 @@ def _seed_jitter(seed: str, lat: float, lng: float, scale: float) -> tuple[float
     پراکندگی قطعی (بر پایه‌ی earth_id) — بین fetchها ثابت می‌ماند و
     کاربرانِ هم‌مکان را کمی از هم جدا می‌کند (بدون پرش تصادفی).
     """
-    h = hashlib.md5(seed.encode()).digest()
+    # MD5 اینجا نقشِ امنیتی ندارد؛ فقط یک PRNGِ قطعی است تا مارکرِ نقشه بینِ
+    # درخواست‌ها ثابت بماند. `usedforsecurity=False` خروجیِ digest را عوض
+    # نمی‌کند (یعنی مختصات دقیقاً همان می‌مانَد) و فقط به اسکنر/حالتِ FIPS
+    # می‌گوید این کاربردِ رمزنگارانه نیست.
+    h = hashlib.md5(seed.encode(), usedforsecurity=False).digest()
     r1 = (h[0] | (h[1] << 8)) / 65535.0  # 0..1
     r2 = (h[2] | (h[3] << 8)) / 65535.0
     return lat + (r1 * 2 - 1) * scale, lng + (r2 * 2 - 1) * scale
