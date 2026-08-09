@@ -34,7 +34,7 @@ from sqlalchemy import select, and_, or_, func, delete as sa_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.config import settings
+from app.services import translation
 from app.api.deps import get_current_user
 from app.models.user import User
 from app.models.messages import (
@@ -386,140 +386,72 @@ async def _room_expiry(db: AsyncSession, rid) -> Optional[datetime]:
     return None
 
 
-# ── Translation (Google free endpoint; reachable, no key, auto-detect) ──
-_TRANSLATE_URL = "https://translate.googleapis.com/translate_a/single"
-_SUPPORTED_LANGS = {
-    "fa", "en", "ar", "tr", "ru", "zh-CN", "fr", "de", "es", "hi", "ur",
-    "ps", "ku", "az", "it", "pt", "ja", "ko", "nl", "sv",
-}
-_LANG_ALIASES = {"zh": "zh-CN", "cn": "zh-CN", "farsi": "fa", "persian": "fa"}
+# ── Translation ──
+# موتور در `app.services.translation` است (انتخابِ ارائه‌دهنده، واژه‌نامه، حافظهٔ
+# گفتگو، پروفایلِ زیرنویسِ زنده). اینجا فقط پوستهٔ HTTP می‌مانَد.
 
 
 def _norm_lang(code: str) -> str:
-    c = (code or "").strip()
-    low = c.lower()
-    if low in _LANG_ALIASES:
-        return _LANG_ALIASES[low]
-    if c in _SUPPORTED_LANGS:
-        return c
-    if low in _SUPPORTED_LANGS:
-        return low
-    raise HTTPException(status_code=400, detail="زبانِ مقصد پشتیبانی نمی‌شود")
-
-
-async def _google_translate(text: str, target: str):
-    """ترجمه با endpointِ عمومیِ Google. برمی‌گرداند (translated_text, detected_lang)."""
-    params = {
-        "client": "gtx", "sl": "auto", "tl": target,
-        "dt": "t", "q": text,
-    }
     try:
-        async with httpx.AsyncClient(timeout=12) as c:
-            resp = await c.get(_TRANSLATE_URL, params=params)
+        return translation.norm_lang(code)
+    except translation.UnsupportedLanguage:
+        raise HTTPException(status_code=400, detail="زبانِ مقصد پشتیبانی نمی‌شود")
+
+
+async def _translate(
+    text: str,
+    target: str,
+    *,
+    context: "translation.TranslationContext | None" = None,
+    live: bool = False,
+):
+    """پوستهٔ HTTP روی موتور: استثناهای شبکه را به کدِ وضعیتِ درست ترجمه می‌کند."""
+    try:
+        res = await translation.translate(
+            text, target, context=context, live=live
+        )
     except httpx.HTTPError:
         raise HTTPException(status_code=503, detail="سرویسِ ترجمه در دسترس نیست")
-    if resp.status_code != 200:
-        raise HTTPException(status_code=503, detail="سرویسِ ترجمه پاسخ نداد")
-    try:
-        data = resp.json()
-    except (json.JSONDecodeError, ValueError):
+    except (ValueError, KeyError, IndexError):
         raise HTTPException(status_code=502, detail="پاسخِ ترجمه نامعتبر بود")
-    segments = data[0] or []
-    translated = "".join(seg[0] for seg in segments if seg and seg[0])
-    detected = None
-    if len(data) > 2 and isinstance(data[2], str):
-        detected = data[2]
-    return translated, detected
+    return res.text, res.detected
 
 
-# ── LLM translation (ترجمهٔ حرفه‌ای و طبیعی؛ مخصوصِ B2B/تجارت/حمل) ──
-# نامِ خوانا برای مقصد تا مدل بداند دقیقاً به چه زبانی بنویسد.
-_LANG_NAMES = {
-    "fa": "Persian (Farsi)", "en": "English", "ar": "Arabic", "tr": "Turkish",
-    "ru": "Russian", "zh-CN": "Simplified Chinese", "fr": "French", "de": "German",
-    "es": "Spanish", "hi": "Hindi", "ur": "Urdu", "ps": "Pashto", "ku": "Kurdish",
-    "az": "Azerbaijani", "it": "Italian", "pt": "Portuguese", "ja": "Japanese",
-    "ko": "Korean", "nl": "Dutch", "sv": "Swedish",
-}
-_LLM_MODEL = "claude-haiku-4-5-20251001"
+async def _conv_context(
+    db: AsyncSession,
+    room_id,
+    me_id,
+    *,
+    before: Optional[datetime] = None,
+) -> "translation.TranslationContext":
+    """چند نوبتِ آخرِ اتاق به‌عنوانِ زمینهٔ ترجمه.
 
-
-def _llm_enabled() -> bool:
-    return bool((getattr(settings, "ANTHROPIC_API_KEY", "") or "").strip())
-
-
-async def _llm_translate(text: str, target: str):
-    """ترجمهٔ حرفه‌ای با Claude — طبیعی، اصطلاحاتِ تخصصیِ تجارت/تولید/حمل درست.
-
-    خروجی: (translated_text, detected_lang). اگر خطا رخ دهد استثنا می‌دهد تا
-    فراخوان به Google برگردد.
+    نام‌ها را عمداً به «Me/Them» تقلیل می‌دهیم: مدل فقط باید بداند نوبت‌ها از
+    چه کسی است تا ضمیر و لحن را درست دربیاورد؛ نامِ واقعیِ کاربران داده‌ای است
+    که لازم نیست به ارائه‌دهندهٔ بیرونی برود.
     """
-    tgt_name = _LANG_NAMES.get(target, target)
-    system = (
-        "You are a professional human translator for Dilix, an international "
-        "B2B platform for trade, manufacturing, freight and logistics. "
-        f"Translate the user's chat message into {tgt_name}. "
-        "Write natural, fluent, idiomatic text exactly as a native professional "
-        "in that field would write it — NOT a literal or word-for-word rendering. "
-        "Preserve the precise meaning, tone and business/technical register. "
-        "Translate domain terms correctly (trade, manufacturing, logistics, and "
-        "materials such as building/facade stone, textiles, chemicals, machinery, "
-        "minerals), along with units and numbers. Keep proper nouns and place names "
-        "accurate, transliterating when there is no standard form. Never explain, "
-        "never add notes or quotation marks. "
-        "Respond with ONLY a compact JSON object and nothing else: "
-        '{"src":"<ISO 639-1 code of the detected source language>","tr":"<the translation>"}'
+    ctx = translation.TranslationContext()
+    q = (
+        select(Message)
+        .where(and_(Message.room_id == room_id,
+                    Message.is_deleted.is_(False),
+                    Message.content != ""))
     )
-    body = {
-        "model": _LLM_MODEL,
-        "max_tokens": 2048,
-        "system": system,
-        "messages": [{"role": "user", "content": text}],
-    }
-    headers = {
-        "x-api-key": settings.ANTHROPIC_API_KEY.strip(),
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-    }
-    async with httpx.AsyncClient(timeout=20) as c:
-        resp = await c.post("https://api.anthropic.com/v1/messages",
-                            json=body, headers=headers)
-    resp.raise_for_status()
-    data = resp.json()
-    parts = data.get("content") or []
-    raw = "".join(p.get("text", "") for p in parts if p.get("type") == "text").strip()
-    if not raw:
-        raise ValueError("empty LLM response")
-    # پاک‌سازیِ حصارِ کد در صورتِ وجود
-    if raw.startswith("```"):
-        raw = raw.strip("`")
-        nl = raw.find("\n")
-        if nl != -1:
-            raw = raw[nl + 1:]
-        raw = raw.strip()
-    try:
-        obj = json.loads(raw)
-        translated = (obj.get("tr") or "").strip()
-        detected = (obj.get("src") or None)
-    except (json.JSONDecodeError, ValueError, AttributeError):
-        # اگر مدل JSON نداد، کلِ متن را به‌عنوانِ ترجمه بپذیر
-        translated, detected = raw, None
-    if not translated:
-        raise ValueError("no translation in LLM response")
-    return translated, detected
-
-
-async def _translate(text: str, target: str):
-    """موتورِ ترجمه: اگر کلیدِ LLM موجود باشد ترجمهٔ حرفه‌ای، وگرنه Google.
-
-    خطای LLM (کلیدِ نامعتبر/شبکه) → fallbackِ نرم به Google تا سرویس قطع نشود.
-    """
-    if _llm_enabled():
-        try:
-            return await _llm_translate(text, target)
-        except Exception:
-            pass  # fallback به Google
-    return await _google_translate(text, target)
+    if before is not None:
+        q = q.where(Message.created_at < before)
+    q = q.order_by(Message.created_at.desc()).limit(6)
+    rows = (await db.execute(q)).scalars().all()
+    for m in reversed(rows):
+        body = (m.content or "").strip()
+        if not body:
+            continue
+        who = "Me" if m.sender_id == me_id else "Them"
+        ctx.history.append(f"{who}: {body[:300]}")
+    room = await db.get(MessageRoom, room_id)
+    name = (getattr(room, "name", "") or "").strip()
+    if name:
+        ctx.topic = name
+    return ctx
 
 
 # ── Schemas ───────────────────────────────────────────────────
@@ -782,6 +714,15 @@ class TranslateMessageRequest(BaseModel):
 
 class TranslateTextRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=4000)
+    target_lang: str = Field(..., max_length=8)
+    # اگر داده شود، نوبت‌های اخیرِ همان اتاق به‌عنوانِ زمینه به موتور می‌رود؛
+    # بدونِ آن جمله‌های کوتاهِ چت («همونو بفرست») بی‌ربط ترجمه می‌شوند.
+    room_id: Optional[str] = None
+
+
+class TranslateLiveRequest(BaseModel):
+    """زیرنویسِ گفتارِ زنده در تماس: کوتاه، پرتکرار و حساس به تأخیر."""
+    text: str = Field(..., min_length=1, max_length=600)
     target_lang: str = Field(..., max_length=8)
 
 
@@ -2449,7 +2390,8 @@ async def translate_message(
             translated_text=cached.translated_text, cached=True,
         )
 
-    translated, detected = await _translate(original, target)
+    ctx = await _conv_context(db, msg.room_id, me.id, before=msg.created_at)
+    translated, detected = await _translate(original, target, context=ctx)
     if not translated:
         raise HTTPException(status_code=502, detail="ترجمه‌ای برگردانده نشد")
 
@@ -2472,20 +2414,59 @@ async def translate_message(
 @router.post("/translate", response_model=TranslationOut)
 async def translate_text(
     body: TranslateTextRequest,
+    db: AsyncSession = Depends(get_db),
     me: User = Depends(get_current_user),
 ):
-    """ترجمهٔ متنِ آزاد (پیش‌نمایشِ نگارش پیش از ارسال). بدون کش."""
+    """ترجمهٔ متنِ آزاد (پیش‌نمایشِ نگارش پیش از ارسال)."""
     target = _norm_lang(body.target_lang)
     text = body.text.strip()
     if not text:
         raise HTTPException(status_code=400, detail="متنی برای ترجمه نیست")
-    translated, detected = await _translate(text, target)
+
+    ctx = None
+    if body.room_id:
+        try:
+            rid = _uuid.UUID(body.room_id)
+        except (ValueError, AttributeError):
+            raise HTTPException(status_code=400, detail="شناسهٔ اتاق نامعتبر است")
+        await _require_member(db, rid, me.id)
+        ctx = await _conv_context(db, rid, me.id)
+
+    translated, detected = await _translate(text, target, context=ctx)
     if not translated:
         raise HTTPException(status_code=502, detail="ترجمه‌ای برگردانده نشد")
     return TranslationOut(
         message_id=None, target_lang=target,
         detected_lang=detected, original=text,
         translated_text=translated, cached=False,
+    )
+
+
+@router.post("/translate/live", response_model=TranslationOut)
+async def translate_live(
+    body: TranslateLiveRequest,
+    me: User = Depends(get_current_user),
+):
+    """زیرنویسِ ترجمهٔ همزمانِ تماس.
+
+    از `/translate` جداست چون بودجهٔ تأخیرش فرق دارد: اینجا شش ثانیه سقفِ کل
+    است و جملهٔ ناتمام عادی است. اگر موتور کند بود، متنِ خام برگردانده می‌شود
+    — زیرنویسِ نافارسی بهتر از زیرنویسِ نیامده است.
+    """
+    target = _norm_lang(body.target_lang)
+    text = body.text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="متنی برای ترجمه نیست")
+    try:
+        res = await translation.translate(text, target, live=True)
+    except Exception:
+        return TranslationOut(
+            message_id=None, target_lang=target, detected_lang=None,
+            original=text, translated_text=text, cached=False,
+        )
+    return TranslationOut(
+        message_id=None, target_lang=target, detected_lang=res.detected,
+        original=text, translated_text=res.text, cached=res.engine == "cache",
     )
 
 

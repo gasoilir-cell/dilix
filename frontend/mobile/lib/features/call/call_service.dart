@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:dilix_screen_share/dilix_screen_share.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
@@ -11,6 +12,41 @@ enum CallPhase { idle, outgoing, incoming, connecting, active }
 
 /// نوعِ رسانه.
 enum CallMedia { audio, video }
+
+/// یک شرکت‌کنندهٔ **اضافه** در تماسِ گروهی (نفرِ سوم به بعد).
+///
+/// چرا جدا از اتصالِ اصلی: مسیرِ ۱:۱ سرویسِ زنده است و بازنویسی‌اش برای گروه
+/// یعنی ریسک روی چیزی که کار می‌کند. گروه لایه‌ای روی همان ساخته شده — نفرِ اول
+/// همان `_pc`ِ قدیمی می‌مانَد و هر نفرِ بعدی یک [CallParticipant] با
+/// PeerConnection و رندررِ خودش است (توپولوژیِ mesh: n عضو ⇒ n−۱ اتصال روی هر
+/// گوشی؛ به همین دلیل سرور سقفِ ۶ نفر دارد).
+class CallParticipant {
+  CallParticipant(this.earthId, this.name);
+
+  final String earthId;
+  String name;
+  RTCPeerConnection? pc;
+  final RTCVideoRenderer renderer = RTCVideoRenderer();
+  bool rendererReady = false;
+  bool remoteSet = false;
+  bool sharingScreen = false;
+  final List<RTCIceCandidate> pendingIce = [];
+
+  Future<void> close() async {
+    try {
+      await pc?.close();
+    } catch (_) {}
+    pc = null;
+    if (rendererReady) {
+      renderer.srcObject = null;
+      try {
+        await renderer.dispose();
+      } catch (_) {}
+      rendererReady = false;
+    }
+    pendingIce.clear();
+  }
+}
 
 /// سرویسِ WebRTC تماسِ صوتی/تصویری، هم‌پروتکل با `CallManager.tsx`ِ وب.
 ///
@@ -72,6 +108,27 @@ class CallService extends ChangeNotifier {
   String? _peerCaption;
   Timer? _captionTimer;
 
+  /// شرکت‌کنندگانِ اضافه (نفرِ سوم به بعد)، به کلیدِ Earth ID.
+  final Map<String, CallParticipant> _extra = {};
+
+  /// offerهایی که هنگامِ زنگ‌خوردن رسیده‌اند و پس از پاسخ پردازش می‌شوند.
+  final Map<String, String> _pendingPeerOffers = {};
+
+  /// اشتراکِ صفحه روشن است؟ مسیرِ ویدیوی خروجی به‌جای دوربین، تصویرِ صفحه است.
+  bool _screenSharing = false;
+
+  /// طرفِ اصلی در حالِ اشتراکِ صفحه است (فقط برچسبِ UI).
+  bool _peerSharingScreen = false;
+
+  /// در تماسِ گروهی، طرفِ اصلی رفته ولی بقیه مانده‌اند. اتصالِ اصلی بسته شده و
+  /// UI باید فقط شبکهٔ شرکت‌کنندگان را نشان دهد.
+  bool _primaryGone = false;
+
+  /// استریمِ تصویرِ صفحه؛ جدا از `_localStream` نگه داشته می‌شود تا با پایانِ
+  /// اشتراک بتوان دقیقاً همان را بست و دوربین را برگرداند.
+  MediaStream? _screenStream;
+  MediaStreamTrack? _cameraTrack;
+
   CallPhase get phase => _phase;
   CallMedia get media => _media;
   String get peerId => _peerId;
@@ -90,6 +147,29 @@ class CallService extends ChangeNotifier {
 
   /// آخرین زیرنویسِ دریافتی از طرفِ مقابل، ترجمه‌شده به زبانِ فعالِ اپ.
   String? get peerCaption => _peerCaption;
+
+  /// اشتراکِ صفحه از سمتِ من روشن است؟
+  bool get screenSharing => _screenSharing;
+
+  /// طرفِ اصلی صفحه‌اش را به اشتراک گذاشته است؟
+  bool get peerSharingScreen => _peerSharingScreen;
+
+  /// اتصالِ اصلی هنوز زنده است؟ در گروه ممکن است نفرِ اول رفته باشد.
+  bool get primaryActive => !_primaryGone;
+
+  /// شرکت‌کنندگانِ اضافه به ترتیبِ پیوستن — منبعِ چیدمانِ شبکه‌ایِ UI.
+  List<CallParticipant> get participants =>
+      List<CallParticipant>.unmodifiable(_extra.values);
+
+  /// تماس بیش از دو نفر دارد؟ در این حالت قطع‌کردن یعنی «من رفتم»، نه
+  /// «تماس تمام شد» — و همین تفاوت تعیین می‌کند چه سیگنالی برود.
+  bool get isGroup => _extra.isNotEmpty;
+
+  /// جا برای دعوتِ نفرِ بعدی هست؟ سقف با `MAX_PARTICIPANTS`ِ سرور یکی است؛
+  /// نگه‌داشتنش اینجا فقط برای غیرفعال‌کردنِ دکمه پیش از خطای ۴۰۹ است.
+  static const maxParticipants = 6;
+  bool get canInvite =>
+      _phase == CallPhase.active && _extra.length + 2 < maxParticipants;
 
   /// آماده‌سازیِ رندررها و روشن‌کردنِ حلقهٔ poll. idempotent است و پس از احرازِ
   /// هویت یک‌بار به‌صورتِ سراسری صدا زده می‌شود تا تماسِ ورودی شنیده شود.
@@ -148,18 +228,30 @@ class CallService extends ChangeNotifier {
   }
 
   // ─────────── ارسالِ سیگنال ───────────
-  Future<void> _signal(String type, {String? sdp, String? text, String? lang}) async {
-    if (_callId.isEmpty || _peerId.isEmpty) return;
+  /// [to] خالی یعنی «به طرفِ اصلی». در تماسِ گروهی هر سیگنال باید مقصدِ صریح
+  /// داشته باشد، وگرنه answer/ice نفرِ سوم به نفرِ اول می‌رود و اتصال نمی‌گیرد.
+  Future<void> _signal(String type,
+      {String? sdp, String? text, String? lang, String? to}) async {
+    final dest = (to ?? _peerId).toUpperCase();
+    if (_callId.isEmpty || dest.isEmpty) return;
     try {
       await _api.callSignal(
         callId: _callId,
-        toEarthId: _peerId,
+        toEarthId: dest,
         type: type,
         sdp: sdp,
         text: text,
         lang: lang,
       );
     } catch (_) {}
+  }
+
+  /// پخشِ یک سیگنال به همهٔ اعضا (اصلی + اضافه‌ها).
+  Future<void> _broadcast(String type, {String? text}) async {
+    await _signal(type, text: text);
+    for (final id in _extra.keys.toList()) {
+      await _signal(type, text: text, to: id);
+    }
   }
 
   void _sendIce(Map<String, dynamic> cand) {
@@ -349,6 +441,12 @@ class CallService extends ChangeNotifier {
       _phase = CallPhase.active;
       _activeSince = DateTime.now();
       notifyListeners();
+      // تماسِ گروهی: offerهایی که حینِ زنگ رسیده بودند حالا میکروفنِ باز دارند.
+      final queued = Map<String, String>.from(_pendingPeerOffers);
+      _pendingPeerOffers.clear();
+      for (final entry in queued.entries) {
+        await _onPeerOffer(entry.key, entry.value);
+      }
     } catch (_) {
       _error = tr('پاسخ به تماس ناموفق بود.');
       await _signal('reject');
@@ -374,7 +472,22 @@ class CallService extends ChangeNotifier {
         break;
       case CallPhase.connecting:
       case CallPhase.active:
-        await _signal('end');
+        // در گروه «قطع» یعنی «من رفتم»، نه «تماس تمام شد»؛ پس اعضای اضافه
+        // `peer-left` می‌گیرند و تماس بینِ باقی‌مانده‌ها برقرار می‌مانَد.
+        //
+        // ولی به عضوِ اصلی همچنان `end` می‌رود، چون ممکن است کلاینتِ وب باشد:
+        // `CallManager.tsx` هیچ caseای برای `peer-left` ندارد و آن را بی‌صدا
+        // دور می‌ریزد، یعنی تا ابد در حالتِ «برقرار» با اتصالِ مرده می‌مانَد.
+        // موبایلِ گروه‌آگاه هم `end` را در گروه فقط «بستنِ همان اتصال»
+        // می‌فهمد (`_closePrimary`)، پس این انتخاب برای هر دو درست است.
+        if (isGroup) {
+          await _signal('end');
+          for (final id in _extra.keys.toList()) {
+            await _signal('peer-left', to: id);
+          }
+        } else {
+          await _signal('end');
+        }
         final d = _durationSeconds();
         await _logCall(d > 0 ? 'answered' : 'no_answer', d);
         break;
@@ -417,6 +530,24 @@ class CallService extends ChangeNotifier {
         break;
 
       case 'answer':
+        // در گروه، پاسخِ یک عضوِ اضافه هم با همین نوع می‌آید؛ فرستنده تعیین
+        // می‌کند کدام اتصال است.
+        final ansFrom = ((s['from'] ?? '') as String).toUpperCase();
+        final ansPeer = _extra[ansFrom];
+        if (ansPeer != null && callId == _callId) {
+          try {
+            final desc =
+                jsonDecode((s['sdp'] ?? '{}') as String) as Map<String, dynamic>;
+            await ansPeer.pc?.setRemoteDescription(RTCSessionDescription(
+                desc['sdp'] as String?, desc['type'] as String?));
+            ansPeer.remoteSet = true;
+            await _flushParticipantIce(ansPeer);
+            notifyListeners();
+          } catch (_) {
+            await _dropParticipant(ansFrom);
+          }
+          return;
+        }
         if (!_outgoing || _phase != CallPhase.outgoing || callId != _callId) return;
         _ringTimer?.cancel();
         try {
@@ -461,6 +592,12 @@ class CallService extends ChangeNotifier {
       case 'end':
         if ((_phase == CallPhase.active || _phase == CallPhase.connecting) &&
             callId == _callId) {
+          // در گروه، رفتنِ نفرِ اول نباید تماسِ بقیه را قطع کند: فقط همان
+          // اتصال بسته می‌شود و UI به شبکهٔ شرکت‌کنندگان می‌افتد.
+          if (isGroup) {
+            await _closePrimary();
+            return;
+          }
           final d = _durationSeconds();
           if (_outgoing) await _logCall(d > 0 ? 'answered' : 'no_answer', d);
           _teardown();
@@ -517,7 +654,7 @@ class CallService extends ChangeNotifier {
         if (text.isEmpty) return;
         var shown = text;
         try {
-          final res = await _api.translateText(text, L10n.language);
+          final res = await _api.translateLive(text, L10n.language);
           if (res.translatedText.trim().isNotEmpty) shown = res.translatedText;
         } catch (_) {
           // ترجمه نشد؛ متنِ خام بهتر از هیچ است.
@@ -541,12 +678,77 @@ class CallService extends ChangeNotifier {
             c['sdpMid'] as String?,
             (c['sdpMLineIndex'] as num?)?.toInt(),
           );
+          // مسیرِ کاندیدا به اتصالِ همان فرستنده؛ در گروه ریختنِ همه در `_pc`
+          // یعنی هیچ‌کدام از اتصال‌های اضافه هرگز connected نمی‌شوند.
+          final iceFrom = ((s['from'] ?? '') as String).toUpperCase();
+          final icePeer = _extra[iceFrom];
+          if (icePeer != null) {
+            if (icePeer.pc != null && icePeer.remoteSet) {
+              await icePeer.pc!.addCandidate(cand);
+            } else {
+              icePeer.pendingIce.add(cand);
+            }
+            return;
+          }
           if (_pc != null && _remoteSet) {
             await _pc!.addCandidate(cand);
           } else {
             _pendingRemoteIce.add(cand);
           }
         } catch (_) {}
+        break;
+
+      // ── تماسِ گروهی ──
+
+      // سرور: «فلانی وارد شد» → من offer می‌سازم و برایش می‌فرستم.
+      case 'peer-join':
+        if (!_inCall(callId)) return;
+        await _onPeerJoin(
+          ((s['peer'] ?? '') as String).toUpperCase(),
+          (s['peer_name'] as String?) ?? '',
+        );
+        break;
+
+      // offerِ یک عضوِ دیگرِ همین تماس — نباید زنگ بخورد.
+      case 'offer':
+        if (callId != _callId || _callId.isEmpty || s['sdp'] == null) return;
+        // اعضای قدیمی به‌محضِ دعوت offer می‌فرستند، اما گوشیِ من هنوز زنگ
+        // می‌خورد و میکروفن باز نشده است. دورانداختنِ offer یعنی آن عضو تا
+        // آخرِ تماس بی‌صدا می‌مانَد؛ پس تا لحظهٔ پاسخ نگه داشته می‌شود.
+        if (_phase == CallPhase.incoming) {
+          _pendingPeerOffers[((s['from'] ?? '') as String).toUpperCase()] =
+              s['sdp'] as String;
+          return;
+        }
+        if (!_inCall(callId)) return;
+        await _onPeerOffer(
+          ((s['from'] ?? '') as String).toUpperCase(),
+          s['sdp'] as String,
+        );
+        break;
+
+      case 'peer-left':
+        if (callId != _callId) return;
+        final leftId = ((s['from'] ?? '') as String).toUpperCase();
+        if (leftId == _peerId && !_primaryGone) {
+          await _closePrimary();
+        } else {
+          await _dropParticipant(leftId);
+        }
+        break;
+
+      // اعلامِ روشن/خاموش‌شدنِ اشتراکِ صفحهٔ طرفِ مقابل (فقط برچسبِ UI).
+      case 'screen':
+        if (!_inCall(callId)) return;
+        final scFrom = ((s['from'] ?? '') as String).toUpperCase();
+        final on = (s['text'] as String?) == 'on';
+        final scPeer = _extra[scFrom];
+        if (scPeer != null) {
+          scPeer.sharingScreen = on;
+        } else if (scFrom == _peerId) {
+          _peerSharingScreen = on;
+        }
+        notifyListeners();
         break;
     }
   }
@@ -662,6 +864,285 @@ class CallService extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ─────────── تماسِ گروهی (mesh) ───────────
+
+  /// ساختِ اتصال به یک عضوِ اضافه و سوارکردنِ مسیرهای محلیِ **موجود** روی آن.
+  ///
+  /// از `_attachLocal` استفاده نمی‌شود: میکروفن/دوربین همین حالا در تماسِ جاری
+  /// باز است و گرفتنِ دوبارهٔ آن روی اندروید دستگاه را قفل یا صدا را قطع می‌کند.
+  Future<CallParticipant?> _openParticipant(String earthId, String name) async {
+    final id = earthId.toUpperCase();
+    if (id.isEmpty || id == _peerId || _extra.containsKey(id)) return null;
+    final p = CallParticipant(id, name);
+    _extra[id] = p;
+    try {
+      await p.renderer.initialize();
+      p.rendererReady = true;
+    } catch (_) {
+      // محیطِ تست/بدونِ پلاگین — اتصال بی‌تصویر ادامه می‌یابد.
+    }
+    final pc = await createPeerConnection({
+      'iceServers': await _ice(),
+      'sdpSemantics': 'unified-plan',
+      'bundlePolicy': 'max-bundle',
+    });
+    pc.onIceCandidate = (c) {
+      if (c.candidate == null) return;
+      _signal('ice',
+          to: id,
+          sdp: jsonEncode({
+            'candidate': c.candidate,
+            'sdpMid': c.sdpMid,
+            'sdpMLineIndex': c.sdpMLineIndex,
+          }));
+    };
+    pc.onTrack = (event) {
+      if (event.streams.isEmpty) return;
+      if (p.rendererReady) p.renderer.srcObject = event.streams[0];
+      notifyListeners();
+    };
+    pc.onConnectionState = (state) {
+      if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
+          state == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {
+        // فقط همین شاخه می‌افتد؛ تماس برای بقیه برقرار می‌مانَد.
+        _dropParticipant(id);
+      }
+    };
+    p.pc = pc;
+    for (final track in _localStream?.getTracks() ?? <MediaStreamTrack>[]) {
+      try {
+        await pc.addTrack(track, _localStream!);
+      } catch (_) {}
+    }
+    return p;
+  }
+
+  /// دعوتِ نفرِ تازه به تماسِ در جریان.
+  ///
+  /// همان `invite`ِ سرور با `call_id`ِ فعلی صدا زده می‌شود؛ سرور به بقیهٔ اعضا
+  /// `peer-join` می‌دهد تا آن‌ها هم به تازه‌وارد وصل شوند.
+  Future<bool> addParticipant(String earthId, String name) async {
+    if (!canInvite) return false;
+    final id = earthId.trim().toUpperCase();
+    if (id.isEmpty || id == _peerId || _extra.containsKey(id)) return false;
+    final p = await _openParticipant(id, name);
+    if (p?.pc == null) return false;
+    try {
+      final offer = await p!.pc!.createOffer();
+      await p.pc!.setLocalDescription(offer);
+      await _waitIce(p.pc!);
+      final local = await p.pc!.getLocalDescription() ?? offer;
+      final (_, status) = await _api.callInvite(
+        toEarthId: id,
+        media: _media == CallMedia.video ? 'video' : 'audio',
+        sdp: _localDesc(local),
+        callId: _callId,
+      );
+      if (status == 'offline') {
+        _error = tr('مخاطب در دسترس نیست.');
+        await _dropParticipant(id);
+        return false;
+      }
+      notifyListeners();
+      return true;
+    } catch (_) {
+      _error = tr('افزودنِ مخاطب ناموفق بود.');
+      await _dropParticipant(id);
+      return false;
+    }
+  }
+
+  /// بستنِ اتصالِ یک عضو بدونِ دست‌زدن به بقیهٔ تماس.
+  Future<void> _dropParticipant(String earthId) async {
+    final p = _extra.remove(earthId.toUpperCase());
+    if (p == null) return;
+    await p.close();
+    // آخرین نفر رفت و نفرِ اول هم قبلاً رفته بود → دیگر کسی نمانده.
+    if (_extra.isEmpty && _primaryGone) {
+      _teardown();
+      return;
+    }
+    notifyListeners();
+  }
+
+  /// بستنِ فقط اتصالِ نفرِ اول در تماسِ گروهی.
+  ///
+  /// `_teardown` کلِ تماس را جمع می‌کند و اینجا اشتباه است: بقیهٔ اعضا هنوز
+  /// روی خط‌اند و صدایشان نباید قطع شود.
+  Future<void> _closePrimary() async {
+    if (_primaryGone) return;
+    _primaryGone = true;
+    try {
+      await _pc?.close();
+    } catch (_) {}
+    _pc = null;
+    _remoteSet = false;
+    _pendingRemoteIce.clear();
+    if (_renderersReady) remoteRenderer.srcObject = null;
+    if (_extra.isEmpty) {
+      _teardown();
+      return;
+    }
+    notifyListeners();
+  }
+
+  /// سرور خبر داده کسی وارد شد: من (عضوِ قدیمی) باید offer بسازم.
+  Future<void> _onPeerJoin(String earthId, String name) async {
+    final p = await _openParticipant(earthId, name);
+    if (p?.pc == null) return;
+    try {
+      final offer = await p!.pc!.createOffer();
+      await p.pc!.setLocalDescription(offer);
+      await _waitIce(p.pc!);
+      final local = await p.pc!.getLocalDescription() ?? offer;
+      await _signal('offer', to: p.earthId, sdp: _localDesc(local));
+    } catch (_) {
+      await _dropParticipant(earthId);
+    }
+  }
+
+  /// offerِ یک عضوِ دیگرِ همین تماس رسید (زنگ نمی‌خورد — از قبل در تماسم).
+  Future<void> _onPeerOffer(String earthId, String rawSdp) async {
+    final p = await _openParticipant(earthId, '') ?? _extra[earthId.toUpperCase()];
+    if (p?.pc == null) return;
+    try {
+      final desc = jsonDecode(rawSdp) as Map<String, dynamic>;
+      await p!.pc!.setRemoteDescription(
+        RTCSessionDescription(desc['sdp'] as String?, desc['type'] as String?),
+      );
+      p.remoteSet = true;
+      await _flushParticipantIce(p);
+      final answer = await p.pc!.createAnswer();
+      await p.pc!.setLocalDescription(answer);
+      await _waitIce(p.pc!);
+      final local = await p.pc!.getLocalDescription() ?? answer;
+      await _signal('answer', to: p.earthId, sdp: _localDesc(local));
+      notifyListeners();
+    } catch (_) {
+      await _dropParticipant(earthId);
+    }
+  }
+
+  Future<void> _flushParticipantIce(CallParticipant p) async {
+    final queued = List<RTCIceCandidate>.from(p.pendingIce);
+    p.pendingIce.clear();
+    for (final c in queued) {
+      try {
+        await p.pc!.addCandidate(c);
+      } catch (_) {}
+    }
+  }
+
+  // ─────────── اشتراکِ صفحه ───────────
+
+  /// روشن/خاموش‌کردنِ اشتراکِ صفحه (کاربردِ «کلاسِ درس»).
+  ///
+  /// تصویرِ صفحه **جای مسیرِ ویدیوی موجود** را با `replaceTrack` می‌گیرد، نه
+  /// اینکه مسیرِ دومی اضافه کند: جایگزینی نیازی به مذاکرهٔ دوباره ندارد، پس
+  /// تصویر روی همهٔ اعضا بی‌وقفه عوض می‌شود. اگر تماس صوتی باشد اول به تصویری
+  /// ارتقا داده می‌شود، وگرنه اصلاً مسیرِ ویدیویی برای جایگزینی وجود ندارد.
+  Future<void> toggleScreenShare() async {
+    if (_phase != CallPhase.active || _switching) return;
+    if (_screenSharing) {
+      await _stopScreenShare();
+      return;
+    }
+    if (!await DilixScreenShare.isSupported) {
+      _error = tr('اشتراکِ صفحه روی این دستگاه پشتیبانی نمی‌شود.');
+      notifyListeners();
+      return;
+    }
+    _switching = true;
+    notifyListeners();
+    try {
+      if (_media != CallMedia.video) {
+        await switchMedia(CallMedia.video);
+      }
+      // سرویسِ پیش‌زمینه باید **پیش از** گرفتنِ تصویرِ صفحه بالا باشد؛ اندروید
+      // ۱۴ در غیرِ این صورت SecurityException می‌دهد.
+      final ok = await DilixScreenShare.start(
+        title: tr('دیلیکس'),
+        body: tr('اشتراکِ صفحه در جریان است'),
+      );
+      if (!ok) {
+        _error = tr('اجازهٔ اشتراکِ صفحه داده نشد.');
+        return;
+      }
+      final screen = await navigator.mediaDevices.getDisplayMedia({
+        'video': true,
+        'audio': false,
+      });
+      final track = screen.getVideoTracks().isNotEmpty
+          ? screen.getVideoTracks().first
+          : null;
+      if (track == null) {
+        await DilixScreenShare.stop();
+        _error = tr('تصویرِ صفحه در دسترس نبود.');
+        return;
+      }
+      _screenStream = screen;
+      _cameraTrack = _localStream?.getVideoTracks().isNotEmpty == true
+          ? _localStream!.getVideoTracks().first
+          : null;
+      await _replaceVideoTrackEverywhere(track);
+      _screenSharing = true;
+      // کاربر می‌تواند از خودِ اعلانِ سیستم اشتراک را قطع کند؛ بدونِ این،
+      // دکمهٔ اپ روشن می‌مانَد و طرفِ مقابل تصویرِ یخ‌زده می‌بیند.
+      track.onEnded = () {
+        if (_screenSharing) _stopScreenShare();
+      };
+      await _broadcast('screen', text: 'on');
+    } catch (_) {
+      await DilixScreenShare.stop();
+      _error = tr('اشتراکِ صفحه ناموفق بود.');
+    } finally {
+      _switching = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _stopScreenShare() async {
+    if (!_screenSharing) return;
+    _screenSharing = false;
+    try {
+      // دوربین اگر هنوز زنده است برمی‌گردد؛ اگر تماس در این فاصله صوتی شده
+      // باشد مسیر خالی می‌مانَد و طرفِ مقابل تصویری نمی‌بیند — که درست است.
+      if (_cameraTrack != null) {
+        await _replaceVideoTrackEverywhere(_cameraTrack!);
+      }
+      for (final t in _screenStream?.getTracks() ?? <MediaStreamTrack>[]) {
+        try {
+          await t.stop();
+        } catch (_) {}
+      }
+      await _screenStream?.dispose();
+    } catch (_) {}
+    _screenStream = null;
+    _cameraTrack = null;
+    await DilixScreenShare.stop();
+    await _broadcast('screen', text: 'off');
+    if (_renderersReady) localRenderer.srcObject = _localStream;
+    notifyListeners();
+  }
+
+  /// جایگزینیِ مسیرِ ویدیوی خروجی روی اتصالِ اصلی و همهٔ اعضای گروه.
+  Future<void> _replaceVideoTrackEverywhere(MediaStreamTrack track) async {
+    Future<void> apply(RTCPeerConnection? pc) async {
+      if (pc == null) return;
+      for (final s in await pc.getSenders()) {
+        if (s.track?.kind != 'video') continue;
+        try {
+          await s.replaceTrack(track);
+        } catch (_) {}
+      }
+    }
+
+    await apply(_pc);
+    for (final p in _extra.values) {
+      await apply(p.pc);
+    }
+  }
+
   /// سیگنال متعلق به همین تماسِ در جریان است؟ (برای reoffer/reanswer/caption)
   bool _inCall(String callId) =>
       callId == _callId &&
@@ -705,6 +1186,28 @@ class CallService extends ChangeNotifier {
       _pc?.close();
     } catch (_) {}
     _pc = null;
+    // اتصال‌های گروهی هم باید بسته شوند وگرنه میکروفن/دوربین آزاد نمی‌شود و
+    // رندررهایشان نشت می‌کنند.
+    for (final p in _extra.values.toList()) {
+      p.close();
+    }
+    _extra.clear();
+    _primaryGone = false;
+    _peerSharingScreen = false;
+    // سرویسِ پیش‌زمینه باید برود، وگرنه اعلانِ «اشتراکِ صفحه» پس از پایانِ تماس
+    // روی نوار می‌مانَد.
+    if (_screenSharing || _screenStream != null) {
+      _screenSharing = false;
+      for (final t in _screenStream?.getTracks() ?? <MediaStreamTrack>[]) {
+        try {
+          t.stop();
+        } catch (_) {}
+      }
+      _screenStream?.dispose();
+      _screenStream = null;
+      _cameraTrack = null;
+      DilixScreenShare.stop();
+    }
     for (final track in _localStream?.getTracks() ?? <MediaStreamTrack>[]) {
       track.stop();
     }
@@ -718,6 +1221,7 @@ class CallService extends ChangeNotifier {
     }
     _pendingLocalIce.clear();
     _pendingRemoteIce.clear();
+    _pendingPeerOffers.clear();
     _remoteSet = false;
     _pendingOfferSdp = null;
     _peerId = '';

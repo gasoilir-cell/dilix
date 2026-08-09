@@ -23,7 +23,10 @@ python3 tool/i18n/extract.py
 
 # ۲) استخراجِ دیکشنریِ حرفه‌ایِ اپِ وب  →  data/web_dict.json
 #    (شیءِ DICT در src/lib/i18n.ts اپِ وب؛ پویشگرِ نویسه‌به‌نویسهٔ TS)
-python3 tool/i18n/web_extract.py --src ../web/src/lib/i18n.ts
+#    مسیر آرگومانِ موقعیتی است، نه --src؛ با سوییچِ اشتباه اسکریپت خطا می‌دهد
+#    ولی `web_dict.json`ِ کهنه سرِ جایش می‌مانَد و بقیهٔ خط‌لوله بی‌صدا با
+#    دیکشنریِ قدیمی جلو می‌رود.
+python3 tool/i18n/web_extract.py ../web/src/lib/i18n.ts
 
 # ۳) تطبیقِ املاییِ موبایل با دیکشنریِ وب  →  data/web_hits.json
 python3 tool/i18n/web_dict.py

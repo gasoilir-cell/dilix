@@ -1,0 +1,22 @@
+name: dilix_screen_share
+description: >
+  سرویسِ پیش‌زمینهٔ نوعِ mediaProjection برای اشتراکِ صفحه. از اندروید ۱۴ گرفتنِ
+  MediaProjection بدونِ یک foreground serviceِ از‌قبل‌شروع‌شده SecurityException
+  می‌دهد و flutter_webrtc چنین سرویسی ندارد؛ این بسته همان حفره را پر می‌کند.
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: ir.dilix.screenshare
+        pluginClass: DilixScreenSharePlugin

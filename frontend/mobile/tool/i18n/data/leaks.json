@@ -1,0 +1,377 @@
+[
+ {
+  "file": "features/miniapps/miniapps_screen.dart",
+  "line": 27,
+  "text": "ابزار"
+ },
+ {
+  "file": "features/miniapps/miniapps_screen.dart",
+  "line": 28,
+  "text": "بازی"
+ },
+ {
+  "file": "features/miniapps/miniapps_screen.dart",
+  "line": 29,
+  "text": "خرید"
+ },
+ {
+  "file": "features/miniapps/miniapps_screen.dart",
+  "line": 30,
+  "text": "مالی"
+ },
+ {
+  "file": "features/miniapps/miniapps_screen.dart",
+  "line": 31,
+  "text": "سفر"
+ },
+ {
+  "file": "features/miniapps/miniapps_screen.dart",
+  "line": 32,
+  "text": "غذا"
+ },
+ {
+  "file": "features/miniapps/miniapps_screen.dart",
+  "line": 33,
+  "text": "آموزش"
+ },
+ {
+  "file": "features/miniapps/miniapps_screen.dart",
+  "line": 34,
+  "text": "سلامت"
+ },
+ {
+  "file": "features/miniapps/miniapps_screen.dart",
+  "line": 35,
+  "text": "اجتماعی"
+ },
+ {
+  "file": "features/miniapps/miniapps_screen.dart",
+  "line": 36,
+  "text": "سایر"
+ },
+ {
+  "file": "features/miniapps/miniapps_screen.dart",
+  "line": 40,
+  "text": "نام و تصویر"
+ },
+ {
+  "file": "features/miniapps/miniapps_screen.dart",
+  "line": 41,
+  "text": "درخواستِ پرداخت"
+ },
+ {
+  "file": "features/miniapps/miniapps_screen.dart",
+  "line": 42,
+  "text": "کشور و زبان"
+ },
+ {
+  "file": "features/miniapps/miniapps_screen.dart",
+  "line": 150,
+  "text": "، "
+ },
+ {
+  "file": "features/ads/ads_screen.dart",
+  "line": 22,
+  "text": "خوراک"
+ },
+ {
+  "file": "features/ads/ads_screen.dart",
+  "line": 23,
+  "text": "کاوش"
+ },
+ {
+  "file": "features/ads/ads_screen.dart",
+  "line": 24,
+  "text": "استوری"
+ },
+ {
+  "file": "features/ads/ads_screen.dart",
+  "line": 25,
+  "text": "جستجو"
+ },
+ {
+  "file": "features/ads/ads_screen.dart",
+  "line": 150,
+  "text": "[,،\\s]+"
+ },
+ {
+  "file": "features/ads/ads_screen.dart",
+  "line": 431,
+  "text": "${c.ctr}٪"
+ },
+ {
+  "file": "features/messages/chat_screen.dart",
+  "line": 1463,
+  "text": "فارسی"
+ },
+ {
+  "file": "features/messages/chat_screen.dart",
+  "line": 1463,
+  "text": "العربية"
+ },
+ {
+  "file": "features/messages/chat_screen.dart",
+  "line": 1465,
+  "text": "اردو"
+ },
+ {
+  "file": "features/messages/chat_screen.dart",
+  "line": 1465,
+  "text": "پښتو"
+ },
+ {
+  "file": "features/messages/color_matrix.dart",
+  "line": 113,
+  "text": "عادی"
+ },
+ {
+  "file": "features/messages/color_matrix.dart",
+  "line": 114,
+  "text": "سیاه‌سفید"
+ },
+ {
+  "file": "features/messages/color_matrix.dart",
+  "line": 115,
+  "text": "گرم"
+ },
+ {
+  "file": "features/messages/color_matrix.dart",
+  "line": 117,
+  "text": "سرد"
+ },
+ {
+  "file": "features/messages/color_matrix.dart",
+  "line": 120,
+  "text": "قدیمی"
+ },
+ {
+  "file": "features/messages/color_matrix.dart",
+  "line": 125,
+  "text": "روشن"
+ },
+ {
+  "file": "features/messages/color_matrix.dart",
+  "line": 127,
+  "text": "کنتراست"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 94,
+  "text": "آزاد"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 95,
+  "text": "۱:۱"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 96,
+  "text": "۴:۵"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 97,
+  "text": "۳:۴"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 98,
+  "text": "۴:۳"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 99,
+  "text": "۱۶:۹"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 100,
+  "text": "۹:۱۶"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 110,
+  "text": "اصل"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 111,
+  "text": "بالا"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 112,
+  "text": "متوسط"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 113,
+  "text": "کوچک"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 117,
+  "text": "بدون شطرنجی"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 117,
+  "text": "ملایم"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 117,
+  "text": "درشت"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 129,
+  "text": "بدون قاب"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 130,
+  "text": "سفید"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 131,
+  "text": "مشکی"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 132,
+  "text": "طلایی"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 133,
+  "text": "پولاروید"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 134,
+  "text": "فیلم"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 135,
+  "text": "نئون"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 151,
+  "text": "نازک"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 151,
+  "text": "متوسط"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 151,
+  "text": "ضخیم"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 1122,
+  "text": "روشنایی"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 1123,
+  "text": "کنتراست"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 1124,
+  "text": "اشباع"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 1125,
+  "text": "گرمی"
+ },
+ {
+  "file": "features/messages/media_editor_screen.dart",
+  "line": 1126,
+  "text": "محو"
+ },
+ {
+  "file": "features/messages/sticker_studio_screen.dart",
+  "line": 53,
+  "text": "بدون"
+ },
+ {
+  "file": "features/messages/sticker_studio_screen.dart",
+  "line": 54,
+  "text": "زرد"
+ },
+ {
+  "file": "features/messages/sticker_studio_screen.dart",
+  "line": 55,
+  "text": "صورتی"
+ },
+ {
+  "file": "features/messages/sticker_studio_screen.dart",
+  "line": 56,
+  "text": "آبی"
+ },
+ {
+  "file": "features/messages/sticker_studio_screen.dart",
+  "line": 57,
+  "text": "سبز"
+ },
+ {
+  "file": "features/messages/sticker_studio_screen.dart",
+  "line": 58,
+  "text": "بنفش"
+ },
+ {
+  "file": "features/messages/sticker_studio_screen.dart",
+  "line": 95,
+  "text": "روی‌هم"
+ },
+ {
+  "file": "features/messages/sticker_studio_screen.dart",
+  "line": 96,
+  "text": "کنارِهم"
+ },
+ {
+  "file": "features/messages/sticker_studio_screen.dart",
+  "line": 97,
+  "text": "بالا‌پایین"
+ },
+ {
+  "file": "features/messages/sticker_studio_screen.dart",
+  "line": 98,
+  "text": "نشان"
+ },
+ {
+  "file": "features/business/business_screen.dart",
+  "line": 513,
+  "text": "${i.engagementRate.toStringAsFixed(1)}٪"
+ },
+ {
+  "file": "core/preferences.dart",
+  "line": 33,
+  "text": "فارسی"
+ },
+ {
+  "file": "core/preferences.dart",
+  "line": 35,
+  "text": "العربية"
+ },
+ {
+  "file": "core/preferences.dart",
+  "line": 43,
+  "text": "اردو"
+ },
+ {
+  "file": "core/preferences.dart",
+  "line": 44,
+  "text": "پښتو"
+ }
+]

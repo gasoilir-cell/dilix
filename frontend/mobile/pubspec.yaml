@@ -49,6 +49,12 @@ dependencies:
   # `rm -rf android && flutter create`ِ CI پاکش نکند.
   dilix_media_store:
     path: packages/dilix_media_store
+  # سرویسِ پیش‌زمینهٔ نوعِ mediaProjection برای اشتراکِ صفحه در تماس.
+  # `flutter_webrtc` فقط getDisplayMedia را صدا می‌زند و هیچ سرویسی ندارد؛ از
+  # اندروید ۱۴ همین یعنی SecurityException. مجوزها و اعلانِ `<service>` هم داخلِ
+  # مانیفستِ همین بسته‌اند تا بازسازیِ `android/` در CI پاکشان نکند.
+  dilix_screen_share:
+    path: packages/dilix_screen_share
   # انتخابِ فایلِ دلخواه (سند/PDF/…) برای پیوستِ گفتگو — سرور نوعِ `file` را می‌پذیرد
   file_picker: ^8.0.0
   # اسکنِ کدِ QRِ پرداخت با دوربین (CameraX + ML Kit روی اندروید).

@@ -18,6 +18,15 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
 
+    <!-- مسیریابیِ صدای تماس. `flutter_webrtc` هنگامِ شروعِ تماس در
+         `AudioSwitchManager` مقدارِ `AudioManager.MODE_IN_COMMUNICATION` را
+         می‌نشانَد و بلندگو/هدست را جابه‌جا می‌کند؛ هر دو به این مجوز نیاز دارند.
+         مانیفستِ خودِ `flutter_webrtc` **هیچ** مجوزی اعلام نمی‌کند و تنها جایی
+         که این مجوز نوشته شده بود مانیفستِ اپ است — همان فایلی که CI با
+         `rm -rf android && flutter create` دور می‌ریزد و فقط INTERNET را
+         برمی‌گردانَد. یعنی در APKِ منتشرشده این مجوز وجود نداشت. -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+
     <!-- عمداً ACCESS_BACKGROUND_LOCATION اعلام **نشده**: اشتراکِ زنده همیشه با
          کنشِ کاربر و درحالی‌که اپ دیده می‌شود آغاز می‌شود، و foreground serviceِ
          نوعِ location در همین حالت مجازِ دسترسی در پس‌زمینه است. اعلامِ آن مجوز

@@ -1,0 +1,30 @@
+group = "ir.dilix.screenshare"
+version = "0.1.0"
+
+// Java و نه Kotlin — به همان دلیلِ `dilix_media_store`: اعلامِ buildscriptِ محلی
+// AGP را دو بار روی classpath می‌بَرد.
+apply plugin: "com.android.library"
+
+android {
+    namespace = "ir.dilix.screenshare"
+    compileSdk = 36
+
+    defaultConfig {
+        minSdk = 21
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+
+    // `FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION` و کانالِ اعلان پشتِ گاردِ
+    // `SDK_INT` صدا زده می‌شوند؛ lint این را NewApi می‌بیند.
+    lint {
+        abortOnError = false
+    }
+}
+
+dependencies {
+    implementation "androidx.annotation:annotation:1.1.0"
+}

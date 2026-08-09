@@ -17,8 +17,8 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from curated import (ALL as LANGS, CURATED, sentence_case,  # noqa: E402
-                     unmask)
+from curated import (ALL as LANGS, CURATED, MASKED_AUTO,  # noqa: E402
+                     sentence_case, unmask)
 
 BUILD = os.path.join(HERE, "data")
 OUT = os.path.normpath(os.path.join(HERE, "..", "..", "lib", "l10n",
@@ -67,6 +67,13 @@ def main():
                     val, origin = masked, "curated"
             if val is None and lang in WEB_LANGS and src in hits:
                 val, origin = hits[src].get(lang), "web"
+            if not val:
+                # نقابِ خودکارِ برند — بعد از دیکشنریِ وب، چون آن‌جا ترجمهٔ
+                # انسانی است و نامِ محصول را درست می‌نویسد. این‌جا جای خالی
+                # پر می‌شود تا «دیلیکس» ماشینی به «Deluxe» تبدیل نشود.
+                masked = unmask(lang, src, terms_mt, MASKED_AUTO)
+                if masked:
+                    val, origin = masked, "curated"
             if not val and primed.get(lang, {}).get(src):
                 val, origin = primed[lang][src], "primed"
             if not val and mt.get(lang, {}).get(src):

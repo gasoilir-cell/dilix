@@ -1440,7 +1440,9 @@ class _ChatScreenState extends State<ChatScreen> {
     final lang = await showLanguagePicker(context);
     if (lang == null || !mounted) return;
     await _run(() async {
-      final result = await _api.translateText(text, lang);
+      // با شناسهٔ اتاق، موتورِ ترجمه چند پیامِ آخر را به‌عنوان زمینه می‌بیند و
+      // لحن و اصطلاحِ گفتگو را حفظ می‌کند، نه ترجمهٔ جداافتادهٔ یک جمله.
+      final result = await _api.translateText(text, lang, roomId: _room.id);
       _inputCtrl.value = TextEditingValue(
         text: result.translatedText,
         selection: TextSelection.collapsed(offset: result.translatedText.length),

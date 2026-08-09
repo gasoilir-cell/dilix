@@ -1,0 +1,19 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- سرویس و مجوزها عمداً اینجا (و نه در manifestِ اپ) اعلام می‌شوند: CIِ
+         موبایل پوشهٔ `android/` را با `flutter create` از صفر می‌سازد و فقط چند
+         وصلهٔ مشخص را دوباره اعمال می‌کند، پس هرچه در manifestِ اپ بنویسیم در
+         بیلدِ نهایی نیست. manifestِ پلاگین اما همیشه merge می‌شود. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"/>
+    <!-- اندروید ۱۳+ بدونِ این، اعلانِ سرویس را بی‌صدا دور می‌اندازد. سرویسِ
+         mediaProjection بدونِ اعلانِ دیده‌شده اجازهٔ اجرا ندارد. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
+    <application>
+        <service
+            android:name="ir.dilix.screenshare.ScreenShareService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection"/>
+    </application>
+</manifest>

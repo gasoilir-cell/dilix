@@ -2101,11 +2101,31 @@ class ApiClient {
       }) as Map<String, dynamic>);
 
   /// ترجمهٔ متنِ آزاد (برای پیش‌نمایشِ پیامِ در حالِ نوشتن).
+  ///
+  /// [roomId] اختیاری است و به موتورِ ترجمه زمینهٔ گفتگو می‌دهد؛ بدونِ آن خروجی
+  /// به ترجمهٔ تحت‌اللفظیِ جمله‌به‌جمله برمی‌گردد.
   Future<TranslationResult> translateText(
+    String text,
+    String targetLang, {
+    String? roomId,
+  }) async =>
+      TranslationResult.fromJson(await _post('/api/v1/messages/translate', {
+        'text': text,
+        'target_lang': targetLang,
+        if (roomId != null) 'room_id': roomId,
+      }) as Map<String, dynamic>);
+
+  /// ترجمهٔ کم‌تأخیر برای زیرنویسِ زندهٔ تماس.
+  ///
+  /// مسیرِ جدا از [translateText] است چون پروفایلِ تأخیرش فرق دارد: مهلتِ کوتاه،
+  /// خروجیِ متنِ خام و تحملِ جملهٔ ناتمام. سرور در صورتِ شکست خودِ متنِ ورودی را
+  /// برمی‌گردانَد، پس این فراخوان عملاً زیرنویس را خالی نمی‌گذارد.
+  Future<TranslationResult> translateLive(
     String text,
     String targetLang,
   ) async =>
-      TranslationResult.fromJson(await _post('/api/v1/messages/translate', {
+      TranslationResult.fromJson(
+          await _post('/api/v1/messages/translate/live', {
         'text': text,
         'target_lang': targetLang,
       }) as Map<String, dynamic>);

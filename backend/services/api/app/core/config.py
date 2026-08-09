@@ -86,6 +86,15 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str = ""
     LOCAL_LLM_URL: str = "http://localhost:11434"
 
+    # ─── ترجمه ────────────────────────────────────────────────
+    # مسیرِ سازگار با OpenAI. `TRANSLATE_BASE_URL` قابل تنظیم است چون از سرورِ
+    # ایران api.anthropic.com پاسخِ 403 می‌دهد؛ هر درگاهِ سازگار (OpenRouter،
+    # AvalAI، Metis، Ollama محلی) با همین یک فیلد جایگزین می‌شود.
+    TRANSLATE_BASE_URL: str = "https://api.openai.com/v1"
+    TRANSLATE_API_KEY: str = ""      # خالی → از OPENAI_API_KEY خوانده می‌شود
+    TRANSLATE_MODEL: str = "gpt-4o-mini"
+    TRANSLATE_MODEL_ANTHROPIC: str = "claude-haiku-4-5-20251001"
+
     @property
     def is_production(self) -> bool:
         return self.ENV == "production"
