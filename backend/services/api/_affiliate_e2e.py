@@ -23,7 +23,7 @@ from app.models.wallet import Wallet
 from app.models.mlm import MlmCommission
 from app.models.messages import Message, MessageRoom, RoomMember
 from app.services.mlm import SHOP_LEVEL_RATES_BPS
-from app.api.v1.shop.router import ShopOrder, ShopProduct, COMMISSION_PCT
+from app.api.v1.shop.router import ShopOrder, ShopOrderItem, ShopProduct, COMMISSION_PCT
 from app.api.v1.referral.router import ReferralClick
 
 BASE = "http://127.0.0.1:8000/api/v1"
@@ -227,6 +227,7 @@ async def main():
                 await db.execute(delete(MessageRoom).where(MessageRoom.id == ids["room"]))
             await db.execute(delete(MlmCommission).where(MlmCommission.earner_id.in_(uids)))
             await db.execute(delete(ReferralClick).where(ReferralClick.ref_user_id.in_(uids)))
+            await db.execute(delete(ShopOrderItem).where(ShopOrderItem.product_id == ids["prod"]))
             await db.execute(delete(ShopOrder).where(ShopOrder.buyer_id.in_(uids)))
             await db.execute(delete(ShopProduct).where(ShopProduct.id == ids["prod"]))
             await db.execute(text(

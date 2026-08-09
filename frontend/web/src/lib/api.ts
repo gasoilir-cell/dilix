@@ -702,7 +702,25 @@ export type ProductPayload = {
   price: number;
   description?: string | null;
   image_url?: string | null;
+  images?: string[] | null;
   stock?: number;
+};
+
+export type VariantPayload = {
+  name: string;
+  price?: number | null;
+  stock?: number;
+  image_url?: string | null;
+};
+
+export type CouponPayload = {
+  code: string;
+  product_id?: string | null;
+  discount_type: "percent" | "fixed";
+  discount_value: number;
+  max_uses?: number | null;
+  min_order_total?: number;
+  expires_at?: string | null;
 };
 
 export const shopApi = {
@@ -717,13 +735,42 @@ export const shopApi = {
   shareProduct: (id: string, roomId: string) =>
     api.post(`/shop/products/${id}/share`, { room_id: roomId }),
 
+  // گونه‌های کالا (مثلاً رنگ/سایز) — هرکدام قیمت و موجودیِ خودشان را دارند.
+  addVariant: (productId: string, body: VariantPayload) =>
+    api.post(`/shop/products/${productId}/variants`, body),
+  listVariants: (productId: string) => api.get(`/shop/products/${productId}/variants`),
+  updateVariant: (productId: string, variantId: string, body: Partial<VariantPayload> & { is_active?: boolean }) =>
+    api.patch(`/shop/products/${productId}/variants/${variantId}`, body),
+  deactivateVariant: (productId: string, variantId: string) =>
+    api.delete(`/shop/products/${productId}/variants/${variantId}`),
+
+  // نظراتِ مشروط به تحویل — فقط پس از تکمیلِ سفارش قابلِ ثبت‌اند.
+  listReviews: (productId: string) => api.get(`/shop/products/${productId}/reviews`),
+  reviewOrder: (orderId: string, body: { product_id: string; rating: number; comment?: string | null }) =>
+    api.post(`/shop/orders/${orderId}/review`, body),
+
+  // کدهای تخفیف — مالِ فروشنده، اختصاصیِ یک کالا یا کلِ فروشگاهش.
+  createCoupon: (body: CouponPayload) => api.post("/shop/coupons", body),
+  myCoupons: () => api.get("/shop/coupons/mine"),
+  updateCoupon: (id: string, body: { max_uses?: number | null; expires_at?: string | null; is_active?: boolean }) =>
+    api.patch(`/shop/coupons/${id}`, body),
+  deactivateCoupon: (id: string) => api.delete(`/shop/coupons/${id}`),
+
   createOrder: (body: {
     product_id: string;
+    variant_id?: string | null;
     qty?: number;
     room_id?: string | null;
     note?: string | null;
     address?: string | null;
+    coupon_code?: string | null;
   }) => api.post("/shop/orders", body),
+  // سبدِ چندفروشنده: هر فروشنده یک سفارشِ جدا و بلوکِ امانیِ جدا می‌گیرد؛
+  // اگر یک ردیف کم بیاورد کلِ سبد یک‌جا برمی‌گردد (اتمیک).
+  cartCheckout: (body: {
+    items: { product_id: string; variant_id?: string | null; qty: number; coupon_code?: string | null }[];
+    address?: string | null;
+  }) => api.post("/shop/cart/checkout", body),
   myOrders: () => api.get("/shop/orders/mine"),
   mySales: () => api.get("/shop/orders/sales"),
   order: (ref: string) => api.get(`/shop/orders/${ref}`),
