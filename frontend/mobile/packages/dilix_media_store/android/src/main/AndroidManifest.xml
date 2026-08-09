@@ -1,0 +1,8 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- فقط برای اندرویدِ ۹ و پایین‌تر. از اندروید ۱۰ (API 29) با Scoped Storage
+         نوشتن در MediaStore هیچ مجوزی نمی‌خواهد، و اعلامِ بدونِ `maxSdkVersion`
+         باعث می‌شود Play Store توجیهِ «دسترسیِ کاملِ حافظه» بخواهد. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28"/>
+</manifest>

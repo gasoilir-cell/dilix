@@ -44,6 +44,11 @@ dependencies:
   # ماژولِ پلاگین همیشه merge می‌شود (اثباتِ عملی: RECORD_AUDIO از پلاگینِ record).
   dilix_permissions:
     path: packages/dilix_permissions
+  # ذخیرهٔ واقعیِ رسانه در گالری (MediaStore). بستهٔ محلی است، نه پکیجِ pub: کلِ
+  # کار یک `ContentResolver.insert` است و کدِ بومی باید جایی بماند که
+  # `rm -rf android && flutter create`ِ CI پاکش نکند.
+  dilix_media_store:
+    path: packages/dilix_media_store
   # انتخابِ فایلِ دلخواه (سند/PDF/…) برای پیوستِ گفتگو — سرور نوعِ `file` را می‌پذیرد
   file_picker: ^8.0.0
   # اسکنِ کدِ QRِ پرداخت با دوربین (CameraX + ML Kit روی اندروید).

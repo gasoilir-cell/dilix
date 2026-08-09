@@ -1,0 +1,22 @@
+name: dilix_media_store
+description: >
+  ذخیرهٔ واقعیِ رسانه در گالریِ عمومیِ اندروید (MediaStore). بستهٔ محلی است، نه
+  از pub.dev — چون CI پوشهٔ `android/` اپ را با `flutter create` از صفر می‌سازد و
+  کدِ بومی باید جایی زندگی کند که بازتولید نمی‌شود.
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: ir.dilix.mediastore
+        pluginClass: DilixMediaStorePlugin

@@ -1,0 +1,36 @@
+group = "ir.dilix.mediastore"
+version = "0.1.0"
+
+// عمداً Java و نه Kotlin: نسخهٔ AGP/Kotlin از `settings.gradle.kts`ِ اپ می‌آید و
+// اعلامِ buildscriptِ محلی AGP را دو بار روی classpath می‌بَرد (همان دلیلی که در
+// `dilix_permissions` هم نوشته شده). ماژولِ Java هیچ پلاگینِ اضافه‌ای نمی‌خواهد.
+apply plugin: "com.android.library"
+
+android {
+    namespace = "ir.dilix.mediastore"
+    // هم‌راستا با compileSdkِ اپ؛ patchِ ریشه در `mobile.yml` هم برای همهٔ
+    // ماژول‌های library مقدارِ ۳۶ را force می‌کند.
+    compileSdk = 36
+
+    defaultConfig {
+        minSdk = 21
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+
+    // `MediaStore.Downloads` و `IS_PENDING` فقط از API 29 هستند و پشتِ گاردِ
+    // `SDK_INT` صدا زده می‌شوند؛ lint این را نمی‌فهمد و NewApi می‌دهد. نباید
+    // بیلدِ کلِ اپ را به‌خاطرِ آن قرمز کند.
+    lint {
+        abortOnError = false
+    }
+}
+
+dependencies {
+    // تنها وابستگی: `@NonNull` که امضاهای خودِ رابط‌های Flutter از آن استفاده
+    // می‌کنند. وابستگیِ embedding را ابزارِ Flutter خودش تزریق می‌کند.
+    implementation "androidx.annotation:annotation:1.1.0"
+}

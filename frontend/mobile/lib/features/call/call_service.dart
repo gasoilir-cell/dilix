@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import '../../core/api_client.dart';
-
 import '../../core/l10n.dart';
 /// فازِ تماس.
 enum CallPhase { idle, outgoing, incoming, connecting, active }
@@ -68,6 +67,10 @@ class CallService extends ChangeNotifier {
   String? _pendingOfferSdp;
   Timer? _ringTimer;
   DateTime? _activeSince;
+  bool _switching = false;
+  bool _captions = false;
+  String? _peerCaption;
+  Timer? _captionTimer;
 
   CallPhase get phase => _phase;
   CallMedia get media => _media;
@@ -78,6 +81,15 @@ class CallService extends ChangeNotifier {
   bool get camOff => _camOff;
   String? get error => _error;
   bool get isBusy => _phase != CallPhase.idle;
+
+  /// در میانهٔ تعویضِ صوتی↔تصویری (renegotiation) — تا پایان دکمه غیرفعال است.
+  bool get switching => _switching;
+
+  /// نمایشِ زیرنویسِ ترجمه‌شدهٔ گفتارِ طرفِ مقابل روشن است؟
+  bool get captions => _captions;
+
+  /// آخرین زیرنویسِ دریافتی از طرفِ مقابل، ترجمه‌شده به زبانِ فعالِ اپ.
+  String? get peerCaption => _peerCaption;
 
   /// آماده‌سازیِ رندررها و روشن‌کردنِ حلقهٔ poll. idempotent است و پس از احرازِ
   /// هویت یک‌بار به‌صورتِ سراسری صدا زده می‌شود تا تماسِ ورودی شنیده شود.
@@ -253,8 +265,13 @@ class CallService extends ChangeNotifier {
     notifyListeners();
   }
 
-  String _localDesc(RTCSessionDescription d) =>
-      jsonEncode({'type': d.type, 'sdp': d.sdp});
+  /// SDP روی سیم همیشه **رشتهٔ JSON** است. برای reoffer/reanswer فیلدِ اضافیِ
+  /// `media` هم داخلِ همین شیء می‌رود (قراردادِ مشترک با وب).
+  String _localDesc(RTCSessionDescription d, {CallMedia? media}) => jsonEncode({
+        'type': d.type,
+        'sdp': d.sdp,
+        if (media != null) 'media': media == CallMedia.video ? 'video' : 'audio',
+      });
 
   // ─────────── تماسِ خروجی ───────────
   Future<void> startCall({
@@ -450,6 +467,71 @@ class CallService extends ChangeNotifier {
         }
         break;
 
+      // طرفِ مقابل نوعِ تماس را عوض کرده: پیشنهادِ تازه‌اش را می‌پذیریم، رسانهٔ
+      // محلی را با آن هم‌تراز می‌کنیم و `reanswer` برمی‌گردانیم.
+      case 'reoffer':
+        if (!_inCall(callId) || _pc == null) return;
+        try {
+          final desc = jsonDecode((s['sdp'] ?? '{}') as String)
+              as Map<String, dynamic>;
+          final target =
+              desc['media'] == 'video' ? CallMedia.video : CallMedia.audio;
+          await _pc!.setRemoteDescription(
+            RTCSessionDescription(desc['sdp'] as String?, desc['type'] as String?),
+          );
+          _remoteSet = true;
+          await _flushRemoteIce();
+          if (target != _media) {
+            try {
+              await _applyLocalMedia(target);
+            } catch (_) {
+              // دوربین در دسترس نبود؛ تماس نباید بیفتد — صدا برقرار می‌مانَد.
+            }
+          }
+          final answer = await _pc!.createAnswer();
+          await _pc!.setLocalDescription(answer);
+          await _waitIce(_pc!);
+          final local = await _pc!.getLocalDescription() ?? answer;
+          await _signal('reanswer', sdp: _localDesc(local, media: _media));
+        } catch (_) {}
+        break;
+
+      case 'reanswer':
+        if (!_inCall(callId) || _pc == null) return;
+        try {
+          final desc = jsonDecode((s['sdp'] ?? '{}') as String)
+              as Map<String, dynamic>;
+          await _pc!.setRemoteDescription(
+            RTCSessionDescription(desc['sdp'] as String?, desc['type'] as String?),
+          );
+          _remoteSet = true;
+          await _flushRemoteIce();
+        } catch (_) {}
+        break;
+
+      // زیرنویسِ گفتارِ طرفِ مقابل. متن به زبانِ **او**ست؛ به زبانِ فعالِ اپ
+      // ترجمه و چند ثانیه نمایش داده می‌شود.
+      case 'caption':
+        if (!_captions || !_inCall(callId)) return;
+        final text = (s['text'] as String?)?.trim() ?? '';
+        if (text.isEmpty) return;
+        var shown = text;
+        try {
+          final res = await _api.translateText(text, L10n.language);
+          if (res.translatedText.trim().isNotEmpty) shown = res.translatedText;
+        } catch (_) {
+          // ترجمه نشد؛ متنِ خام بهتر از هیچ است.
+        }
+        if (!_inCall(callId)) return; // تماس در فاصلهٔ ترجمه تمام شد
+        _peerCaption = shown;
+        notifyListeners();
+        _captionTimer?.cancel();
+        _captionTimer = Timer(const Duration(seconds: 8), () {
+          _peerCaption = null;
+          notifyListeners();
+        });
+        break;
+
       case 'ice':
         if (callId != _callId || s['sdp'] == null) return;
         try {
@@ -493,6 +575,99 @@ class CallService extends ChangeNotifier {
     }
   }
 
+  /// روشن/خاموش‌کردنِ زیرنویسِ ترجمهٔ همزمان (سمتِ **دریافت**).
+  ///
+  /// گفتارِ طرفِ مقابل را او خودش با سیگنالِ `caption` می‌فرستد؛ اینجا فقط به
+  /// زبانِ فعالِ اپ ترجمه و نمایش داده می‌شود.
+  void toggleCaptions() {
+    _captions = !_captions;
+    if (!_captions) {
+      _captionTimer?.cancel();
+      _peerCaption = null;
+    }
+    notifyListeners();
+  }
+
+  // ─────────── تعویضِ صوتی ↔ تصویری (renegotiation) ───────────
+
+  /// تغییرِ نوعِ رسانه در میانهٔ تماسِ برقرار.
+  ///
+  /// هم‌پروتکل با `CallManager.tsx`: پیشنهادِ تازه با سیگنالِ `reoffer` می‌رود و
+  /// **نوعِ مقصد داخلِ خودِ JSONِ SDP** (فیلدِ `media`) حمل می‌شود، چون سرور
+  /// فیلدِ جداگانه‌ای برای آن ندارد. تغییرِ این قرارداد سازگاری با وب را می‌شکند.
+  Future<void> switchMedia(CallMedia target) async {
+    if (_pc == null ||
+        _phase != CallPhase.active ||
+        _media == target ||
+        _switching) {
+      return;
+    }
+    _switching = true;
+    notifyListeners();
+    try {
+      await _applyLocalMedia(target);
+      final offer = await _pc!.createOffer();
+      await _pc!.setLocalDescription(offer);
+      await _waitIce(_pc!);
+      final local = await _pc!.getLocalDescription() ?? offer;
+      await _signal('reoffer', sdp: _localDesc(local, media: target));
+    } catch (_) {
+      _error = tr('تغییرِ حالتِ تماس ناموفق بود.');
+    } finally {
+      _switching = false;
+      notifyListeners();
+    }
+  }
+
+  /// افزودن/برداشتنِ مسیرِ ویدیو روی اتصالِ فعلی، بدونِ دست‌زدن به صدا.
+  ///
+  /// صدا عمداً دست‌نخورده می‌مانَد: گرفتنِ دوبارهٔ میکروفن وسطِ تماس باعثِ پرشِ
+  /// صوتی و از‌دست‌رفتنِ وضعیتِ میوت می‌شود.
+  Future<void> _applyLocalMedia(CallMedia target) async {
+    if (target == CallMedia.video) {
+      final has = (_localStream?.getVideoTracks().length ?? 0) > 0;
+      if (!has) {
+        final cam = await navigator.mediaDevices.getUserMedia({
+          'audio': false,
+          'video': {'facingMode': 'user', 'width': 640, 'height': 480},
+        });
+        final track = cam.getVideoTracks().first;
+        // خودِ `cam` عمداً dispose نمی‌شود: مسیرش هنوز زنده و در حالِ ارسال است.
+        _localStream ??= cam;
+        if (!identical(_localStream, cam)) {
+          await _localStream!.addTrack(track);
+        }
+        await _pc!.addTrack(track, _localStream!);
+      }
+    } else {
+      final senders = await _pc!.getSenders();
+      for (final s in senders) {
+        if (s.track?.kind != 'video') continue;
+        try {
+          await _pc!.removeTrack(s);
+        } catch (_) {}
+      }
+      for (final t in _localStream?.getVideoTracks() ?? <MediaStreamTrack>[]) {
+        try {
+          await t.stop();
+          await _localStream!.removeTrack(t);
+        } catch (_) {}
+      }
+    }
+    _media = target;
+    _camOff = false;
+    // بازتخصیصِ srcObject لازم است: افزودنِ مسیر به استریمِ موجود به‌تنهایی
+    // رندررِ محلی را تازه نمی‌کند و پیش‌نمایش سیاه می‌مانَد.
+    if (_renderersReady) localRenderer.srcObject = _localStream;
+    notifyListeners();
+  }
+
+  /// سیگنال متعلق به همین تماسِ در جریان است؟ (برای reoffer/reanswer/caption)
+  bool _inCall(String callId) =>
+      callId == _callId &&
+      _callId.isNotEmpty &&
+      (_phase == CallPhase.active || _phase == CallPhase.connecting);
+
   int _durationSeconds() {
     final since = _activeSince;
     if (since == null) return 0;
@@ -522,6 +697,10 @@ class CallService extends ChangeNotifier {
   void _teardown() {
     _ringTimer?.cancel();
     _ringTimer = null;
+    _captionTimer?.cancel();
+    _captionTimer = null;
+    _peerCaption = null;
+    _switching = false;
     try {
       _pc?.close();
     } catch (_) {}

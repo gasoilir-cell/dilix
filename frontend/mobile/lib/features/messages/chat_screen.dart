@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:dilix_media_store/dilix_media_store.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -537,10 +538,11 @@ class _ChatScreenState extends State<ChatScreen> {
 
   /// ذخیرهٔ رسانهٔ یک پیام روی دستگاه — معادلِ `saveMedia` در وب.
   ///
-  /// اندروید بدونِ پلاگینِ MediaStore اجازهٔ نوشتن در گالریِ عمومی نمی‌دهد و
-  /// افزودنِ پکیجِ تازه ممکن نیست (pub.dev از محیطِ بیلد در دسترس نیست). پس
-  /// فایل در فضای موقت دانلود و به برگهٔ اشتراکِ سیستم داده می‌شود؛ کاربر از
-  /// همان‌جا «ذخیره در گالری» یا «ذخیره در فایل‌ها» را می‌زند.
+  /// فایل در فضای موقت دانلود و بعد با MediaStore در گالریِ عمومی نوشته می‌شود
+  /// (`Pictures/Dilix`، `Movies/Dilix`، …). پیش‌تر اینجا برگهٔ اشتراک‌گذاری باز
+  /// می‌شد که کارِ **اشتراک** است نه ذخیره؛ کاربر گزینهٔ «ذخیرهٔ رسانه» را می‌زد
+  /// و لیستِ اپ‌ها می‌آمد. اگر پلاگینِ بومی در دسترس نباشد (تست/دسکتاپ) همان
+  /// رفتارِ اشتراک به‌عنوانِ آخرین چاره می‌ماند.
   Future<void> _saveMedia(ChatMessage m) async {
     final url = AppConfig.absoluteMedia(m.mediaUrl);
     if (url == null) {
@@ -553,12 +555,28 @@ class _ChatScreenState extends State<ChatScreen> {
         throw StateError(tr('کدِ {0}', [res.statusCode]));
       }
       final dir = await getTemporaryDirectory();
-      // نامِ سرور را نگه می‌داریم تا پسوند (و در نتیجه اپِ بازکننده) درست بماند.
+      // نامِ سرور را نگه می‌داریم تا پسوند (و در نتیجه نوعِ MIME و آلبومِ مقصد)
+      // درست دربیاید.
       final name = (m.mediaName ?? '').trim().isNotEmpty
           ? m.mediaName!.trim()
           : 'dilix-${m.mediaType ?? 'media'}-${DateTime.now().millisecondsSinceEpoch}';
       final f = File('${dir.path}/$name');
       await f.writeAsBytes(res.bodyBytes, flush: true);
+
+      if (await DilixMediaStore.isSupported) {
+        final where = await DilixMediaStore.save(path: f.path, name: name);
+        // فایلِ موقت دیگر لازم نیست؛ نسخهٔ اصلی در گالری است.
+        try {
+          await f.delete();
+        } on FileSystemException {
+          // پاک‌نشدنِ کشِ موقت نباید ذخیرهٔ موفق را «ناموفق» نشان دهد.
+        }
+        if (!mounted) return;
+        _toast(where.isEmpty
+            ? tr('در گالری ذخیره شد.')
+            : tr('در {0} ذخیره شد.', [where]));
+        return;
+      }
       await Share.shareXFiles([XFile(f.path)]);
     }, failure: tr('ذخیرهٔ رسانه ناموفق بود'));
   }
