@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>آفلاین — دیلیکس</title>
+<!--
+  این صفحه عمداً یک HTMLِ تک‌فایل و بدونِ وابستگی است: وقتی شبکه قطع است،
+  هر <link> یا <script>ِ بیرونی هم شکست می‌خورَد و صفحهٔ آفلاین خودش خراب
+  نمایش داده می‌شود. فونت هم از فونتِ سیستم می‌آید، نه از /me-fonts.
+-->
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: #0F172A; color: #E2E8F0; text-align: center; padding: 24px;
+    font-family: Vazirmatn, Tahoma, system-ui, sans-serif;
+  }
+  .box { max-width: 420px; }
+  .dot { width: 64px; height: 64px; border-radius: 50%; margin: 0 auto 24px;
+         background: #1E293B; display: flex; align-items: center; justify-content: center;
+         font-size: 28px; }
+  h1 { font-size: 20px; margin: 0 0 12px; font-weight: 700; }
+  p  { font-size: 14px; line-height: 2; color: #94A3B8; margin: 0 0 24px; }
+  button { background: #1A56DB; color: #fff; border: 0; border-radius: 12px;
+           padding: 12px 28px; font-size: 15px; font-family: inherit; cursor: pointer; }
+  button:active { opacity: .8; }
+</style>
+</head>
+<body>
+  <div class="box">
+    <div class="dot">📡</div>
+    <h1>ارتباط با اینترنت قطع است</h1>
+    <p>
+      دیلیکس برای نمایشِ موجودی، پیام‌ها و سفارش‌ها به اتصالِ زنده نیاز دارد،
+      برای همین به‌جای اطلاعاتِ کهنه چیزی نشان نمی‌دهیم.
+      اتصال را بررسی کن و دوباره تلاش کن.
+    </p>
+    <button onclick="location.reload()">تلاش دوباره</button>
+  </div>
+  <script>
+    // به‌محضِ برگشتنِ شبکه خودکار برگرد، بدونِ نیاز به لمسِ دکمه.
+    addEventListener("online", () => location.reload());
+  </script>
+</body>
+</html>

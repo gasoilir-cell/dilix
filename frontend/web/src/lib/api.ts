@@ -714,6 +714,8 @@ export const shopApi = {
   updateProduct: (id: string, body: Partial<ProductPayload> & { is_active?: boolean }) =>
     api.patch(`/shop/products/${id}`, body),
   removeProduct: (id: string) => api.delete(`/shop/products/${id}`),
+  shareProduct: (id: string, roomId: string) =>
+    api.post(`/shop/products/${id}/share`, { room_id: roomId }),
 
   createOrder: (body: {
     product_id: string;

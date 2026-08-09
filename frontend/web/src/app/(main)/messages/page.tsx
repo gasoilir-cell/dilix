@@ -159,6 +159,112 @@ function OrderBubble({ orderRef, t }: { orderRef: string; t: (k: string) => stri
   );
 }
 
+interface ShopProductCard {
+  id: string;
+  title: string;
+  price: number;
+  stock: number;
+  image_url: string | null;
+  is_active: boolean;
+  seller_earth_id: string;
+}
+
+/** کارتِ زندهٔ کالا درونِ گفتگو.
+ *
+ * مثلِ `OrderBubble` پیام فقط `id` را حمل می‌کند و قیمت/موجودی در لحظهٔ نمایش
+ * خوانده می‌شود؛ کارتی که قیمتِ دیروز را نشان بدهد و با کلیک مبلغِ دیگری کم
+ * کند از نبودنش بدتر است.
+ *
+ * دکمهٔ خرید همان `createOrder`ِ فروشگاه را با `room_id`ِ همین اتاق صدا می‌زند،
+ * پس رسیدِ سفارش هم در همین گفتگو ظاهر می‌شود و کلِ چرخهٔ خرید بدونِ ترکِ چت
+ * بسته می‌شود. */
+function ProductBubble({
+  productId, roomId, myEarthId, t, onOrdered,
+}: {
+  productId: string;
+  roomId: string;
+  myEarthId: string | null;
+  t: (k: string) => string;
+  onOrdered: () => void;
+}) {
+  const [p, setP] = useState<ShopProductCard | null>(null);
+  const [gone, setGone] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    shopApi.product(productId)
+      .then(({ data }) => { if (alive) setP(data); })
+      .catch(() => { if (alive) setGone(true); });
+    return () => { alive = false; };
+  }, [productId]);
+
+  async function buy() {
+    setBusy(true);
+    try {
+      await shopApi.createOrder({ product_id: productId, qty: 1, room_id: roomId });
+      toast.success(t("shop.done"));
+      onOrdered();
+    } catch (e) {
+      toast.error(getApiErrorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (gone) {
+    return (
+      <div className="min-w-[13rem] rounded-2xl bg-white/5 px-3.5 py-3 text-white/50 text-[12px]">
+        {t("shop.unavailable")}
+      </div>
+    );
+  }
+  if (!p) {
+    return (
+      <div className="min-w-[13rem] h-20 rounded-2xl bg-white/5 animate-pulse" />
+    );
+  }
+
+  const isMine = !!myEarthId && p.seller_earth_id === myEarthId;
+  const soldOut = p.stock === 0;
+
+  return (
+    <div className="w-[15rem] rounded-2xl overflow-hidden bg-black/25">
+      {p.image_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={p.image_url} alt={p.title} className="w-full h-28 object-cover" />
+      ) : (
+        <div className="w-full h-16 bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+          <Package size={22} className="text-white/80" />
+        </div>
+      )}
+      <div className="px-3.5 py-2.5 space-y-2">
+        <div>
+          <span className="block text-white/50 text-[11px]">{t("shop.productCard")}</span>
+          <span className="block text-white font-bold text-[13px] leading-tight line-clamp-2">
+            {p.title}
+          </span>
+        </div>
+        <div className="text-white font-black text-base">
+          {fmtToman(p.price)}{" "}
+          <span className="text-[11px] font-bold">{t("shop.toman")}</span>
+        </div>
+        {isMine ? (
+          <div className="text-white/40 text-[12px] text-center py-1">{t("shop.ownItem")}</div>
+        ) : (
+          <button
+            onClick={(e) => { e.stopPropagation(); buy(); }}
+            disabled={busy || soldOut}
+            className="w-full py-1.5 rounded-lg bg-emerald-500 text-white font-bold text-[12px] disabled:opacity-40"
+          >
+            {soldOut ? t("shop.outOfStock") : t("shop.buy")}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function lastSeenLabel(iso: string | null | undefined, t: (k: string) => string): string {
   if (!iso) return t("chat.offline");
   const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -2242,7 +2348,18 @@ function ChatView({ room, onBack, onLeave, initialDraft }: { room: Room; onBack:
                 {!msg.is_deleted && msg.media_type === "order" && msg.media_name && (
                   <OrderBubble orderRef={msg.media_name} t={t} />
                 )}
-                {(msg.is_deleted || (msg.content && msg.media_type !== "call" && msg.media_type !== "poll" && msg.media_type !== "contact" && msg.media_type !== "event" && msg.media_type !== "red_packet" && msg.media_type !== "money" && msg.media_type !== "money_request" && msg.media_type !== "order") || (!msg.media_url && !msg.location && msg.media_type !== "call" && msg.media_type !== "poll" && msg.media_type !== "contact" && msg.media_type !== "event" && msg.media_type !== "red_packet" && msg.media_type !== "money" && msg.media_type !== "money_request" && msg.media_type !== "order")) && (
+                {!msg.is_deleted && msg.media_type === "product" && msg.media_name && (
+                  <ProductBubble
+                    productId={msg.media_name}
+                    roomId={room.id}
+                    myEarthId={me?.earth_id ?? null}
+                    t={t}
+                    // خرید یک پیامِ «سفارش» تازه در همین اتاق می‌سازد؛ بدونِ
+                    // بارگذاریِ دوباره، کاربر تا رفرشِ بعدی رسیدش را نمی‌بیند.
+                    onOrdered={() => load(true)}
+                  />
+                )}
+                {(msg.is_deleted || (msg.content && msg.media_type !== "call" && msg.media_type !== "poll" && msg.media_type !== "contact" && msg.media_type !== "event" && msg.media_type !== "red_packet" && msg.media_type !== "money" && msg.media_type !== "money_request" && msg.media_type !== "order" && msg.media_type !== "product") || (!msg.media_url && !msg.location && msg.media_type !== "call" && msg.media_type !== "poll" && msg.media_type !== "contact" && msg.media_type !== "event" && msg.media_type !== "red_packet" && msg.media_type !== "money" && msg.media_type !== "money_request" && msg.media_type !== "order" && msg.media_type !== "product")) && (
                   <p>{msg.is_deleted ? t("chat.thisMsgDeleted") : msg.content}</p>
                 )}
                 {/* inline translation */}

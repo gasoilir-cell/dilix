@@ -23,6 +23,17 @@ from app.models.mlm import MlmCommission
 LEVEL_RATES_BPS = [800, 300, 100]   # L1 ۸٪ · L2 ۳٪ · L3 ۱٪
 MAX_LEVEL = len(LEVEL_RATES_BPS)
 
+# نرخِ فروشِ کالا — عمداً جدا و بسیار کوچک‌تر از نرخِ شارژِ کیف.
+#
+# دلیل: کمیسیونِ شارژ **هزینهٔ رشد** است و پلتفرم آن را از جیبِ خودش می‌دهد،
+# ولی کمیسیونِ فروش باید از دلِ کارمزدِ ۲٪ِ همان معامله در بیاید. اگر نرخِ
+# ۸/۳/۱ روی مبلغِ سفارش اعمال می‌شد، ۱۲٪ پرداخت در برابرِ ۲٪ درآمد یعنی
+# پلتفرم روی هر فروشِ معرف‌دار **ضرر** می‌کرد.
+#
+# ناوردا: مجموعِ این نرخ‌ها باید از کارمزدِ فروشگاه (۲٪ = ۲۰۰bps) کمتر بماند.
+# ۱۷۵ < ۲۰۰ ⇒ پلتفرم دستِ‌کم ۰.۲۵٪ از هر سفارشِ معرف‌دار را نگه می‌دارد.
+SHOP_LEVEL_RATES_BPS = [100, 50, 25]   # L1 ۱٪ · L2 ۰.۵٪ · L3 ۰.۲۵٪
+
 
 async def _get_or_create_wallet(db: AsyncSession, user_id, default_cur: str = "IRR") -> Wallet:
     res = await db.execute(select(Wallet).where(Wallet.user_id == user_id))
@@ -55,9 +66,16 @@ async def distribute_commission(
     currency: str,
     source_type: str = "topup",
     reference_id: Optional[str] = None,
+    rates: Optional[List[int]] = None,
 ) -> List[dict]:
-    """کمیسیونِ چندسطحی را بالادستِ زنجیرهٔ معرف توزیع می‌کند و لیستِ پرداخت‌ها را برمی‌گرداند."""
+    """کمیسیونِ چندسطحی را بالادستِ زنجیرهٔ معرف توزیع می‌کند و لیستِ پرداخت‌ها را برمی‌گرداند.
+
+    `rates` جدولِ نرخِ هر سطح بر حسبِ bps است؛ در نبودش نرخِ شارژِ کیف
+    (`LEVEL_RATES_BPS`) به کار می‌رود. جریانِ فروش `SHOP_LEVEL_RATES_BPS` را
+    می‌دهد تا پرداخت از کارمزدِ همان معامله بیشتر نشود.
+    """
     cur = (currency or "IRR").upper()
+    table = rates if rates is not None else LEVEL_RATES_BPS
     payouts: List[dict] = []
     if not base_amount or base_amount <= 0:
         return payouts
@@ -69,7 +87,7 @@ async def distribute_commission(
 
     visited = {source_user_id}
     level = 1
-    while node is not None and node.referred_by is not None and level <= MAX_LEVEL:
+    while node is not None and node.referred_by is not None and level <= len(table):
         up_id = node.referred_by
         if up_id in visited:          # حلقه → توقف
             break
@@ -79,7 +97,7 @@ async def distribute_commission(
         if upline is None:
             break
 
-        rate = LEVEL_RATES_BPS[level - 1]
+        rate = table[level - 1]
         comm = (base_amount * rate) // 10000
         if comm > 0:
             up_wallet = await _get_or_create_wallet(

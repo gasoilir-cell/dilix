@@ -2,14 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  Check, Loader2, Package, Plus, Search, ShoppingBag, ShoppingCart,
+  Check, Loader2, Package, Plus, Search, Send, ShoppingBag, ShoppingCart,
   Store, Trash2, Truck, X,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
 import AppShell from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/Button";
-import { getApiErrorMessage, shopApi } from "@/lib/api";
+import { getApiErrorMessage, messagesApi, shopApi } from "@/lib/api";
 import { toPersianNum } from "@/lib/utils";
 import { useTranslation } from "@/store/i18n";
 
@@ -78,6 +78,14 @@ interface Order {
   can_cancel: boolean;
 }
 
+/** فقط چیزی که برای انتخابِ گفتگو لازم است — نه کلِ شکلِ اتاق. */
+interface ChatRoomLite {
+  id: string;
+  name?: string | null;
+  partner_name?: string | null;
+  partner_earth_id?: string | null;
+}
+
 type Tab = "browse" | "mine" | "orders" | "sales";
 
 const STATUS_STYLE: Record<string, string> = {
@@ -107,6 +115,36 @@ export default function ShopPage() {
   const [nStock, setNStock] = useState("");
   const [nDesc, setNDesc] = useState("");
   const [creating, setCreating] = useState(false);
+
+  // انتخابِ گفتگو برای فرستادنِ کارتِ کالا. فهرستِ گفتگوها فقط وقتی گرفته
+  // می‌شود که کاربر دکمه را بزند؛ صفحهٔ فروشگاه نباید برای قابلیتی که شاید
+  // هرگز لمس نشود یک درخواستِ اضافه بزند.
+  const [shareFor, setShareFor] = useState<Product | null>(null);
+  const [shareRooms, setShareRooms] = useState<ChatRoomLite[] | null>(null);
+
+  async function openShare(p: Product) {
+    setShareFor(p);
+    setShareRooms(null);
+    try {
+      const { data } = await messagesApi.listRooms();
+      setShareRooms(data || []);
+    } catch (e) {
+      toast.error(getApiErrorMessage(e));
+      setShareFor(null);
+    }
+  }
+
+  async function doShare(roomId: string) {
+    if (!shareFor) return;
+    const p = shareFor;
+    setShareFor(null);
+    try {
+      await shopApi.shareProduct(p.id, roomId);
+      toast.success(t("shop.sharedToChat"));
+    } catch (e) {
+      toast.error(getApiErrorMessage(e));
+    }
+  }
 
   const loadCatalog = useCallback(async (q?: string) => {
     try {
@@ -409,17 +447,27 @@ export default function ShopPage() {
                     </div>
                   </div>
                 </div>
-                <Button
-                  size="sm"
-                  onClick={() => buy(p)}
-                  disabled={busy === p.id}
-                  className="w-full mt-3"
-                >
-                  {busy === p.id
-                    ? <Loader2 className="w-4 h-4 animate-spin" />
-                    : <ShoppingCart className="w-4 h-4" />}
-                  {t("shop.buy")}
-                </Button>
+                <div className="flex gap-2 mt-3">
+                  <Button
+                    size="sm"
+                    onClick={() => buy(p)}
+                    disabled={busy === p.id}
+                    className="flex-1"
+                  >
+                    {busy === p.id
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <ShoppingCart className="w-4 h-4" />}
+                    {t("shop.buy")}
+                  </Button>
+                  <button
+                    onClick={() => openShare(p)}
+                    title={t("shop.shareToChat")}
+                    aria-label={t("shop.shareToChat")}
+                    className="px-3 rounded-xl bg-surface-800 text-surface-300 hover:text-surface-50"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             ))}
 
@@ -521,14 +569,24 @@ export default function ShopPage() {
                   </div>
                 </div>
                 {p.is_active && (
-                  <button
-                    onClick={() => removeProduct(p)}
-                    disabled={busy === p.id}
-                    className="p-2 rounded-lg text-surface-400 hover:text-red-400 hover:bg-red-500/8 transition-colors shrink-0"
-                    aria-label={t("shop.remove")}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <>
+                    <button
+                      onClick={() => openShare(p)}
+                      className="p-2 rounded-lg text-surface-400 hover:text-primary hover:bg-primary/8 transition-colors shrink-0"
+                      aria-label={t("shop.shareToChat")}
+                      title={t("shop.shareToChat")}
+                    >
+                      <Send className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => removeProduct(p)}
+                      disabled={busy === p.id}
+                      className="p-2 rounded-lg text-surface-400 hover:text-red-400 hover:bg-red-500/8 transition-colors shrink-0"
+                      aria-label={t("shop.remove")}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </>
                 )}
               </div>
             ))}
@@ -556,6 +614,49 @@ export default function ShopPage() {
               </div>
             )}
             {sales.map((o) => <OrderCard key={o.id} o={o} side="sell" />)}
+          </div>
+        )}
+
+        {/* ── انتخابِ گفتگو برای فرستادنِ کارتِ کالا ─────────────────────── */}
+        {shareFor && (
+          <div
+            className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4"
+            onClick={() => setShareFor(null)}
+          >
+            <div
+              className="w-full sm:max-w-sm max-h-[70vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-surface-900 p-4 space-y-2"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-surface-50">
+                  {t("shop.shareToChat")}
+                </span>
+                <button onClick={() => setShareFor(null)} aria-label={t("chat.close")}>
+                  <X className="w-4 h-4 text-surface-400" />
+                </button>
+              </div>
+              <div className="text-xs text-surface-400 truncate">{shareFor.title}</div>
+
+              {shareRooms === null ? (
+                <div className="py-8 flex justify-center">
+                  <Loader2 className="w-5 h-5 animate-spin text-surface-500" />
+                </div>
+              ) : shareRooms.length === 0 ? (
+                <div className="py-8 text-center text-surface-400 text-sm">
+                  {t("shop.noChats")}
+                </div>
+              ) : (
+                shareRooms.map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => doShare(r.id)}
+                    className="w-full text-start px-3 py-2.5 rounded-xl bg-surface-800 hover:bg-surface-700 text-surface-100 text-sm truncate"
+                  >
+                    {r.name || r.partner_name || r.partner_earth_id || r.id}
+                  </button>
+                ))
+              )}
+            </div>
           </div>
         )}
       </div>

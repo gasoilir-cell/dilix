@@ -7,6 +7,7 @@ Dilix — فروشگاه و پرداختِ امانی (Checkout) درون‌چت
     PATCH  /api/v1/shop/products/{id}         ویرایش
     DELETE /api/v1/shop/products/{id}         غیرفعال‌سازی
     GET    /api/v1/shop/products/{id}         جزئیاتِ یک کالا
+    POST   /api/v1/shop/products/{id}/share   فرستادنِ کارتِ کالا داخلِ گفتگو
 
     POST   /api/v1/shop/orders                سفارش + بلوکِ وجه (+ کارتِ درون‌چت)
     GET    /api/v1/shop/orders/mine           خریدهای من
@@ -46,6 +47,7 @@ from app.api.deps import get_current_user
 from app.core.database import Base, get_db
 from app.models.messages import Message, RoomMember
 from app.models.user import User
+from app.services.mlm import SHOP_LEVEL_RATES_BPS, distribute_commission
 from app.services.wallet_ops import lock_escrow, refund_escrow, release_escrow
 
 router = APIRouter(prefix="/shop", tags=["Shop"])
@@ -178,6 +180,10 @@ class ProductOut(BaseModel):
     is_active: bool
     sold_count: int
     created_at: datetime
+
+
+class ShareIn(BaseModel):
+    room_id: str
 
 
 class OrderIn(BaseModel):
@@ -408,6 +414,59 @@ async def deactivate_product(
         raise HTTPException(status_code=404, detail="کالا پیدا نشد")
     p.is_active = False
     await db.commit()
+
+
+@router.post("/products/{product_id}/share", status_code=201)
+async def share_product(
+    product_id: str,
+    body: ShareIn,
+    db: AsyncSession = Depends(get_db),
+    me: User = Depends(get_current_user),
+):
+    """فرستادنِ کارتِ کالا داخلِ گفتگو.
+
+    تا امروز مسیرِ فروش یک‌طرفه بود: خریدار باید خودش کالا را در فروشگاه پیدا
+    می‌کرد و سفارش می‌داد. فروشنده هیچ راهی نداشت کالا را در همان گفتگویی که
+    دارد چانه می‌زند نشان بدهد جز چسباندنِ لینک — و لینک از اپ بیرون می‌بَرد.
+    این مسیر همان کارتِ زندهٔ کالا را داخلِ چت می‌گذارد.
+
+    برخلافِ کارتِ **سفارش** (که فقط در اتاقِ خریدار-فروشنده ساخته می‌شود)، اینجا
+    فقط عضویتِ **فرستنده** لازم است: اشتراکِ کالا مثلِ فرستادنِ یک لینک است و
+    کالای فعال عمومی است. تنها چیزی که حتماً باید بسته بماند تزریقِ پیام به
+    اتاقی است که فرستنده عضوش نیست.
+
+    پیام فقط `id`ِ کالا را حمل می‌کند، نه قیمت را؛ قیمت و موجودی بعداً عوض
+    می‌شوند و کارت باید همان چیزی را نشان دهد که در لحظهٔ خرید واقعی است.
+    """
+    try:
+        pid = _uuid.UUID(product_id)
+        rid = _uuid.UUID(body.room_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="کالا پیدا نشد")
+
+    p = (await db.execute(
+        select(ShopProduct).where(ShopProduct.id == pid, ShopProduct.is_active.is_(True))
+    )).scalar_one_or_none()
+    if p is None:
+        raise HTTPException(status_code=404, detail="کالا پیدا نشد")
+
+    mine = (await db.execute(
+        select(func.count()).select_from(RoomMember).where(
+            RoomMember.room_id == rid, RoomMember.user_id == me.id
+        )
+    )).scalar_one()
+    if not int(mine or 0):
+        raise HTTPException(status_code=403, detail="عضوِ این گفتگو نیستید")
+
+    msg = Message(
+        room_id=rid, sender_id=me.id,
+        content=f"🏷️ {p.title}",
+        media_type="product", media_name=str(p.id),
+    )
+    db.add(msg)
+    await db.commit()
+    await db.refresh(msg)
+    return {"message_id": str(msg.id), "product_id": str(p.id)}
 
 
 @router.get("/products/{product_id}", response_model=ProductOut)
@@ -678,6 +737,19 @@ async def _settle(db: AsyncSession, o: ShopOrder) -> None:
     o.escrow_status = "released"
     o.status = "completed"
     o.closed_at = _now()
+
+    # پاداشِ رفرال روی **فروش**، نه فقط شارژِ کیف. تا پیش از این تنها
+    # `paygate/verify` کمیسیون توزیع می‌کرد، یعنی معرف از خریدِ زیرمجموعه‌اش
+    # هیچ درآمدی نداشت و کلِ زنجیرهٔ ارزشِ تجاری از سیستمِ بازاریابی جدا بود.
+    # نرخِ فروش عمداً از دلِ همین کارمزدِ ۲٪ برداشته می‌شود (نگاه کن به
+    # `SHOP_LEVEL_RATES_BPS`)، پس هر سفارشِ معرف‌دار همچنان برای پلتفرم
+    # سودده می‌مانَد. اینجا امن است چون گاردِ `escrow_status != "locked"`
+    # بالای همین تابع تضمین می‌کند تسویه فقط یک‌بار اجرا شود.
+    await distribute_commission(
+        db, o.buyer_id, total, "IRR",
+        source_type="shop", reference_id=o.ref,
+        rates=SHOP_LEVEL_RATES_BPS,
+    )
 
     p = (await db.execute(
         select(ShopProduct).where(ShopProduct.id == o.product_id).with_for_update()
