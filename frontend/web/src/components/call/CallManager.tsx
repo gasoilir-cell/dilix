@@ -109,6 +109,11 @@ function tuneSdp(sdp: string): string {
 }
 const RING_TIMEOUT_MS = 35_000;
 
+// آهنگِ pollِ fallback — همان ۱.۵ثانیهٔ قبل. فقط تا وقتی WebSocket باز نشده فعال است.
+const POLL_MS = 1_500;
+// pingِ کلاینت: پروکسی/CDN اتصالِ بی‌ترافیک را معمولاً بعدِ ۶۰ثانیه می‌بندد.
+const PING_MS = 25_000;
+
 function fmtDur(s: number): string {
   const m = Math.floor(s / 60);
   const ss = Math.floor(s % 60);
@@ -594,22 +599,112 @@ export default function CallManager() {
     }
   }, [cleanup, logCall, startDurTimer, applyLocalMedia, flushRemoteIce]);
 
-  // ── Poll loop (presence heartbeat + signal delivery) ────
+  // ── تحویلِ سیگنال: WebSocket با fallbackِ خودکار به poll ────
+  //
+  // چرا هر دو مسیر می‌مانند: در حالتِ poll هر کاربرِ لاگین‌کرده — حتی بی‌کار —
+  // هر ۱.۵ ثانیه یک درخواست می‌زند و ~۹۹٪ پاسخ‌ها خالی است؛ این تنها محرکِ
+  // ظرفیتِ سرویس بود. با WebSocket کاربرِ بی‌کار عملاً صفر درخواست می‌زند.
+  // ولی «تماسِ ازدست‌رفته» خرابیِ شدیدی است، پس اگر WS به هر دلیلی برقرار نشود
+  // (پروکسی، شبکهٔ سخت‌گیر، فیلترِ میانی) poll خودکار برمی‌گردد و تماس کار می‌کند.
+  // منبعِ حقیقت در هر دو مسیر همان صفِ سمتِ سرور است و درِین اتمی است، پس
+  // هم‌پوشانیِ لحظه‌ایِ دو مسیر باعثِ تحویلِ تکراری نمی‌شود.
+  const handleSignalRef = useRef(handleSignal);
+  useEffect(() => { handleSignalRef.current = handleSignal; }, [handleSignal]);
+
   useEffect(() => {
     if (!isAuthenticated) return;
-    const tick = async () => {
+
+    let stopped = false;
+    let ws: WebSocket | null = null;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let pingTimer: ReturnType<typeof setInterval> | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let attempt = 0;
+
+    const drain = async () => {
       if (pollBusyRef.current) return;
       pollBusyRef.current = true;
       try {
         const res = await callsApi.poll();
         const signals: Signal[] = res.data?.signals ?? [];
-        for (const s of signals) await handleSignal(s);
+        for (const s of signals) await handleSignalRef.current(s);
       } catch { /* noop */ } finally { pollBusyRef.current = false; }
     };
-    tick();
-    const id = setInterval(tick, 1500);
-    return () => clearInterval(id);
-  }, [isAuthenticated, handleSignal]);
+
+    const startPoll = () => {
+      if (pollTimer || stopped) return;
+      drain();
+      pollTimer = setInterval(drain, POLL_MS);
+    };
+    const stopPoll = () => {
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    };
+
+    const scheduleRetry = () => {
+      if (stopped || retryTimer) return;
+      attempt += 1;
+      // عقب‌نشینیِ نمایی + jitter تا رعدِ اتصالِ هم‌زمانِ همهٔ کلاینت‌ها بعدِ ری‌استارت نشود
+      const delay = Math.min(30_000, 1_000 * 2 ** Math.min(attempt, 5)) + Math.random() * 500;
+      retryTimer = setTimeout(() => { retryTimer = null; connect(); }, delay);
+    };
+
+    const connect = () => {
+      if (stopped) return;
+      const token = useAuthStore.getState().accessToken;
+      if (!token) { startPoll(); scheduleRetry(); return; }
+
+      const base = process.env.NEXT_PUBLIC_API_URL || "";
+      const origin = base
+        ? base.replace(/^http/, "ws")
+        : `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}`;
+      const url = `${origin}/api/v1/ws?token=${encodeURIComponent(token)}`;
+
+      let sock: WebSocket;
+      try { sock = new WebSocket(url); } catch { startPoll(); scheduleRetry(); return; }
+      ws = sock;
+
+      sock.onopen = () => {
+        if (stopped) { sock.close(); return; }
+        attempt = 0;
+        stopPoll();  // ← لحظه‌ای که بارِ دائمیِ این کاربر روی سرور صفر می‌شود
+        pingTimer = setInterval(() => {
+          try { sock.send("ping"); } catch { /* noop */ }
+        }, PING_MS);
+      };
+
+      sock.onmessage = async (ev) => {
+        const data = ev.data;
+        if (typeof data !== "string" || data === "pong") return;
+        try {
+          const msg = JSON.parse(data) as { type?: string; signals?: Signal[] };
+          if (msg.type === "signals" && Array.isArray(msg.signals)) {
+            for (const s of msg.signals) await handleSignalRef.current(s);
+          }
+        } catch { /* noop */ }
+      };
+
+      sock.onclose = () => {
+        if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
+        if (ws === sock) ws = null;
+        if (stopped) return;
+        startPoll();     // تا بازگشتِ WS، تماس نباید از کار بیفتد
+        scheduleRetry();
+      };
+      // onerror همیشه با onclose دنبال می‌شود؛ منطقِ بازگشت فقط یک‌جا بماند.
+      sock.onerror = () => { /* noop */ };
+    };
+
+    startPoll();  // پوششِ کامل تا لحظهٔ برقراریِ WS
+    connect();
+
+    return () => {
+      stopped = true;
+      stopPoll();
+      if (pingTimer) clearInterval(pingTimer);
+      if (retryTimer) clearTimeout(retryTimer);
+      if (ws) { ws.onclose = null; try { ws.close(); } catch { /* noop */ } }
+    };
+  }, [isAuthenticated]);
 
   // cleanup on unmount
   useEffect(() => () => cleanup(), [cleanup]);

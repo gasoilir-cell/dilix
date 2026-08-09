@@ -33,6 +33,7 @@ from app.api.v1.messages.router import _get_or_create_direct_room
 router = APIRouter(prefix="/calls", tags=["Calls"])
 
 Q_PREFIX = "calls:q:"        # LIST به‌ازای هر earth_id — صفِ سیگنال
+EV_PREFIX = "calls:ev:"      # کانالِ pub/sub — فقط «زنگِ بیدارباش» برای WebSocket
 SEEN_PREFIX = "calls:seen:"  # کلیدِ حضور (heartbeat با TTL)
 ROSTER_PREFIX = "calls:roster:"  # SET به‌ازای هر call_id — اعضای تماسِ گروهی
 Q_TTL = 90
@@ -88,6 +89,10 @@ async def _push(r, to_earth: str, obj: dict) -> None:
     await r.lpush(key, json.dumps(obj))
     await r.ltrim(key, 0, MAX_Q - 1)
     await r.expire(key, Q_TTL)
+    # زنگِ بیدارباش برای نشستِ WebSocketِ گیرنده (که معمولاً روی workerِ دیگری است).
+    # payload عمداً خالی است: منبعِ حقیقت همان صفِ بالاست تا سیگنال دوباره تحویل نشود.
+    # اگر هیچ مشترکی نباشد (کلاینتِ pollـی) این یک no-opِ ارزان است.
+    await r.publish(EV_PREFIX + to_earth, "1")
 
 
 # ── فهرستِ اعضای تماس (mesh) ──────────────────────────────────

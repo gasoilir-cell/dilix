@@ -223,6 +223,11 @@ app.include_router(stories_router, prefix="/api/v1")
 from app.api.v1.calls.router import router as calls_router
 app.include_router(calls_router, prefix="/api/v1")
 
+# ─── Realtime (WebSocket) — جایگزینِ pollِ سیگنالینگ ────────
+# `/calls/poll` عمداً باقی می‌مانَد: کلاینتِ قدیمی و fallbackِ خودکارِ وب به آن تکیه دارند.
+from app.api.v1.realtime.router import router as realtime_router
+app.include_router(realtime_router, prefix="/api/v1")
+
 # ─── Reels (ویدیوهای کوتاه) ────────────────
 from app.models.reels import Reel, ReelLike, ReelComment  # noqa: F401
 from app.api.v1.reels.router import router as reels_router

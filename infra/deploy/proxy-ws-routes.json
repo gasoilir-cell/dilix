@@ -1,0 +1,6 @@
+{
+  "_comment": "مسیرِ ارتقاءِ WebSocket بر اساسِ پیشوندِ مسیر. بدونِ این فایل، پروکسی دقیقاً مثلِ قبل فقط بر اساسِ Host مسیریابی می‌کند. مقصدِ /api/v1/ws مستقیم dilix-api است تا از Next رد نشود (rewriteهای Next ارتقاءِ WebSocket را عبور نمی‌دهند).",
+  "dilix.ir": [
+    { "prefix": "/api/v1/ws", "target": "localhost:8000" }
+  ]
+}
