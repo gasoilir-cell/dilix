@@ -4062,6 +4062,10 @@ class ShopProduct {
     this.sellerName,
     this.description,
     this.imageUrl,
+    this.images = const [],
+    this.ratingAvg,
+    this.ratingCount = 0,
+    this.hasVariants = false,
   });
 
   final String id;
@@ -4073,11 +4077,20 @@ class ShopProduct {
   final String currency;
   final int stock;
   final String? imageUrl;
+  final List<String> images;
   final bool isActive;
   final int soldCount;
   final DateTime createdAt;
+  final double? ratingAvg;
+  final int ratingCount;
+  final bool hasVariants;
 
   bool get unlimited => stock == -1;
+
+  /// همهٔ تصویرها؛ اگر `images` خالی بود، تصویرِ تکیِ قدیمی جایگزینش می‌شود
+  /// تا کالاهای پیش از موجِ B هم عکس داشته باشند.
+  List<String> get gallery =>
+      images.isNotEmpty ? images : (imageUrl != null ? [imageUrl!] : const []);
 
   factory ShopProduct.fromJson(Map<String, dynamic> j) => ShopProduct(
         id: j['id'] as String,
@@ -4089,8 +4102,151 @@ class ShopProduct {
         currency: (j['currency'] ?? 'IRR') as String,
         stock: (j['stock'] ?? -1) as int,
         imageUrl: j['image_url'] as String?,
+        images: ((j['images'] as List?) ?? const [])
+            .map((e) => e as String)
+            .toList(),
         isActive: (j['is_active'] ?? true) as bool,
         soldCount: (j['sold_count'] ?? 0) as int,
+        createdAt: DateTime.parse(j['created_at'] as String).toLocal(),
+        ratingAvg: (j['rating_avg'] as num?)?.toDouble(),
+        ratingCount: (j['rating_count'] ?? 0) as int,
+        hasVariants: (j['has_variants'] ?? false) as bool,
+      );
+}
+
+/// یک گونهٔ کالا (رنگ/سایز/…) — موجودی و قیمتش مستقل از خودِ کالاست.
+class ShopVariant {
+  const ShopVariant({
+    required this.id,
+    required this.productId,
+    required this.name,
+    required this.stock,
+    required this.isActive,
+    this.price,
+    this.imageUrl,
+  });
+
+  final String id;
+  final String productId;
+  final String name;
+  final int? price; // null یعنی هم‌قیمتِ کالا
+  final int stock;
+  final String? imageUrl;
+  final bool isActive;
+
+  bool get unlimited => stock == -1;
+
+  factory ShopVariant.fromJson(Map<String, dynamic> j) => ShopVariant(
+        id: j['id'] as String,
+        productId: (j['product_id'] ?? '') as String,
+        name: (j['name'] ?? '') as String,
+        price: (j['price'] as num?)?.toInt(),
+        stock: (j['stock'] ?? -1) as int,
+        imageUrl: j['image_url'] as String?,
+        isActive: (j['is_active'] ?? true) as bool,
+      );
+}
+
+/// یک ردیفِ سفارش — از موجِ B، هر سفارش می‌تواند چند ردیف داشته باشد.
+class ShopOrderItem {
+  const ShopOrderItem({
+    required this.productId,
+    required this.title,
+    required this.unitPrice,
+    required this.qty,
+    required this.subtotal,
+    this.variantId,
+  });
+
+  final String productId;
+  final String? variantId;
+  final String title;
+  final int unitPrice;
+  final int qty;
+  final int subtotal;
+
+  factory ShopOrderItem.fromJson(Map<String, dynamic> j) => ShopOrderItem(
+        productId: (j['product_id'] ?? '') as String,
+        variantId: j['variant_id'] as String?,
+        title: (j['title'] ?? '') as String,
+        unitPrice: (j['unit_price'] ?? 0) as int,
+        qty: (j['qty'] ?? 1) as int,
+        subtotal: (j['subtotal'] ?? 0) as int,
+      );
+}
+
+/// نظرِ یک خریدار روی کالا — فقط پس از تحویلِ سفارش ممکن است.
+class ShopReview {
+  const ShopReview({
+    required this.id,
+    required this.productId,
+    required this.buyerEarthId,
+    required this.rating,
+    required this.createdAt,
+    this.buyerName,
+    this.comment,
+  });
+
+  final String id;
+  final String productId;
+  final String buyerEarthId;
+  final String? buyerName;
+  final int rating;
+  final String? comment;
+  final DateTime createdAt;
+
+  factory ShopReview.fromJson(Map<String, dynamic> j) => ShopReview(
+        id: j['id'] as String,
+        productId: (j['product_id'] ?? '') as String,
+        buyerEarthId: (j['buyer_earth_id'] ?? '') as String,
+        buyerName: j['buyer_name'] as String?,
+        rating: (j['rating'] ?? 0) as int,
+        comment: j['comment'] as String?,
+        createdAt: DateTime.parse(j['created_at'] as String).toLocal(),
+      );
+}
+
+/// کدِ تخفیفِ یک فروشنده — یا رویِ یک کالای مشخص، یا رویِ کلِ فروشگاهش.
+class ShopCoupon {
+  const ShopCoupon({
+    required this.id,
+    required this.code,
+    required this.discountType,
+    required this.discountValue,
+    required this.usedCount,
+    required this.isActive,
+    required this.createdAt,
+    this.productId,
+    this.maxUses,
+    this.minOrderTotal = 0,
+    this.expiresAt,
+  });
+
+  final String id;
+  final String code;
+  final String? productId;
+  final String discountType; // percent | fixed
+  final int discountValue;
+  final int? maxUses;
+  final int usedCount;
+  final int minOrderTotal;
+  final DateTime? expiresAt;
+  final bool isActive;
+  final DateTime createdAt;
+
+  factory ShopCoupon.fromJson(Map<String, dynamic> j) => ShopCoupon(
+        id: j['id'] as String,
+        code: (j['code'] ?? '') as String,
+        productId: j['product_id'] as String?,
+        discountType: (j['discount_type'] ?? 'percent') as String,
+        discountValue: (j['discount_value'] ?? 0) as int,
+        maxUses: (j['max_uses'] as num?)?.toInt(),
+        usedCount: (j['used_count'] ?? 0) as int,
+        minOrderTotal: (j['min_order_total'] ?? 0) as int,
+        expiresAt: j['expires_at'] == null
+            ? null
+            : DateTime.parse(j['expires_at'] as String).toLocal(),
+        isActive: (j['is_active'] ?? true) as bool,
         createdAt: DateTime.parse(j['created_at'] as String).toLocal(),
       );
 }
@@ -4124,6 +4280,9 @@ class ShopOrder {
     this.canShip = false,
     this.canComplete = false,
     this.canCancel = false,
+    this.discount = 0,
+    this.couponCode,
+    this.items = const [],
   });
 
   final String id;
@@ -4151,6 +4310,9 @@ class ShopOrder {
   final bool canShip;
   final bool canComplete;
   final bool canCancel;
+  final int discount;
+  final String? couponCode;
+  final List<ShopOrderItem> items;
 
   bool get escrowLocked => escrowStatus == 'locked';
   bool get hasAction => canAccept || canShip || canComplete || canCancel;
@@ -4184,6 +4346,11 @@ class ShopOrder {
         canShip: (j['can_ship'] ?? false) as bool,
         canComplete: (j['can_complete'] ?? false) as bool,
         canCancel: (j['can_cancel'] ?? false) as bool,
+        discount: (j['discount'] ?? 0) as int,
+        couponCode: j['coupon_code'] as String?,
+        items: ((j['items'] as List?) ?? const [])
+            .map((e) => ShopOrderItem.fromJson(e as Map<String, dynamic>))
+            .toList(),
       );
 }
 

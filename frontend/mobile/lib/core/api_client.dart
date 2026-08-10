@@ -2799,6 +2799,7 @@ class ApiClient {
     required int price,
     String? description,
     String? imageUrl,
+    List<String>? images,
     int stock = -1,
   }) async =>
       ShopProduct.fromJson(await _post('/api/v1/shop/products', {
@@ -2808,7 +2809,104 @@ class ApiClient {
         if (description != null && description.isNotEmpty)
           'description': description,
         if (imageUrl != null && imageUrl.isNotEmpty) 'image_url': imageUrl,
+        if (images != null && images.isNotEmpty) 'images': images,
       }) as Map<String, dynamic>);
+
+  /// فرستادنِ کارتِ کالا در یک گفتگو — فقط عضویتِ فرستنده لازم است.
+  Future<void> shareProduct(String productId, String roomId) =>
+      _post('/api/v1/shop/products/$productId/share', {'room_id': roomId});
+
+  // ── گونهٔ کالا (موجِ B) ──────────────────────────────────────────────────
+
+  Future<ShopVariant> addVariant(
+    String productId, {
+    required String name,
+    int? price,
+    int stock = -1,
+    String? imageUrl,
+  }) async =>
+      ShopVariant.fromJson(await _post(
+        '/api/v1/shop/products/$productId/variants',
+        {
+          'name': name,
+          'stock': stock,
+          if (price != null) 'price': price,
+          if (imageUrl != null && imageUrl.isNotEmpty) 'image_url': imageUrl,
+        },
+      ) as Map<String, dynamic>);
+
+  Future<List<ShopVariant>> listVariants(String productId) async =>
+      ((await _get('/api/v1/shop/products/$productId/variants')) as List)
+          .map((e) => ShopVariant.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  Future<ShopVariant> updateVariant(
+    String productId,
+    String variantId,
+    Map<String, dynamic> body,
+  ) async =>
+      ShopVariant.fromJson(await _patch(
+        '/api/v1/shop/products/$productId/variants/$variantId',
+        body,
+      ) as Map<String, dynamic>);
+
+  /// غیرفعال‌سازی، نه حذف؛ سفارش‌های گذشته باید گونهٔ خود را داشته باشند.
+  Future<void> deactivateVariant(String productId, String variantId) =>
+      _delete('/api/v1/shop/products/$productId/variants/$variantId');
+
+  // ── نظرات (موجِ B) ──────────────────────────────────────────────────────
+
+  Future<List<ShopReview>> listReviews(String productId) async =>
+      ((await _get('/api/v1/shop/products/$productId/reviews')) as List)
+          .map((e) => ShopReview.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  /// فقط پس از `status == completed` و فقط توسطِ خریدارِ همان سفارش ممکن است.
+  Future<void> reviewOrder(
+    String orderId, {
+    required String productId,
+    required int rating,
+    String? comment,
+  }) =>
+      _post('/api/v1/shop/orders/$orderId/review', {
+        'product_id': productId,
+        'rating': rating,
+        if (comment != null && comment.isNotEmpty) 'comment': comment,
+      });
+
+  // ── کدِ تخفیف (موجِ B) ───────────────────────────────────────────────────
+
+  Future<ShopCoupon> createCoupon({
+    required String code,
+    required String discountType,
+    required int discountValue,
+    String? productId,
+    int? maxUses,
+    int minOrderTotal = 0,
+    DateTime? expiresAt,
+  }) async =>
+      ShopCoupon.fromJson(await _post('/api/v1/shop/coupons', {
+        'code': code,
+        'discount_type': discountType,
+        'discount_value': discountValue,
+        if (productId != null) 'product_id': productId,
+        if (maxUses != null) 'max_uses': maxUses,
+        'min_order_total': minOrderTotal,
+        if (expiresAt != null) 'expires_at': expiresAt.toUtc().toIso8601String(),
+      }) as Map<String, dynamic>);
+
+  Future<List<ShopCoupon>> myCoupons() async =>
+      ((await _get('/api/v1/shop/coupons/mine')) as List)
+          .map((e) => ShopCoupon.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  /// فقط `max_uses`/`expires_at`/`is_active` قابلِ ویرایش‌اند.
+  Future<ShopCoupon> updateCoupon(String id, Map<String, dynamic> body) async =>
+      ShopCoupon.fromJson(
+          await _patch('/api/v1/shop/coupons/$id', body) as Map<String, dynamic>);
+
+  Future<void> deactivateCoupon(String id) =>
+      _delete('/api/v1/shop/coupons/$id');
 
   Future<ShopProduct> updateProduct(String id, Map<String, dynamic> body) async =>
       ShopProduct.fromJson(await _patch('/api/v1/shop/products/$id', body)
@@ -2822,18 +2920,35 @@ class ApiClient {
   /// منتقل. اگر `roomId` بدهی، کارتِ سفارش در همان گفتگو ساخته می‌شود.
   Future<ShopOrder> createOrder({
     required String productId,
+    String? variantId,
     int qty = 1,
     String? roomId,
     String? note,
     String? address,
+    String? couponCode,
   }) async =>
       ShopOrder.fromJson(await _post('/api/v1/shop/orders', {
         'product_id': productId,
         'qty': qty,
+        if (variantId != null) 'variant_id': variantId,
         if (roomId != null && roomId.isNotEmpty) 'room_id': roomId,
         if (note != null && note.isNotEmpty) 'note': note,
         if (address != null && address.isNotEmpty) 'address': address,
+        if (couponCode != null && couponCode.isNotEmpty)
+          'coupon_code': couponCode,
       }) as Map<String, dynamic>);
+
+  /// سبدِ چندفروشنده: به‌ازای هر فروشنده یک سفارش، همه در یک تراکنش.
+  Future<List<ShopOrder>> cartCheckout({
+    required List<Map<String, dynamic>> items,
+    String? address,
+  }) async =>
+      ((await _post('/api/v1/shop/cart/checkout', {
+        'items': items,
+        if (address != null && address.isNotEmpty) 'address': address,
+      })) as List)
+          .map((e) => ShopOrder.fromJson(e as Map<String, dynamic>))
+          .toList();
 
   Future<List<ShopOrder>> myOrders() async =>
       ((await _get('/api/v1/shop/orders/mine')) as List)
